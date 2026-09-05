@@ -19,6 +19,7 @@ export function DriversTable({
   pageSize,
   initialQuery,
   initialStatus,
+  initialType,
 }: {
   drivers: DriverRecord[];
   total: number;
@@ -26,6 +27,7 @@ export function DriversTable({
   pageSize: number;
   initialQuery: string;
   initialStatus: string;
+  initialType: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -93,6 +95,15 @@ export function DriversTable({
             <option value="active">نشط</option>
             <option value="inactive">غير نشط</option>
           </select>
+          <select
+            value={initialType}
+            onChange={(e) => updateParams({ type: e.target.value, page: "1" })}
+            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+          >
+            <option value="">كل الأنواع</option>
+            <option value="internal">موظف داخلي</option>
+            <option value="external">مورد خارجي</option>
+          </select>
         </div>
         <button
           type="button"
@@ -132,6 +143,7 @@ export function DriversTable({
             <thead>
               <tr className="border-b border-zinc-100 text-right text-xs text-zinc-500">
                 <th className="px-4 py-3 font-medium">الاسم</th>
+                <th className="px-4 py-3 font-medium">النوع</th>
                 <th className="px-4 py-3 font-medium">الهاتف</th>
                 <th className="px-4 py-3 font-medium">الراتب الشهري</th>
                 <th className="px-4 py-3 font-medium">تاريخ التعيين</th>
@@ -149,6 +161,17 @@ export function DriversTable({
                     >
                       {driver.name}
                     </Link>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                        driver.employment_type === "external"
+                          ? "bg-purple-100 text-purple-700"
+                          : "bg-blue-100 text-blue-700"
+                      }`}
+                    >
+                      {driver.employment_type === "external" ? "مورد خارجي" : "موظف داخلي"}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-zinc-600" dir="ltr">
                     {driver.phone || "—"}

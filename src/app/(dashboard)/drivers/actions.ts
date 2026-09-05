@@ -19,6 +19,7 @@ export async function createDriver(input: unknown): Promise<ActionResult> {
     salary: parsed.data.salary,
     hire_date: parsed.data.hire_date || null,
     status: parsed.data.status,
+    employment_type: parsed.data.employment_type,
     notes: parsed.data.notes || null,
   });
 
@@ -44,6 +45,7 @@ export async function updateDriver(id: string, input: unknown): Promise<ActionRe
       salary: parsed.data.salary,
       hire_date: parsed.data.hire_date || null,
       status: parsed.data.status,
+      employment_type: parsed.data.employment_type,
       notes: parsed.data.notes || null,
     })
     .eq("id", id);

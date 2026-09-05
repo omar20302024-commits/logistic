@@ -7,11 +7,12 @@ const PAGE_SIZE = 20;
 export default async function DriversPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; type?: string; page?: string }>;
 }) {
   const params = await searchParams;
   const q = params.q?.trim() ?? "";
   const status = params.status === "active" || params.status === "inactive" ? params.status : "";
+  const type = params.type === "internal" || params.type === "external" ? params.type : "";
   const page = Math.max(1, Number(params.page ?? 1) || 1);
 
   const supabase = await createClient();
@@ -23,6 +24,9 @@ export default async function DriversPage({
   }
   if (status) {
     query = query.eq("status", status);
+  }
+  if (type) {
+    query = query.eq("employment_type", type);
   }
 
   const from = (page - 1) * PAGE_SIZE;
@@ -48,6 +52,7 @@ export default async function DriversPage({
         pageSize={PAGE_SIZE}
         initialQuery={q}
         initialStatus={status}
+        initialType={type}
       />
     </div>
   );

@@ -15,6 +15,7 @@ export type DriverRecord = {
   salary: number;
   hire_date: string | null;
   status: "active" | "inactive";
+  employment_type: "internal" | "external";
   notes: string | null;
 };
 
@@ -24,6 +25,7 @@ const emptyValues: DriverFormInput = {
   salary: 0,
   hire_date: "",
   status: "active",
+  employment_type: "internal",
   notes: "",
 };
 
@@ -58,6 +60,7 @@ export function DriverFormModal({
             salary: driver.salary,
             hire_date: driver.hire_date ?? "",
             status: driver.status,
+            employment_type: driver.employment_type,
             notes: driver.notes ?? "",
           }
         : emptyValues
@@ -136,6 +139,17 @@ export function DriverFormModal({
               <option value="inactive">غير نشط</option>
             </select>
           </div>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-zinc-700">نوع السائق</label>
+          <select
+            {...register("employment_type")}
+            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+          >
+            <option value="internal">موظف داخلي (له راتب شهري)</option>
+            <option value="external">مورد خارجي (بدون راتب، بالرحلة)</option>
+          </select>
         </div>
 
         <div className="flex flex-col gap-1.5">

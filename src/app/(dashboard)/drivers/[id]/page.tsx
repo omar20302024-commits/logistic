@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LedgerSection } from "@/components/drivers/LedgerSection";
+import { CustodySection } from "@/components/drivers/CustodySection";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 export default async function DriverDetailPage({
@@ -44,6 +45,7 @@ export default async function DriverDetailPage({
     total_diesel: number;
     operating_profit: number;
     net_salary: number;
+    custody_balance: number;
     total_due_to_driver: number;
   } | null) ?? {
     trips_count: 0,
@@ -52,10 +54,11 @@ export default async function DriverDetailPage({
     total_diesel: 0,
     operating_profit: 0,
     net_salary: 0,
+    custody_balance: 0,
     total_due_to_driver: 0,
   };
 
-  const [{ data: advances }, { data: deductions }] = await Promise.all([
+  const [{ data: advances }, { data: deductions }, { data: custodyEntries }] = await Promise.all([
     supabase
       .from("driver_advances")
       .select("*")
@@ -63,6 +66,11 @@ export default async function DriverDetailPage({
       .order("date", { ascending: false }),
     supabase
       .from("driver_deductions")
+      .select("*")
+      .eq("driver_id", id)
+      .order("date", { ascending: false }),
+    supabase
+      .from("driver_custody_entries")
       .select("*")
       .eq("driver_id", id)
       .order("date", { ascending: false }),
@@ -85,15 +93,26 @@ export default async function DriverDetailPage({
               {driver.phone || "—"}
             </p>
           </div>
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-medium ${
-              driver.status === "active"
-                ? "bg-emerald-100 text-emerald-700"
-                : "bg-zinc-100 text-zinc-500"
-            }`}
-          >
-            {driver.status === "active" ? "نشط" : "غير نشط"}
-          </span>
+          <div className="flex items-center gap-2">
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                driver.employment_type === "external"
+                  ? "bg-purple-100 text-purple-700"
+                  : "bg-blue-100 text-blue-700"
+              }`}
+            >
+              {driver.employment_type === "external" ? "مورد خارجي" : "موظف داخلي"}
+            </span>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                driver.status === "active"
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-zinc-100 text-zinc-500"
+              }`}
+            >
+              {driver.status === "active" ? "نشط" : "غير نشط"}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -147,6 +166,12 @@ export default async function DriverDetailPage({
             icon={Wallet}
           />
           <StatCard
+            label="رصيد العهدة"
+            value={formatCurrency(Math.abs(s.custody_balance), currencySymbol)}
+            icon={Wallet}
+            tone={s.custody_balance > 0 ? "warning" : s.custody_balance < 0 ? "negative" : "default"}
+          />
+          <StatCard
             label="إجمالي المستحق للسائق"
             value={formatCurrency(s.total_due_to_driver, currencySymbol)}
             icon={Banknote}
@@ -169,6 +194,13 @@ export default async function DriverDetailPage({
           currencySymbol={currencySymbol}
         />
       </div>
+
+      <CustodySection
+        driverId={id}
+        entries={custodyEntries ?? []}
+        balance={s.custody_balance}
+        currencySymbol={currencySymbol}
+      />
 
       {driver.notes && (
         <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600">

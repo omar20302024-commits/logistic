@@ -6,6 +6,7 @@ export const driverSchema = z.object({
   salary: z.coerce.number().min(0, "الراتب يجب أن يكون رقماً موجباً"),
   hire_date: z.string().trim().optional().or(z.literal("")),
   status: z.enum(["active", "inactive"]),
+  employment_type: z.enum(["internal", "external"]),
   notes: z.string().trim().optional().or(z.literal("")),
 });
 
