@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LedgerSection } from "@/components/drivers/LedgerSection";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 export default async function DriverDetailPage({
   params,
@@ -28,7 +29,7 @@ export default async function DriverDetailPage({
     .single();
   const currencySymbol = settings?.currency_symbol ?? "ر.س";
 
-  const { data: summary } = await supabase
+  const { data: summary, error: summaryError } = await supabase
     .rpc("fn_driver_period_summary", {
       p_driver_id: id,
       p_from: "2000-01-01",
@@ -111,6 +112,8 @@ export default async function DriverDetailPage({
           تقرير الربحية (قريباً)
         </button>
       </div>
+
+      <ErrorBanner error={summaryError} hint="تأكد من تشغيل ملف SQL رقم 0003 (دالة fn_driver_period_summary)." />
 
       <div>
         <h2 className="mb-3 text-sm font-bold text-zinc-900">ملخص كل الأوقات</h2>

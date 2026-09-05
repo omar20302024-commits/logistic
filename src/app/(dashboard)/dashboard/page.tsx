@@ -17,6 +17,7 @@ import { ProfitabilityBreakdown } from "@/components/dashboard/ProfitabilityBrea
 import { MonthlyRevenueChart } from "@/components/dashboard/MonthlyRevenueChart";
 import { TripsCountChart } from "@/components/dashboard/TripsCountChart";
 import { ProfitabilityRankingChart } from "@/components/dashboard/ProfitabilityRankingChart";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 type Overview = {
   drivers_count: number;
@@ -93,8 +94,6 @@ export default async function DashboardPage() {
   );
   const currencySymbol = settingsRes.data?.currency_symbol ?? "ر.س";
 
-  const setupNeeded = overviewRes.error?.code === "PGRST202" || overviewRes.error?.code === "42883";
-
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -104,12 +103,10 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {setupNeeded && (
-        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          يبدو أن دوال التحليلات (supabase/migrations/0004_dashboard_analytics.sql) لم تُشغَّل بعد
-          على قاعدة البيانات. شغّلها من Supabase SQL Editor ثم أعد تحميل الصفحة.
-        </div>
-      )}
+      <ErrorBanner
+        error={overviewRes.error}
+        hint="تأكد من تشغيل ملف SQL رقم 0004 (دوال لوحة التحكم)."
+      />
 
       {/* بطاقات الإحصائيات */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">

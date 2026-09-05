@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { DriversTable } from "@/components/drivers/DriversTable";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 const PAGE_SIZE = 20;
 
@@ -38,11 +39,7 @@ export default async function DriversPage({
         <p className="text-sm text-zinc-500">إدارة بيانات السائقين وحالاتهم</p>
       </div>
 
-      {error && (
-        <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
-          حدث خطأ أثناء تحميل بيانات السائقين. تأكد من تشغيل ملفات SQL على قاعدة البيانات.
-        </div>
-      )}
+      <ErrorBanner error={error} hint="تأكد من تشغيل ملف SQL رقم 0001 (جدول drivers)." />
 
       <DriversTable
         drivers={data ?? []}

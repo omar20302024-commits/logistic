@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { StatementFilters } from "@/components/statement/StatementFilters";
 import { InternalStatementView } from "@/components/statement/InternalStatementView";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { FileText } from "lucide-react";
 
 function firstDayOfMonth() {
@@ -49,6 +50,7 @@ export default async function StatementPage({
   let driver: { id: string; name: string; phone: string | null } | null = null;
   let summary: Summary | null = null;
   let trips: unknown[] = [];
+  let statementError = null;
 
   if (driverId) {
     const [driverRes, summaryRes, tripsRes] = await Promise.all([
@@ -59,6 +61,7 @@ export default async function StatementPage({
     driver = driverRes.data;
     summary = summaryRes.data as Summary | null;
     trips = tripsRes.data ?? [];
+    statementError = summaryRes.error ?? tripsRes.error;
   }
 
   return (
@@ -75,6 +78,8 @@ export default async function StatementPage({
         to={to}
         hasSelection={!!driverId}
       />
+
+      <ErrorBanner error={statementError} hint="تأكد من تشغيل ملف SQL رقم 0003 (دوال كشف حساب السائق)." />
 
       {!driverId ? (
         <EmptyState

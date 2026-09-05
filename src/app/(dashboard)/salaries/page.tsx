@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { SalariesTable } from "@/components/salaries/SalariesTable";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 const PAGE_SIZE = 20;
 
@@ -37,11 +38,7 @@ export default async function SalariesPage({
         <p className="text-sm text-zinc-500">تسجيل ومتابعة رواتب السائقين الشهرية</p>
       </div>
 
-      {error && (
-        <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
-          حدث خطأ أثناء تحميل الرواتب. تأكد من تشغيل ملف SQL رقم 0005 (v_salary_statements).
-        </div>
-      )}
+      <ErrorBanner error={error} hint="تأكد من تشغيل ملف SQL رقم 0005 (v_salary_statements)." />
 
       <SalariesTable
         salaries={data ?? []}

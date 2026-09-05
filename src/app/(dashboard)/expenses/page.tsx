@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { ExpensesTable } from "@/components/expenses/ExpensesTable";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 const PAGE_SIZE = 20;
 
@@ -44,11 +45,7 @@ export default async function ExpensesPage({
         <p className="text-sm text-zinc-500">مصروفات إدارية عامة تُخصم من الربح التشغيلي في التقرير المالي</p>
       </div>
 
-      {error && (
-        <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
-          حدث خطأ أثناء تحميل المصروفات.
-        </div>
-      )}
+      <ErrorBanner error={error} hint="تأكد من تشغيل ملف SQL رقم 0001 (جدول expenses)." />
 
       <ExpensesTable
         expenses={data ?? []}

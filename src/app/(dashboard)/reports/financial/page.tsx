@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { FinancialReportView } from "@/components/reports/FinancialReportView";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 function firstDayOfMonth() {
   const now = new Date();
@@ -20,7 +21,7 @@ export default async function FinancialReportPage({
 
   const supabase = await createClient();
 
-  const [{ data: summary }, { data: settings }] = await Promise.all([
+  const [{ data: summary, error }, { data: settings }] = await Promise.all([
     supabase.rpc("fn_financial_summary", { p_from: from, p_to: to }).single(),
     supabase.from("settings").select("currency_symbol").single(),
   ]);
@@ -51,6 +52,8 @@ export default async function FinancialReportPage({
         <h1 className="text-xl font-bold text-zinc-900">التقرير المالي الشامل</h1>
         <p className="text-sm text-zinc-500">الإيرادات، المصروفات، والربح الصافي للفترة</p>
       </div>
+
+      <ErrorBanner error={error} hint="تأكد من تشغيل ملف SQL رقم 0003 (دالة fn_financial_summary)." />
 
       <FinancialReportView
         from={from}

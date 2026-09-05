@@ -4,6 +4,7 @@ import { ArrowRight, Truck, Banknote, Fuel, TrendingUp, Users } from "lucide-rea
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 export default async function CompanyDetailPage({
   params,
@@ -27,7 +28,7 @@ export default async function CompanyDetailPage({
     .single();
   const currencySymbol = settings?.currency_symbol ?? "ر.س";
 
-  const { data: summary } = await supabase
+  const { data: summary, error: summaryError } = await supabase
     .rpc("fn_company_period_summary", {
       p_company_id: id,
       p_from: "2000-01-01",
@@ -90,6 +91,8 @@ export default async function CompanyDetailPage({
           </span>
         </div>
       </div>
+
+      <ErrorBanner error={summaryError} hint="تأكد من تشغيل ملف SQL رقم 0003 (دالة fn_company_period_summary)." />
 
       <div>
         <h2 className="mb-3 text-sm font-bold text-zinc-900">ملخص كل الأوقات</h2>

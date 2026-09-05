@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { ProfitabilityReportTable } from "@/components/reports/ProfitabilityReportTable";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 const PAGE_SIZE = 25;
 
@@ -39,7 +40,7 @@ export default async function ProfitabilityReportPage({
   const rangeFrom = (page - 1) * PAGE_SIZE;
   const rangeTo = rangeFrom + PAGE_SIZE - 1;
 
-  const [{ data: rows, count }, { data: totals }, { data: drivers }, { data: companies }, { data: settings }] =
+  const [{ data: rows, count, error }, { data: totals, error: totalsError }, { data: drivers }, { data: companies }, { data: settings }] =
     await Promise.all([
       query.order("trip_date", { ascending: false }).range(rangeFrom, rangeTo),
       supabase
@@ -72,6 +73,8 @@ export default async function ProfitabilityReportPage({
         <h1 className="text-xl font-bold text-zinc-900">ربحية الرحلات</h1>
         <p className="text-sm text-zinc-500">تفاصيل ربح كل رحلة مع إمكانية الفلترة والتصدير</p>
       </div>
+
+      <ErrorBanner error={error ?? totalsError} hint="تأكد من تشغيل ملفات SQL أرقام 0003 و0007." />
 
       <ProfitabilityReportTable
         rows={rows ?? []}

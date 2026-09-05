@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { TripsTable } from "@/components/trips/TripsTable";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 const PAGE_SIZE = 20;
 
@@ -56,11 +57,7 @@ export default async function TripsPage({
         <p className="text-sm text-zinc-500">إدارة رحلات السائقين وربحيتها</p>
       </div>
 
-      {error && (
-        <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
-          حدث خطأ أثناء تحميل الرحلات. تأكد من تشغيل كل ملفات SQL.
-        </div>
-      )}
+      <ErrorBanner error={error} hint="تأكد من تشغيل ملف SQL رقم 0003 (view v_trips_full)." />
 
       <TripsTable
         trips={data ?? []}

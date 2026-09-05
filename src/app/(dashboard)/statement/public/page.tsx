@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { DriverStatementView } from "@/components/statement/DriverStatementView";
 import { PrintClientButton } from "@/components/statement/PrintClientButton";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { FileText } from "lucide-react";
 
 function firstDayOfMonth() {
@@ -56,13 +57,14 @@ export default async function PublicStatementPage({
     );
   }
 
-  const [{ data: driver }, { data: summary }, { data: trips }] = await Promise.all([
-    supabase.from("drivers").select("id, name, phone").eq("id", driverId).single(),
-    supabase
-      .rpc("fn_driver_public_summary", { p_driver_id: driverId, p_from: from, p_to: to })
-      .single(),
-    supabase.rpc("fn_driver_public_trips", { p_driver_id: driverId, p_from: from, p_to: to }),
-  ]);
+  const [{ data: driver }, { data: summary, error: summaryError }, { data: trips, error: tripsError }] =
+    await Promise.all([
+      supabase.from("drivers").select("id, name, phone").eq("id", driverId).single(),
+      supabase
+        .rpc("fn_driver_public_summary", { p_driver_id: driverId, p_from: from, p_to: to })
+        .single(),
+      supabase.rpc("fn_driver_public_trips", { p_driver_id: driverId, p_from: from, p_to: to }),
+    ]);
 
   const emptySummary = {
     trips_count: 0,
@@ -90,6 +92,8 @@ export default async function PublicStatementPage({
         </div>
         <PrintClientButton />
       </div>
+
+      <ErrorBanner error={summaryError ?? tripsError} hint="تأكد من تشغيل ملف SQL رقم 0006 (دوال كشف السائق الآمنة)." />
 
       <DriverStatementView
         orgName={orgName}

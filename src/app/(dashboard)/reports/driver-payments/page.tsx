@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { DriverPaymentsReportTable } from "@/components/reports/DriverPaymentsReportTable";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 function firstDayOfMonth() {
   const now = new Date();
@@ -41,11 +42,7 @@ export default async function DriverPaymentsReportPage({
         <p className="text-sm text-zinc-500">إجمالي تربات كل سائق خلال الفترة المحددة</p>
       </div>
 
-      {error && (
-        <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 print:hidden">
-          تأكد من تشغيل ملف SQL رقم 0007.
-        </div>
-      )}
+      <ErrorBanner error={error} hint="تأكد من تشغيل ملف SQL رقم 0007 (دالة fn_driver_payments_report)." />
 
       <DriverPaymentsReportTable
         rows={rows ?? []}
