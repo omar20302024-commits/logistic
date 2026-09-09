@@ -111,13 +111,18 @@ export function TripForm({
 
   const selectedDriver = drivers.find((d) => d.id === watchedDriverId);
 
-  // أول موقع تنزيل فقط يدخل ضمن سعر الرحلة، والباقي يُحتسب كترب زيادة للسائق
-  const loadingTotal = (watchedLoading ?? []).reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
+  // سعر الرحلة للعميل = مجموع كل المواقع (تحميل وتنزيل) بلا استثناء — المبلغ
+  // المكتوب على أي موقع هو دائماً سعر العميل. أما ترب السائق فمواقع إضافية
+  // (أكثر من موقع تحميل واحد أو أكثر من موقع تنزيل واحد) تضيف له مبلغاً ثابتاً
+  // محدَّداً مسبقاً لهذا السائق (extra_stop_rate)، بصرف النظر عن سعر العميل.
+  const loadingList = watchedLoading ?? [];
   const unloadingList = watchedUnloading ?? [];
-  const firstUnloadingAmount = Number(unloadingList[0]?.amount) || 0;
-  const extraUnloadingTotal = unloadingList
-    .slice(1)
-    .reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
+  const loadingTotal = loadingList.reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
+  const unloadingTotal = unloadingList.reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
+
+  const extraStopsCount = Math.max(loadingList.length - 1, 0) + Math.max(unloadingList.length - 1, 0);
+  const extraStopRate = selectedDriver?.extra_stop_rate ?? 0;
+  const extraStopsPayment = extraStopsCount * extraStopRate;
 
   const matchedRoute = selectedDriver
     ? selectedDriver.route_rates.find(
@@ -127,8 +132,8 @@ export function TripForm({
       )
     : undefined;
 
-  const totalTripAmount = loadingTotal + firstUnloadingAmount;
-  const totalDriverPayment = (Number(watchedBasePayment) || 0) + extraUnloadingTotal;
+  const totalTripAmount = loadingTotal + unloadingTotal;
+  const totalDriverPayment = (Number(watchedBasePayment) || 0) + extraStopsPayment;
   const estimatedProfit = totalTripAmount - totalDriverPayment - (Number(watchedDiesel) || 0);
 
   // تعبئة الترب الأساسي تلقائياً: أولوية لخط سير مطابق (نفس مدينتي التحميل/التنزيل)،
@@ -276,7 +281,7 @@ export function TripForm({
             >
               {formatCurrency(totalTripAmount, currencySymbol)}
             </div>
-            <p className="text-[11px] text-zinc-400">= مواقع التحميل + أول موقع تنزيل فقط</p>
+            <p className="text-[11px] text-zinc-400">= مجموع كل مبالغ مواقع التحميل والتنزيل</p>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-zinc-700">الترب الأساسي *</label>
@@ -315,10 +320,11 @@ export function TripForm({
           </div>
         </div>
 
-        {extraUnloadingTotal > 0 && (
+        {extraStopsCount > 0 && (
           <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-            + {formatCurrency(extraUnloadingTotal, currencySymbol)} ترب مواقع تنزيل إضافية (تُضاف تلقائياً) =
-            إجمالي ترب السائق {formatCurrency(totalDriverPayment, currencySymbol)}
+            {extraStopsCount} موقع إضافي × {formatCurrency(extraStopRate, currencySymbol)} (معدَّل هذا السائق) =
+            + {formatCurrency(extraStopsPayment, currencySymbol)} ترب زيادة (تلقائي) → إجمالي ترب السائق{" "}
+            {formatCurrency(totalDriverPayment, currencySymbol)}
           </p>
         )}
 
@@ -336,7 +342,8 @@ export function TripForm({
         fieldArray={loadingArray}
         register={register}
         namePrefix="loading_locations"
-        hint="كل مواقع التحميل تُحتسب ضمن سعر الرحلة"
+        hint="كل المبالغ هنا تُحسب على العميل ضمن سعر الرحلة. أي موقع تحميل بعد الأول يضيف ترباً ثابتاً للسائق (حسب معدله) تلقائياً — بصرف النظر عن المبلغ المكتوب"
+        extraNoteFrom={1}
       />
 
       {/* مواقع التنزيل */}
@@ -345,9 +352,8 @@ export function TripForm({
         fieldArray={unloadingArray}
         register={register}
         namePrefix="unloading_locations"
-        hint="الموقع الأول فقط يُحتسب ضمن سعر الرحلة — أي موقع تنزيل بعده يُضاف كترب زيادة للسائق تلقائياً"
+        hint="كل المبالغ هنا تُحسب على العميل ضمن سعر الرحلة. أي موقع تنزيل بعد الأول يضيف ترباً ثابتاً للسائق (حسب معدله) تلقائياً — بصرف النظر عن المبلغ المكتوب"
         extraNoteFrom={1}
-        extraStopDefaultAmount={selectedDriver?.extra_stop_rate ?? 0}
       />
 
       {/* ملاحظات */}
@@ -387,7 +393,6 @@ function LocationsEditor({
   namePrefix,
   hint,
   extraNoteFrom,
-  extraStopDefaultAmount = 0,
 }: {
   title: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -397,7 +402,6 @@ function LocationsEditor({
   namePrefix: "loading_locations" | "unloading_locations";
   hint?: string;
   extraNoteFrom?: number;
-  extraStopDefaultAmount?: number;
 }) {
   const { fields, append, remove } = fieldArray;
 
@@ -407,12 +411,7 @@ function LocationsEditor({
         <h3 className="text-sm font-bold text-zinc-900">{title}</h3>
         <button
           type="button"
-          onClick={() =>
-            append({
-              location_name: "",
-              amount: fields.length === 0 ? 0 : extraStopDefaultAmount,
-            })
-          }
+          onClick={() => append({ location_name: "", amount: 0 })}
           className="flex items-center gap-1 rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
         >
           <Plus size={14} />
@@ -451,7 +450,7 @@ function LocationsEditor({
                     index < extraNoteFrom ? "bg-zinc-200 text-zinc-600" : "bg-amber-100 text-amber-700"
                   }`}
                 >
-                  {index < extraNoteFrom ? "ضمن سعر الرحلة" : "ترب زيادة"}
+                  {index < extraNoteFrom ? "ضمن سعر الرحلة" : "موقع إضافي"}
                 </span>
               )}
               <button
