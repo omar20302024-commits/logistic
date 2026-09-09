@@ -70,13 +70,27 @@ export function StatementFilters({
         />
       </div>
       {hasSelection && (
-        <div className="mr-auto flex items-center gap-2">
+        <div className="mr-auto flex flex-wrap items-center gap-2">
           <Link
             href={`/statement/public?driver=${driverId}&from=${from}&to=${to}`}
             className="flex items-center gap-1.5 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
           >
             <FileText size={15} />
             كشف حساب للسائق
+          </Link>
+          <Link
+            href={`/statement/trab?driver=${driverId}&from=${from}&to=${to}`}
+            className="flex items-center gap-1.5 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+          >
+            <FileText size={15} />
+            كشف الترب
+          </Link>
+          <Link
+            href={`/statement/trab-only?driver=${driverId}&from=${from}&to=${to}`}
+            className="flex items-center gap-1.5 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+          >
+            <FileText size={15} />
+            كشف الترب فقط
           </Link>
           <button
             type="button"
