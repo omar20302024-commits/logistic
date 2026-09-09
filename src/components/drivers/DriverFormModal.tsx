@@ -13,6 +13,7 @@ export type DriverRecord = {
   name: string;
   phone: string | null;
   salary: number;
+  default_trip_payment: number;
   hire_date: string | null;
   status: "active" | "inactive";
   employment_type: "internal" | "external";
@@ -23,6 +24,7 @@ const emptyValues: DriverFormInput = {
   name: "",
   phone: "",
   salary: 0,
+  default_trip_payment: 0,
   hire_date: "",
   status: "active",
   employment_type: "internal",
@@ -58,6 +60,7 @@ export function DriverFormModal({
             name: driver.name,
             phone: driver.phone ?? "",
             salary: driver.salary,
+            default_trip_payment: driver.default_trip_payment,
             hire_date: driver.hire_date ?? "",
             status: driver.status,
             employment_type: driver.employment_type,
@@ -117,6 +120,21 @@ export function DriverFormModal({
             />
             {errors.salary && <p className="text-xs text-red-600">{errors.salary.message}</p>}
           </div>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-zinc-700">التربة الافتراضية للرحلة</label>
+          <input
+            {...register("default_trip_payment")}
+            type="number"
+            step="0.01"
+            dir="ltr"
+            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-right outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+          />
+          <p className="text-[11px] text-zinc-400">تُملأ تلقائياً عند إنشاء رحلة جديدة لهذا السائق (قابلة للتعديل لكل رحلة)</p>
+          {errors.default_trip_payment && (
+            <p className="text-xs text-red-600">{errors.default_trip_payment.message}</p>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3">

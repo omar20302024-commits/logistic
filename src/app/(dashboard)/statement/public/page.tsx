@@ -73,6 +73,7 @@ export default async function PublicStatementPage({
     total_deductions: 0,
     salary_basic: 0,
     net_salary: 0,
+    custody_balance: 0,
     total_due_to_driver: 0,
   };
 

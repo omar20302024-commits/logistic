@@ -85,7 +85,7 @@ export function CustodySection({
               </div>
               <div className="flex items-center gap-2">
                 <span
-                  className={`font-mono text-sm font-semibold ${
+                  className={`text-sm font-semibold ${
                     entry.type === "credit" ? "text-emerald-700" : "text-red-600"
                   }`}
                   dir="ltr"

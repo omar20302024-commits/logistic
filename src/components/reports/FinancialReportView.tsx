@@ -109,7 +109,7 @@ function Row({
         {sign === "minus" ? "− " : ""}
         {label}
       </span>
-      <span className="font-mono text-zinc-700" dir="ltr">
+      <span className="text-zinc-700" dir="ltr">
         {formatCurrency(value, currencySymbol)}
       </span>
     </div>
@@ -134,7 +134,7 @@ function TotalRow({
       }`}
     >
       <span className="text-sm font-bold">{label}</span>
-      <span className="font-mono text-base font-bold" dir="ltr">
+      <span className="text-base font-bold" dir="ltr">
         {formatCurrency(value, currencySymbol)}
       </span>
     </div>

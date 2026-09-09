@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,7 +15,8 @@ import {
 import { createTrip, updateTrip } from "@/app/(dashboard)/trips/actions";
 import { formatCurrency } from "@/lib/format";
 
-type Option = { id: string; name: string };
+type DriverOption = { id: string; name: string; default_trip_payment: number };
+type CompanyOption = { id: string; name: string };
 
 export type TripInitialData = {
   id: string;
@@ -24,12 +26,12 @@ export type TripInitialData = {
   trip_date: string;
   from_location: string;
   to_location: string;
-  driver_trip_payment: number;
+  driver_base_payment: number;
   diesel_amount: number;
   status: "new" | "in_progress" | "completed" | "cancelled";
   notes: string | null;
-  loading_locations: { location_name: string; amount: number; amount_status: "temporary" | "confirmed" }[];
-  unloading_locations: { location_name: string; amount: number; amount_status: "temporary" | "confirmed" }[];
+  loading_locations: { location_name: string; amount: number }[];
+  unloading_locations: { location_name: string; amount: number }[];
 };
 
 const emptyValues: TripFormInput = {
@@ -39,7 +41,7 @@ const emptyValues: TripFormInput = {
   trip_date: new Date().toISOString().slice(0, 10),
   from_location: "",
   to_location: "",
-  driver_trip_payment: 0,
+  driver_base_payment: 0,
   diesel_amount: 0,
   status: "completed",
   notes: "",
@@ -53,8 +55,8 @@ export function TripForm({
   initialData,
   currencySymbol,
 }: {
-  drivers: Option[];
-  companies: Option[];
+  drivers: DriverOption[];
+  companies: CompanyOption[];
   initialData?: TripInitialData;
   currencySymbol: string;
 }) {
@@ -65,6 +67,7 @@ export function TripForm({
     control,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<TripFormInput, unknown, TripFormValues>({
     resolver: zodResolver(tripSchema),
@@ -76,7 +79,7 @@ export function TripForm({
           trip_date: initialData.trip_date,
           from_location: initialData.from_location,
           to_location: initialData.to_location,
-          driver_trip_payment: initialData.driver_trip_payment,
+          driver_base_payment: initialData.driver_base_payment,
           diesel_amount: initialData.diesel_amount,
           status: initialData.status,
           notes: initialData.notes ?? "",
@@ -91,14 +94,30 @@ export function TripForm({
 
   const watchedLoading = watch("loading_locations");
   const watchedUnloading = watch("unloading_locations");
-  const watchedPayment = watch("driver_trip_payment");
+  const watchedBasePayment = watch("driver_base_payment");
   const watchedDiesel = watch("diesel_amount");
+  const watchedDriverId = watch("driver_id");
 
-  const totalTripAmount =
-    (watchedLoading ?? []).reduce((sum, l) => sum + (Number(l.amount) || 0), 0) +
-    (watchedUnloading ?? []).reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
-  const estimatedProfit =
-    totalTripAmount - (Number(watchedPayment) || 0) - (Number(watchedDiesel) || 0);
+  // أول موقع تنزيل فقط يدخل ضمن سعر الرحلة، والباقي يُحتسب كتربة زيادة للسائق
+  const loadingTotal = (watchedLoading ?? []).reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
+  const unloadingList = watchedUnloading ?? [];
+  const firstUnloadingAmount = Number(unloadingList[0]?.amount) || 0;
+  const extraUnloadingTotal = unloadingList
+    .slice(1)
+    .reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
+
+  const totalTripAmount = loadingTotal + firstUnloadingAmount;
+  const totalDriverPayment = (Number(watchedBasePayment) || 0) + extraUnloadingTotal;
+  const estimatedProfit = totalTripAmount - totalDriverPayment - (Number(watchedDiesel) || 0);
+
+  // تعبئة التربة الأساسية تلقائياً من افتراضي السائق عند إضافة رحلة جديدة فقط
+  const userTouchedPayment = useRef(!!initialData);
+  useEffect(() => {
+    if (initialData || userTouchedPayment.current) return;
+    const driver = drivers.find((d) => d.id === watchedDriverId);
+    if (driver) setValue("driver_base_payment", driver.default_trip_payment);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchedDriverId]);
 
   const onSubmit = async (values: TripFormValues) => {
     const result = initialData
@@ -158,6 +177,10 @@ export function TripForm({
             <label className="text-sm font-medium text-zinc-700">السائق *</label>
             <select
               {...register("driver_id")}
+              onChange={(e) => {
+                userTouchedPayment.current = false;
+                register("driver_id").onChange(e);
+              }}
               className="rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
             >
               <option value="">اختر السائق</option>
@@ -219,19 +242,23 @@ export function TripForm({
             >
               {formatCurrency(totalTripAmount, currencySymbol)}
             </div>
-            <p className="text-[11px] text-zinc-400">= مجموع مبالغ مواقع التحميل والتنزيل أدناه</p>
+            <p className="text-[11px] text-zinc-400">= مواقع التحميل + أول موقع تنزيل فقط</p>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-zinc-700">تربة السائق *</label>
+            <label className="text-sm font-medium text-zinc-700">التربة الأساسية *</label>
             <input
-              {...register("driver_trip_payment")}
+              {...register("driver_base_payment")}
               type="number"
               step="0.01"
               dir="ltr"
+              onChange={(e) => {
+                userTouchedPayment.current = true;
+                register("driver_base_payment").onChange(e);
+              }}
               className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-right outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
             />
-            {errors.driver_trip_payment && (
-              <p className="text-xs text-red-600">{errors.driver_trip_payment.message}</p>
+            {errors.driver_base_payment && (
+              <p className="text-xs text-red-600">{errors.driver_base_payment.message}</p>
             )}
           </div>
           <div className="flex flex-col gap-1.5">
@@ -248,9 +275,17 @@ export function TripForm({
             )}
           </div>
         </div>
+
+        {extraUnloadingTotal > 0 && (
+          <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            + {formatCurrency(extraUnloadingTotal, currencySymbol)} تربة مواقع تنزيل إضافية (تُضاف تلقائياً) =
+            إجمالي تربة السائق {formatCurrency(totalDriverPayment, currencySymbol)}
+          </p>
+        )}
+
         <div className="mt-4 flex items-center justify-between rounded-lg bg-zinc-900 px-4 py-3 text-white">
           <span className="text-sm font-medium">ربح الرحلة المتوقع</span>
-          <span className="font-mono text-sm font-bold" dir="ltr">
+          <span className="text-sm font-bold" dir="ltr">
             {formatCurrency(estimatedProfit, currencySymbol)}
           </span>
         </div>
@@ -261,8 +296,8 @@ export function TripForm({
         title="مواقع التحميل"
         fieldArray={loadingArray}
         register={register}
-        errors={errors.loading_locations}
         namePrefix="loading_locations"
+        hint="كل مواقع التحميل تُحتسب ضمن سعر الرحلة"
       />
 
       {/* مواقع التنزيل */}
@@ -270,8 +305,9 @@ export function TripForm({
         title="مواقع التنزيل"
         fieldArray={unloadingArray}
         register={register}
-        errors={errors.unloading_locations}
         namePrefix="unloading_locations"
+        hint="الموقع الأول فقط يُحتسب ضمن سعر الرحلة — أي موقع تنزيل بعده يُضاف كتربة زيادة للسائق تلقائياً"
+        extraNoteFrom={1}
       />
 
       {/* ملاحظات */}
@@ -309,31 +345,34 @@ function LocationsEditor({
   fieldArray,
   register,
   namePrefix,
+  hint,
+  extraNoteFrom,
 }: {
   title: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fieldArray: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   register: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  errors: any;
   namePrefix: "loading_locations" | "unloading_locations";
+  hint?: string;
+  extraNoteFrom?: number;
 }) {
   const { fields, append, remove } = fieldArray;
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-1 flex items-center justify-between">
         <h3 className="text-sm font-bold text-zinc-900">{title}</h3>
         <button
           type="button"
-          onClick={() => append({ location_name: "", amount: 0, amount_status: "temporary" })}
+          onClick={() => append({ location_name: "", amount: 0 })}
           className="flex items-center gap-1 rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
         >
           <Plus size={14} />
           إضافة موقع
         </button>
       </div>
+      {hint && <p className="mb-4 text-[11px] text-zinc-400">{hint}</p>}
 
       {fields.length === 0 ? (
         <p className="py-4 text-center text-xs text-zinc-400">لا توجد مواقع مضافة</p>
@@ -359,16 +398,15 @@ function LocationsEditor({
                   className="rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-sm text-right outline-none focus:border-zinc-900"
                 />
               </div>
-              <div className="flex w-32 flex-col gap-1">
-                <label className="text-xs text-zinc-500">الحالة</label>
-                <select
-                  {...register(`${namePrefix}.${index}.amount_status` as const)}
-                  className="rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-zinc-900"
+              {extraNoteFrom !== undefined && (
+                <span
+                  className={`rounded-full px-2 py-1 text-[10px] font-medium ${
+                    index < extraNoteFrom ? "bg-zinc-200 text-zinc-600" : "bg-amber-100 text-amber-700"
+                  }`}
                 >
-                  <option value="temporary">مؤقت</option>
-                  <option value="confirmed">مثبت</option>
-                </select>
-              </div>
+                  {index < extraNoteFrom ? "ضمن سعر الرحلة" : "تربة زيادة"}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => remove(index)}

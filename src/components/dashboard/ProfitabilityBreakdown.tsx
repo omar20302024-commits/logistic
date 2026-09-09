@@ -31,7 +31,7 @@ function Row({
         {label}
       </span>
       <span
-        className={`font-mono text-sm ${bold ? "font-bold text-zinc-900" : "text-zinc-700"}`}
+        className={`text-sm ${bold ? "font-bold text-zinc-900" : "text-zinc-700"}`}
         dir="ltr"
       >
         {formatCurrency(value, currencySymbol)}

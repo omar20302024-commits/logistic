@@ -15,7 +15,6 @@ type TripRow = {
   driver_trip_payment: number;
   diesel_amount: number;
   trip_profit: number;
-  has_temporary_amounts: boolean;
 };
 
 type Summary = {
@@ -110,12 +109,7 @@ export function InternalStatementView({
                   <td className="px-2 py-2 whitespace-nowrap" dir="ltr">
                     {t.trip_date}
                   </td>
-                  <td className="px-2 py-2 whitespace-nowrap">
-                    {t.trip_number}
-                    {t.has_temporary_amounts && (
-                      <span className="mr-1 text-[10px] text-amber-600">(مؤقت)</span>
-                    )}
-                  </td>
+                  <td className="px-2 py-2 whitespace-nowrap">{t.trip_number}</td>
                   <td className="px-2 py-2">{t.company_name}</td>
                   <td className="px-2 py-2">{t.from_location}</td>
                   <td className="px-2 py-2">{t.to_location}</td>
@@ -182,7 +176,7 @@ function SummaryRow({ label, value, bold }: { label: string; value: string; bold
   return (
     <div className="flex items-center justify-between py-2">
       <span className={bold ? "font-bold text-zinc-900" : "text-zinc-600"}>{label}</span>
-      <span className={`font-mono ${bold ? "font-bold text-zinc-900" : "text-zinc-700"}`} dir="ltr">
+      <span className={bold ? "font-bold text-zinc-900" : "text-zinc-700"} dir="ltr">
         {value}
       </span>
     </div>

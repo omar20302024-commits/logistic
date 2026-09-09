@@ -77,7 +77,7 @@ export function LedgerSection({
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <span className="font-mono text-sm font-semibold text-zinc-900" dir="ltr">
+                <span className="text-sm font-semibold text-zinc-900" dir="ltr">
                   {formatCurrency(entry.amount, currencySymbol)}
                 </span>
                 <button

@@ -27,7 +27,6 @@ type TripRow = {
   diesel_amount: number;
   trip_profit: number;
   status: "new" | "in_progress" | "completed" | "cancelled";
-  has_temporary_amounts: boolean;
 };
 
 const statusColors: Record<string, string> = {
@@ -210,11 +209,6 @@ export function TripsTable({
                     <Link href={`/trips/${trip.id}`} className="font-medium text-zinc-900 hover:underline">
                       {trip.trip_number}
                     </Link>
-                    {trip.has_temporary_amounts && (
-                      <span className="mr-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
-                        مؤقت
-                      </span>
-                    )}
                   </td>
                   <td className="px-4 py-3 text-zinc-600">{trip.driver_name}</td>
                   <td className="px-4 py-3 text-zinc-600">{trip.company_name}</td>

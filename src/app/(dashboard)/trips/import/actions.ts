@@ -110,7 +110,7 @@ export async function confirmImport(
         trip_date: row.date,
         from_location: row.fromLocation,
         to_location: row.toLocation,
-        driver_trip_payment: row.driverTripPayment,
+        driver_base_payment: row.driverTripPayment,
         diesel_amount: 0,
         status: row.status,
         notes: row.notes || null,
@@ -128,14 +128,14 @@ export async function confirmImport(
         location_type: "loading" as const,
         location_name: row.fromLocation,
         amount: row.baseFare,
-        amount_status: "confirmed" as const,
+        sort_order: 0,
       },
       {
         trip_id: trip.id,
         location_type: "unloading" as const,
         location_name: row.toLocation,
         amount: row.extraAmount,
-        amount_status: "confirmed" as const,
+        sort_order: 0,
       },
     ];
 

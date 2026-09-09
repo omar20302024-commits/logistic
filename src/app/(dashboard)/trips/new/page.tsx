@@ -7,7 +7,11 @@ export default async function NewTripPage() {
   const supabase = await createClient();
 
   const [{ data: drivers }, { data: companies }, { data: settings }] = await Promise.all([
-    supabase.from("drivers").select("id, name").eq("status", "active").order("name"),
+    supabase
+      .from("drivers")
+      .select("id, name, default_trip_payment")
+      .eq("status", "active")
+      .order("name"),
     supabase.from("companies").select("id, name").eq("status", "active").order("name"),
     supabase.from("settings").select("currency_symbol").single(),
   ]);

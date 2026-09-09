@@ -9,22 +9,25 @@ export type ActionResult = { error: string | null };
 
 function buildLocationRows(
   tripId: string,
-  values: { loading_locations: { location_name: string; amount: number; amount_status: string }[]; unloading_locations: { location_name: string; amount: number; amount_status: string }[] }
+  values: {
+    loading_locations: { location_name: string; amount: number }[];
+    unloading_locations: { location_name: string; amount: number }[];
+  }
 ) {
   return [
-    ...values.loading_locations.map((l) => ({
+    ...values.loading_locations.map((l, i) => ({
       trip_id: tripId,
       location_type: "loading" as const,
       location_name: l.location_name,
       amount: l.amount,
-      amount_status: l.amount_status,
+      sort_order: i,
     })),
-    ...values.unloading_locations.map((l) => ({
+    ...values.unloading_locations.map((l, i) => ({
       trip_id: tripId,
       location_type: "unloading" as const,
       location_name: l.location_name,
       amount: l.amount,
-      amount_status: l.amount_status,
+      sort_order: i,
     })),
   ];
 }
@@ -47,7 +50,7 @@ export async function createTrip(input: unknown): Promise<ActionResult & { id?: 
       trip_date: values.trip_date,
       from_location: values.from_location,
       to_location: values.to_location,
-      driver_trip_payment: values.driver_trip_payment,
+      driver_base_payment: values.driver_base_payment,
       diesel_amount: values.diesel_amount,
       status: values.status,
       notes: values.notes || null,
@@ -93,7 +96,7 @@ export async function updateTrip(id: string, input: unknown): Promise<ActionResu
       trip_date: values.trip_date,
       from_location: values.from_location,
       to_location: values.to_location,
-      driver_trip_payment: values.driver_trip_payment,
+      driver_base_payment: values.driver_base_payment,
       diesel_amount: values.diesel_amount,
       status: values.status,
       notes: values.notes || null,

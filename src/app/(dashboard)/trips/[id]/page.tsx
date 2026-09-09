@@ -16,8 +16,13 @@ export default async function EditTripPage({
   const [{ data: trip, error }, { data: locations }, { data: drivers }, { data: companies }, { data: settings }] =
     await Promise.all([
       supabase.from("trips").select("*").eq("id", id).single(),
-      supabase.from("trip_locations").select("*").eq("trip_id", id).order("created_at"),
-      supabase.from("drivers").select("id, name").order("name"),
+      supabase
+        .from("trip_locations")
+        .select("*")
+        .eq("trip_id", id)
+        .order("sort_order")
+        .order("created_at"),
+      supabase.from("drivers").select("id, name, default_trip_payment").order("name"),
       supabase.from("companies").select("id, name").order("name"),
       supabase.from("settings").select("currency_symbol").single(),
     ]);
@@ -26,10 +31,10 @@ export default async function EditTripPage({
 
   const loading_locations = (locations ?? [])
     .filter((l) => l.location_type === "loading")
-    .map((l) => ({ location_name: l.location_name, amount: l.amount, amount_status: l.amount_status }));
+    .map((l) => ({ location_name: l.location_name, amount: l.amount }));
   const unloading_locations = (locations ?? [])
     .filter((l) => l.location_type === "unloading")
-    .map((l) => ({ location_name: l.location_name, amount: l.amount, amount_status: l.amount_status }));
+    .map((l) => ({ location_name: l.location_name, amount: l.amount }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -59,7 +64,7 @@ export default async function EditTripPage({
           trip_date: trip.trip_date,
           from_location: trip.from_location,
           to_location: trip.to_location,
-          driver_trip_payment: trip.driver_trip_payment,
+          driver_base_payment: trip.driver_base_payment,
           diesel_amount: trip.diesel_amount,
           status: trip.status,
           notes: trip.notes,
