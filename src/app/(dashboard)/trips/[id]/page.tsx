@@ -13,7 +13,7 @@ export default async function EditTripPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: trip, error }, { data: locations }, { data: drivers }, { data: companies }, { data: settings }] =
+  const [{ data: trip, error }, { data: locations }, { data: driversRaw }, { data: companies }, { data: settings }] =
     await Promise.all([
       supabase.from("trips").select("*").eq("id", id).single(),
       supabase
@@ -22,12 +22,25 @@ export default async function EditTripPage({
         .eq("trip_id", id)
         .order("sort_order")
         .order("created_at"),
-      supabase.from("drivers").select("id, name, default_trip_payment").order("name"),
+      supabase
+        .from("drivers")
+        .select(
+          "id, name, default_trip_payment, extra_stop_rate, driver_route_rates(from_city, to_city, trab_amount)"
+        )
+        .order("name"),
       supabase.from("companies").select("id, name").order("name"),
       supabase.from("settings").select("currency_symbol").single(),
     ]);
 
   if (error || !trip) notFound();
+
+  const drivers = (driversRaw ?? []).map((d) => ({
+    id: d.id,
+    name: d.name,
+    default_trip_payment: d.default_trip_payment,
+    extra_stop_rate: d.extra_stop_rate,
+    route_rates: d.driver_route_rates ?? [],
+  }));
 
   const loading_locations = (locations ?? [])
     .filter((l) => l.location_type === "loading")

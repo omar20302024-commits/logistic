@@ -59,7 +59,7 @@ export function ProfitabilityBreakdown(props: Props) {
 
       <div className="divide-y divide-zinc-100">
         <Row label="إجمالي قيمة الرحلات" value={totalTripAmount} currencySymbol={currencySymbol} />
-        <Row label="إجمالي التربات" value={totalDriverPayments} currencySymbol={currencySymbol} sign="minus" />
+        <Row label="إجمالي الترب" value={totalDriverPayments} currencySymbol={currencySymbol} sign="minus" />
         <Row label="إجمالي الديزل" value={totalDiesel} currencySymbol={currencySymbol} sign="minus" />
         <Row
           label="الربح التشغيلي"

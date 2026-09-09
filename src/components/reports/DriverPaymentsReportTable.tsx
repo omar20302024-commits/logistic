@@ -41,8 +41,8 @@ export function DriverPaymentsReportTable({
 
   const handleExport = () => {
     exportToCsv(
-      `تقرير_التربات_${filters.from}_${filters.to}`,
-      ["السائق", "عدد الرحلات", "إجمالي التربات"],
+      `تقرير_الترب_${filters.from}_${filters.to}`,
+      ["السائق", "عدد الرحلات", "إجمالي الترب"],
       rows.map((r) => [r.driver_name, r.trips_count, r.total_driver_payment])
     );
   };
@@ -88,7 +88,7 @@ export function DriverPaymentsReportTable({
                 <tr className="border-b border-zinc-100 text-right text-xs text-zinc-500">
                   <th className="px-4 py-3 font-medium">السائق</th>
                   <th className="px-4 py-3 font-medium">عدد الرحلات</th>
-                  <th className="px-4 py-3 font-medium">إجمالي التربات</th>
+                  <th className="px-4 py-3 font-medium">إجمالي الترب</th>
                 </tr>
               </thead>
               <tbody>

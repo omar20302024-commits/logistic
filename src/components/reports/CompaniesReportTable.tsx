@@ -53,7 +53,7 @@ export function CompaniesReportTable({
   const handleExport = () => {
     exportToCsv(
       `تقرير_الشركات_${from}_${to}`,
-      ["الشركة", "الحالة", "عدد الرحلات", "قيمة الرحلات", "التربات", "الديزل", "الربح"],
+      ["الشركة", "الحالة", "عدد الرحلات", "قيمة الرحلات", "الترب", "الديزل", "الربح"],
       rows.map((r) => [
         r.company_name,
         r.company_status === "active" ? "نشط" : "غير نشط",
@@ -96,7 +96,7 @@ export function CompaniesReportTable({
                   <th className="px-4 py-3 font-medium">الشركة</th>
                   <th className="px-4 py-3 font-medium">الرحلات</th>
                   <th className="px-4 py-3 font-medium">قيمة الرحلات</th>
-                  <th className="px-4 py-3 font-medium">التربات</th>
+                  <th className="px-4 py-3 font-medium">الترب</th>
                   <th className="px-4 py-3 font-medium">الديزل</th>
                   <th className="px-4 py-3 font-medium">الربح</th>
                 </tr>

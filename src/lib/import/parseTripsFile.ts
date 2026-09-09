@@ -10,7 +10,7 @@ export type ParsedTripRow = {
   extraFee: number;
   returnFee: number;
   totalPrice: number;
-  vendorCost: number; // تكلفة المورد -> تربة السائق
+  vendorCost: number; // تكلفة المورد -> ترب السائق
   statusRaw: string;
   statusMapped: "new" | "in_progress" | "completed" | "cancelled";
   needsReview: boolean; // الصف فيه عدد خلايا أقل من المتوقع (احتمال خانة ناقصة)

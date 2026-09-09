@@ -58,7 +58,7 @@ export const navGroups: NavGroup[] = [
       { label: "تقرير السائقين", href: "/reports/drivers", icon: BarChart3 },
       { label: "تقرير الشركات", href: "/reports/companies", icon: BarChart3 },
       { label: "ربحية الرحلات", href: "/reports/profitability", icon: BarChart3 },
-      { label: "تقرير التربات", href: "/reports/driver-payments", icon: Banknote },
+      { label: "تقرير الترب", href: "/reports/driver-payments", icon: Banknote },
       { label: "تقرير الديزل", href: "/reports/diesel", icon: Fuel },
       { label: "ربحية عقود الإيجار", href: "/rentals/report", icon: PieChart },
       { label: "التقرير المالي", href: "/reports/financial", icon: PieChart },

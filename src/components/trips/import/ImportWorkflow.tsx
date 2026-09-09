@@ -180,7 +180,7 @@ export function ImportWorkflow({ drivers, companies }: { drivers: Option[]; comp
                 <th className="px-3 py-3 font-medium">من</th>
                 <th className="px-3 py-3 font-medium">إلى</th>
                 <th className="px-3 py-3 font-medium">السائق</th>
-                <th className="px-3 py-3 font-medium">التربة</th>
+                <th className="px-3 py-3 font-medium">الترب</th>
                 <th className="px-3 py-3 font-medium">السعر الكلي</th>
                 <th className="px-3 py-3 font-medium">الحالة</th>
               </tr>

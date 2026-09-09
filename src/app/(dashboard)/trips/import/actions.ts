@@ -28,7 +28,7 @@ export type ImportRowInput = {
   newDriverName: string; // مطلوب لو driverId فاضي
   baseFare: number; // -> موقع التحميل
   extraAmount: number; // موقع إضافي + أجرة المرتجع -> موقع التنزيل
-  driverTripPayment: number; // تكلفة المورد/التربة
+  driverTripPayment: number; // تكلفة المورد/الترب
   status: "new" | "in_progress" | "completed" | "cancelled";
   notes: string;
 };

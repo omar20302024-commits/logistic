@@ -15,8 +15,17 @@ import {
 import { createTrip, updateTrip } from "@/app/(dashboard)/trips/actions";
 import { formatCurrency } from "@/lib/format";
 
-type DriverOption = { id: string; name: string; default_trip_payment: number };
+type RouteRate = { from_city: string; to_city: string; trab_amount: number };
+type DriverOption = {
+  id: string;
+  name: string;
+  default_trip_payment: number;
+  extra_stop_rate: number;
+  route_rates: RouteRate[];
+};
 type CompanyOption = { id: string; name: string };
+
+const norm = (s: string) => s.trim().toLowerCase();
 
 export type TripInitialData = {
   id: string;
@@ -97,8 +106,12 @@ export function TripForm({
   const watchedBasePayment = watch("driver_base_payment");
   const watchedDiesel = watch("diesel_amount");
   const watchedDriverId = watch("driver_id");
+  const watchedFromLocation = watch("from_location");
+  const watchedToLocation = watch("to_location");
 
-  // أول موقع تنزيل فقط يدخل ضمن سعر الرحلة، والباقي يُحتسب كتربة زيادة للسائق
+  const selectedDriver = drivers.find((d) => d.id === watchedDriverId);
+
+  // أول موقع تنزيل فقط يدخل ضمن سعر الرحلة، والباقي يُحتسب كترب زيادة للسائق
   const loadingTotal = (watchedLoading ?? []).reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
   const unloadingList = watchedUnloading ?? [];
   const firstUnloadingAmount = Number(unloadingList[0]?.amount) || 0;
@@ -106,18 +119,39 @@ export function TripForm({
     .slice(1)
     .reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
 
+  const matchedRoute = selectedDriver
+    ? selectedDriver.route_rates.find(
+        (r) =>
+          norm(r.from_city) === norm(watchedFromLocation ?? "") &&
+          norm(r.to_city) === norm(watchedToLocation ?? "")
+      )
+    : undefined;
+
   const totalTripAmount = loadingTotal + firstUnloadingAmount;
   const totalDriverPayment = (Number(watchedBasePayment) || 0) + extraUnloadingTotal;
   const estimatedProfit = totalTripAmount - totalDriverPayment - (Number(watchedDiesel) || 0);
 
-  // تعبئة التربة الأساسية تلقائياً من افتراضي السائق عند إضافة رحلة جديدة فقط
+  // تعبئة الترب الأساسي تلقائياً: أولوية لخط سير مطابق (نفس مدينتي التحميل/التنزيل)،
+  // وإلا الترب الافتراضي العام للسائق — فقط عند إضافة رحلة جديدة ولم يعدّله المستخدم يدوياً
   const userTouchedPayment = useRef(!!initialData);
   useEffect(() => {
-    if (initialData || userTouchedPayment.current) return;
-    const driver = drivers.find((d) => d.id === watchedDriverId);
-    if (driver) setValue("driver_base_payment", driver.default_trip_payment);
+    if (initialData || userTouchedPayment.current || !selectedDriver) return;
+
+    const from = norm(watchedFromLocation ?? "");
+    const to = norm(watchedToLocation ?? "");
+    const matchedRoute =
+      from && to
+        ? selectedDriver.route_rates.find(
+            (r) => norm(r.from_city) === from && norm(r.to_city) === to
+          )
+        : undefined;
+
+    setValue(
+      "driver_base_payment",
+      matchedRoute ? matchedRoute.trab_amount : selectedDriver.default_trip_payment
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [watchedDriverId]);
+  }, [watchedDriverId, watchedFromLocation, watchedToLocation]);
 
   const onSubmit = async (values: TripFormValues) => {
     const result = initialData
@@ -245,7 +279,7 @@ export function TripForm({
             <p className="text-[11px] text-zinc-400">= مواقع التحميل + أول موقع تنزيل فقط</p>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-zinc-700">التربة الأساسية *</label>
+            <label className="text-sm font-medium text-zinc-700">الترب الأساسي *</label>
             <input
               {...register("driver_base_payment")}
               type="number"
@@ -259,6 +293,11 @@ export function TripForm({
             />
             {errors.driver_base_payment && (
               <p className="text-xs text-red-600">{errors.driver_base_payment.message}</p>
+            )}
+            {matchedRoute && (
+              <p className="text-[11px] text-emerald-600">
+                ✓ مطابق لخط سير محفوظ لهذا السائق
+              </p>
             )}
           </div>
           <div className="flex flex-col gap-1.5">
@@ -278,8 +317,8 @@ export function TripForm({
 
         {extraUnloadingTotal > 0 && (
           <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-            + {formatCurrency(extraUnloadingTotal, currencySymbol)} تربة مواقع تنزيل إضافية (تُضاف تلقائياً) =
-            إجمالي تربة السائق {formatCurrency(totalDriverPayment, currencySymbol)}
+            + {formatCurrency(extraUnloadingTotal, currencySymbol)} ترب مواقع تنزيل إضافية (تُضاف تلقائياً) =
+            إجمالي ترب السائق {formatCurrency(totalDriverPayment, currencySymbol)}
           </p>
         )}
 
@@ -306,8 +345,9 @@ export function TripForm({
         fieldArray={unloadingArray}
         register={register}
         namePrefix="unloading_locations"
-        hint="الموقع الأول فقط يُحتسب ضمن سعر الرحلة — أي موقع تنزيل بعده يُضاف كتربة زيادة للسائق تلقائياً"
+        hint="الموقع الأول فقط يُحتسب ضمن سعر الرحلة — أي موقع تنزيل بعده يُضاف كترب زيادة للسائق تلقائياً"
         extraNoteFrom={1}
+        extraStopDefaultAmount={selectedDriver?.extra_stop_rate ?? 0}
       />
 
       {/* ملاحظات */}
@@ -347,6 +387,7 @@ function LocationsEditor({
   namePrefix,
   hint,
   extraNoteFrom,
+  extraStopDefaultAmount = 0,
 }: {
   title: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -356,6 +397,7 @@ function LocationsEditor({
   namePrefix: "loading_locations" | "unloading_locations";
   hint?: string;
   extraNoteFrom?: number;
+  extraStopDefaultAmount?: number;
 }) {
   const { fields, append, remove } = fieldArray;
 
@@ -365,7 +407,12 @@ function LocationsEditor({
         <h3 className="text-sm font-bold text-zinc-900">{title}</h3>
         <button
           type="button"
-          onClick={() => append({ location_name: "", amount: 0 })}
+          onClick={() =>
+            append({
+              location_name: "",
+              amount: fields.length === 0 ? 0 : extraStopDefaultAmount,
+            })
+          }
           className="flex items-center gap-1 rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
         >
           <Plus size={14} />
@@ -404,7 +451,7 @@ function LocationsEditor({
                     index < extraNoteFrom ? "bg-zinc-200 text-zinc-600" : "bg-amber-100 text-amber-700"
                   }`}
                 >
-                  {index < extraNoteFrom ? "ضمن سعر الرحلة" : "تربة زيادة"}
+                  {index < extraNoteFrom ? "ضمن سعر الرحلة" : "ترب زيادة"}
                 </span>
               )}
               <button

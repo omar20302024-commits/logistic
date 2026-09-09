@@ -14,6 +14,7 @@ export type DriverRecord = {
   phone: string | null;
   salary: number;
   default_trip_payment: number;
+  extra_stop_rate: number;
   hire_date: string | null;
   status: "active" | "inactive";
   employment_type: "internal" | "external";
@@ -25,6 +26,7 @@ const emptyValues: DriverFormInput = {
   phone: "",
   salary: 0,
   default_trip_payment: 0,
+  extra_stop_rate: 0,
   hire_date: "",
   status: "active",
   employment_type: "internal",
@@ -61,6 +63,7 @@ export function DriverFormModal({
             phone: driver.phone ?? "",
             salary: driver.salary,
             default_trip_payment: driver.default_trip_payment,
+            extra_stop_rate: driver.extra_stop_rate,
             hire_date: driver.hire_date ?? "",
             status: driver.status,
             employment_type: driver.employment_type,
@@ -122,20 +125,38 @@ export function DriverFormModal({
           </div>
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-zinc-700">التربة الافتراضية للرحلة</label>
-          <input
-            {...register("default_trip_payment")}
-            type="number"
-            step="0.01"
-            dir="ltr"
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-right outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
-          />
-          <p className="text-[11px] text-zinc-400">تُملأ تلقائياً عند إنشاء رحلة جديدة لهذا السائق (قابلة للتعديل لكل رحلة)</p>
-          {errors.default_trip_payment && (
-            <p className="text-xs text-red-600">{errors.default_trip_payment.message}</p>
-          )}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-zinc-700">الترب الافتراضي العام</label>
+            <input
+              {...register("default_trip_payment")}
+              type="number"
+              step="0.01"
+              dir="ltr"
+              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-right outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+            />
+            {errors.default_trip_payment && (
+              <p className="text-xs text-red-600">{errors.default_trip_payment.message}</p>
+            )}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-zinc-700">ترب الموقع الإضافي</label>
+            <input
+              {...register("extra_stop_rate")}
+              type="number"
+              step="0.01"
+              dir="ltr"
+              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-right outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+            />
+            {errors.extra_stop_rate && (
+              <p className="text-xs text-red-600">{errors.extra_stop_rate.message}</p>
+            )}
+          </div>
         </div>
+        <p className="-mt-2 text-[11px] text-zinc-400">
+          الترب العام يُستخدم لو مفيش خط سير محدَّد لنفس المدينتين (أضِف خطوط السير من صفحة السائق بعد الحفظ).
+          ترب الموقع الإضافي يُملأ تلقائياً لأي موقع تنزيل زيادة عن الأول.
+        </p>
 
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">

@@ -6,6 +6,7 @@ import { formatCurrency, formatNumber } from "@/lib/format";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LedgerSection } from "@/components/drivers/LedgerSection";
 import { CustodySection } from "@/components/drivers/CustodySection";
+import { RouteRatesSection } from "@/components/drivers/RouteRatesSection";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 export default async function DriverDetailPage({
@@ -58,23 +59,29 @@ export default async function DriverDetailPage({
     total_due_to_driver: 0,
   };
 
-  const [{ data: advances }, { data: deductions }, { data: custodyEntries }] = await Promise.all([
-    supabase
-      .from("driver_advances")
-      .select("*")
-      .eq("driver_id", id)
-      .order("date", { ascending: false }),
-    supabase
-      .from("driver_deductions")
-      .select("*")
-      .eq("driver_id", id)
-      .order("date", { ascending: false }),
-    supabase
-      .from("driver_custody_entries")
-      .select("*")
-      .eq("driver_id", id)
-      .order("date", { ascending: false }),
-  ]);
+  const [{ data: advances }, { data: deductions }, { data: custodyEntries }, { data: routeRates }] =
+    await Promise.all([
+      supabase
+        .from("driver_advances")
+        .select("*")
+        .eq("driver_id", id)
+        .order("date", { ascending: false }),
+      supabase
+        .from("driver_deductions")
+        .select("*")
+        .eq("driver_id", id)
+        .order("date", { ascending: false }),
+      supabase
+        .from("driver_custody_entries")
+        .select("*")
+        .eq("driver_id", id)
+        .order("date", { ascending: false }),
+      supabase
+        .from("driver_route_rates")
+        .select("*")
+        .eq("driver_id", id)
+        .order("from_city"),
+    ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -144,7 +151,7 @@ export default async function DriverDetailPage({
             icon={Banknote}
           />
           <StatCard
-            label="إجمالي التربات"
+            label="إجمالي الترب"
             value={formatCurrency(s.total_driver_payment, currencySymbol)}
             icon={Wallet}
           />
@@ -201,6 +208,8 @@ export default async function DriverDetailPage({
         balance={s.custody_balance}
         currencySymbol={currencySymbol}
       />
+
+      <RouteRatesSection driverId={id} rates={routeRates ?? []} currencySymbol={currencySymbol} />
 
       {driver.notes && (
         <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600">

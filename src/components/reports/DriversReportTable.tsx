@@ -57,7 +57,7 @@ export function DriversReportTable({
   const handleExport = () => {
     exportToCsv(
       `تقرير_السائقين_${from}_${to}`,
-      ["السائق", "الحالة", "عدد الرحلات", "قيمة الرحلات", "التربات", "الديزل", "الربح التشغيلي", "الراتب", "صافي الربح"],
+      ["السائق", "الحالة", "عدد الرحلات", "قيمة الرحلات", "الترب", "الديزل", "الربح التشغيلي", "الراتب", "صافي الربح"],
       rows.map((r) => [
         r.driver_name,
         r.driver_status === "active" ? "نشط" : "غير نشط",
@@ -102,7 +102,7 @@ export function DriversReportTable({
                   <th className="px-4 py-3 font-medium">السائق</th>
                   <th className="px-4 py-3 font-medium">الرحلات</th>
                   <th className="px-4 py-3 font-medium">قيمة الرحلات</th>
-                  <th className="px-4 py-3 font-medium">التربات</th>
+                  <th className="px-4 py-3 font-medium">الترب</th>
                   <th className="px-4 py-3 font-medium">الديزل</th>
                   <th className="px-4 py-3 font-medium">الربح التشغيلي</th>
                   <th className="px-4 py-3 font-medium">الراتب</th>

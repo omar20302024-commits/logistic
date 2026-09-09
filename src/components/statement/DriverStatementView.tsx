@@ -140,7 +140,7 @@ export function DriverStatementView({
         {/* الإجماليات */}
         <div className="my-6 flex flex-col divide-y divide-zinc-100 text-sm sm:mx-auto sm:w-96">
           <SummaryRow label="عدد الرحلات" value={formatNumber(summary.trips_count)} />
-          <SummaryRow label="إجمالي التربات" value={formatCurrency(summary.total_driver_payment, currencySymbol)} />
+          <SummaryRow label="إجمالي الترب" value={formatCurrency(summary.total_driver_payment, currencySymbol)} />
           <SummaryRow label="الراتب الأساسي" value={formatCurrency(summary.salary_basic, currencySymbol)} />
           <SummaryRow label="الخصومات" value={formatCurrency(summary.total_deductions, currencySymbol)} />
           <SummaryRow label="السلف" value={formatCurrency(summary.total_advances, currencySymbol)} />

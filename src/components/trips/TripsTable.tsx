@@ -192,7 +192,7 @@ export function TripsTable({
                 <th className="px-4 py-3 font-medium">الشركة</th>
                 <th className="px-4 py-3 font-medium">من → إلى</th>
                 <th className="px-4 py-3 font-medium">سعر الرحلة</th>
-                <th className="px-4 py-3 font-medium">التربة</th>
+                <th className="px-4 py-3 font-medium">الترب</th>
                 <th className="px-4 py-3 font-medium">الديزل</th>
                 <th className="px-4 py-3 font-medium">الربح</th>
                 <th className="px-4 py-3 font-medium">الحالة</th>

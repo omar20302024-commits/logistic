@@ -125,7 +125,7 @@ export default async function DashboardPage() {
           icon={Banknote}
         />
         <StatCard
-          label="إجمالي التربات"
+          label="إجمالي الترب"
           value={formatCurrency(overview.total_driver_payments, currencySymbol)}
           icon={MinusCircle}
           tone="warning"

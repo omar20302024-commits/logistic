@@ -104,7 +104,7 @@ export default async function CompanyDetailPage({
             icon={Banknote}
           />
           <StatCard
-            label="إجمالي التربات"
+            label="إجمالي الترب"
             value={formatCurrency(s.total_driver_payment, currencySymbol)}
             icon={Banknote}
           />

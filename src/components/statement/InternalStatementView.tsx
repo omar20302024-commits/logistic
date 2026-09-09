@@ -91,7 +91,7 @@ export function InternalStatementView({
               <th className="px-2 py-2 font-medium">تحميل</th>
               <th className="px-2 py-2 font-medium">تنزيل</th>
               <th className="px-2 py-2 font-medium">سعر الرحلة</th>
-              <th className="px-2 py-2 font-medium">التربة</th>
+              <th className="px-2 py-2 font-medium">الترب</th>
               <th className="px-2 py-2 font-medium">الديزل</th>
               <th className="px-2 py-2 font-medium">ربح الرحلة</th>
             </tr>
@@ -143,7 +143,7 @@ export function InternalStatementView({
         <div className="flex flex-col divide-y divide-zinc-100 text-sm">
           <SummaryRow label="عدد الرحلات" value={formatNumber(summary.trips_count)} />
           <SummaryRow label="إجمالي قيمة الرحلات" value={formatCurrency(summary.total_trip_amount, currencySymbol)} />
-          <SummaryRow label="إجمالي التربات" value={formatCurrency(summary.total_driver_payment, currencySymbol)} />
+          <SummaryRow label="إجمالي الترب" value={formatCurrency(summary.total_driver_payment, currencySymbol)} />
           <SummaryRow label="إجمالي الديزل" value={formatCurrency(summary.total_diesel, currencySymbol)} />
           <SummaryRow
             label="إجمالي الربح التشغيلي"

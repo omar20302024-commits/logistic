@@ -12,7 +12,7 @@ export const tripSchema = z.object({
   trip_date: z.string().min(1, "التاريخ مطلوب"),
   from_location: z.string().trim().min(1, "مكان الانطلاق مطلوب"),
   to_location: z.string().trim().min(1, "مكان الوصول مطلوب"),
-  driver_base_payment: z.coerce.number().min(0, "التربة يجب أن تكون رقماً موجباً"),
+  driver_base_payment: z.coerce.number().min(0, "الترب يجب أن يكون رقماً موجباً"),
   diesel_amount: z.coerce.number().min(0, "الديزل يجب أن يكون رقماً موجباً"),
   status: z.enum(["new", "in_progress", "completed", "cancelled"]),
   notes: z.string().trim().optional().or(z.literal("")),

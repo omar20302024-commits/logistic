@@ -66,7 +66,7 @@ export function FinancialReportView({
         </Section>
 
         <Section title="المصروفات المباشرة">
-          <Row label="التربات" value={summary.total_driver_payments} currencySymbol={currencySymbol} sign="minus" />
+          <Row label="الترب" value={summary.total_driver_payments} currencySymbol={currencySymbol} sign="minus" />
           <Row label="الديزل" value={summary.total_diesel} currencySymbol={currencySymbol} sign="minus" />
         </Section>
 

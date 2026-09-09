@@ -65,7 +65,7 @@ export function ProfitabilityReportTable({
   const handleExport = () => {
     exportToCsv(
       `ربحية_الرحلات_${filters.from}_${filters.to}`,
-      ["التاريخ", "رقم الرحلة", "السائق", "الشركة", "سعر الرحلة", "التربة", "الديزل", "الربح"],
+      ["التاريخ", "رقم الرحلة", "السائق", "الشركة", "سعر الرحلة", "الترب", "الديزل", "الربح"],
       rows.map((r) => [
         r.trip_date,
         r.trip_number,
@@ -129,7 +129,7 @@ export function ProfitabilityReportTable({
                   <th className="px-4 py-3 font-medium">السائق</th>
                   <th className="px-4 py-3 font-medium">الشركة</th>
                   <th className="px-4 py-3 font-medium">سعر الرحلة</th>
-                  <th className="px-4 py-3 font-medium">التربة</th>
+                  <th className="px-4 py-3 font-medium">الترب</th>
                   <th className="px-4 py-3 font-medium">الديزل</th>
                   <th className="px-4 py-3 font-medium">الربح</th>
                 </tr>

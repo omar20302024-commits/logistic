@@ -6,15 +6,25 @@ import { TripForm } from "@/components/trips/TripForm";
 export default async function NewTripPage() {
   const supabase = await createClient();
 
-  const [{ data: drivers }, { data: companies }, { data: settings }] = await Promise.all([
+  const [{ data: driversRaw }, { data: companies }, { data: settings }] = await Promise.all([
     supabase
       .from("drivers")
-      .select("id, name, default_trip_payment")
+      .select(
+        "id, name, default_trip_payment, extra_stop_rate, driver_route_rates(from_city, to_city, trab_amount)"
+      )
       .eq("status", "active")
       .order("name"),
     supabase.from("companies").select("id, name").eq("status", "active").order("name"),
     supabase.from("settings").select("currency_symbol").single(),
   ]);
+
+  const drivers = (driversRaw ?? []).map((d) => ({
+    id: d.id,
+    name: d.name,
+    default_trip_payment: d.default_trip_payment,
+    extra_stop_rate: d.extra_stop_rate,
+    route_rates: d.driver_route_rates ?? [],
+  }));
 
   return (
     <div className="flex flex-col gap-6">

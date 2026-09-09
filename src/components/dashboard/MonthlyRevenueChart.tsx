@@ -49,7 +49,7 @@ export function MonthlyRevenueChart({
             />
             <Legend wrapperStyle={{ fontSize: 12 }} />
             <Bar dataKey="total_trip_amount" name="الإيرادات" fill="#a1a1aa" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="total_driver_payments" name="التربات" fill="#fbbf24" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="total_driver_payments" name="الترب" fill="#fbbf24" radius={[4, 4, 0, 0]} />
             <Bar dataKey="total_diesel" name="الديزل" fill="#f87171" radius={[4, 4, 0, 0]} />
             <Line
               type="monotone"

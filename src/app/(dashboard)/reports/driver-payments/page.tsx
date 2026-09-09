@@ -38,8 +38,8 @@ export default async function DriverPaymentsReportPage({
   return (
     <div className="flex flex-col gap-6">
       <div className="print:hidden">
-        <h1 className="text-xl font-bold text-zinc-900">تقرير التربات</h1>
-        <p className="text-sm text-zinc-500">إجمالي تربات كل سائق خلال الفترة المحددة</p>
+        <h1 className="text-xl font-bold text-zinc-900">تقرير الترب</h1>
+        <p className="text-sm text-zinc-500">إجمالي ترب كل سائق خلال الفترة المحددة</p>
       </div>
 
       <ErrorBanner error={error} hint="تأكد من تشغيل ملف SQL رقم 0007 (دالة fn_driver_payments_report)." />
