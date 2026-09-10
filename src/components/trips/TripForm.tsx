@@ -14,6 +14,7 @@ import {
 } from "@/lib/validation/trip";
 import { createTrip, updateTrip } from "@/app/(dashboard)/trips/actions";
 import { formatCurrency } from "@/lib/format";
+import { normalizeArabic } from "@/lib/arabic";
 
 type RouteRate = { from_city: string; to_city: string; trab_amount: number };
 type DriverOption = {
@@ -25,7 +26,9 @@ type DriverOption = {
 };
 type CompanyOption = { id: string; name: string };
 
-const norm = (s: string) => s.trim().toLowerCase();
+// مطابقة أسماء المدن تتجاهل الفروق الإملائية الشائعة (جده/جدة، الاحساء/الأحساء،
+// المسافات الزائدة) — التفاصيل في src/lib/arabic.ts
+const norm = normalizeArabic;
 
 export type TripInitialData = {
   id: string;
@@ -131,6 +134,16 @@ export function TripForm({
           norm(r.to_city) === norm(watchedToLocation ?? "")
       )
     : undefined;
+
+  // السائق له خطوط سير محفوظة، و"من/إلى" مكتوبتان، ومع ذلك لم يتطابق أي خط سير.
+  // بدون هذا التنبيه تكون الواجهة صامتة تماماً فلا يفرّق المستخدم بين "لا يوجد خط
+  // سير لهذه الوجهة أصلاً" و"يوجد لكن الإملاء مختلف" — وكلاهما يعطي الترب الافتراضي.
+  const routeRatesExist = (selectedDriver?.route_rates.length ?? 0) > 0;
+  const routeUnmatched =
+    routeRatesExist &&
+    !matchedRoute &&
+    norm(watchedFromLocation ?? "") !== "" &&
+    norm(watchedToLocation ?? "") !== "";
 
   const totalTripAmount = loadingTotal + unloadingTotal;
   const totalDriverPayment = (Number(watchedBasePayment) || 0) + extraStopsPayment;
@@ -302,6 +315,13 @@ export function TripForm({
             {matchedRoute && (
               <p className="text-[11px] text-emerald-600">
                 ✓ مطابق لخط سير محفوظ لهذا السائق
+              </p>
+            )}
+            {routeUnmatched && (
+              <p className="text-[11px] text-amber-600">
+                لا يوجد خط سير محفوظ لهذا السائق يطابق «من ← إلى»
+                {!initialData && " — استُخدم الترب الافتراضي العام"}. راجع إملاء المدينتين،
+                أو أضف خط السير من صفحة السائق.
               </p>
             )}
           </div>
