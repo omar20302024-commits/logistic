@@ -16,7 +16,7 @@ type Row = {
   total_driver_payment: number;
   total_diesel: number;
   operating_profit: number;
-  salary_basic: number;
+  salary_earned: number;
   net_profit: number;
 };
 
@@ -48,16 +48,16 @@ export function DriversReportTable({
       total_driver_payment: acc.total_driver_payment + r.total_driver_payment,
       total_diesel: acc.total_diesel + r.total_diesel,
       operating_profit: acc.operating_profit + r.operating_profit,
-      salary_basic: acc.salary_basic + r.salary_basic,
+      salary_earned: acc.salary_earned + r.salary_earned,
       net_profit: acc.net_profit + r.net_profit,
     }),
-    { trips_count: 0, total_trip_amount: 0, total_driver_payment: 0, total_diesel: 0, operating_profit: 0, salary_basic: 0, net_profit: 0 }
+    { trips_count: 0, total_trip_amount: 0, total_driver_payment: 0, total_diesel: 0, operating_profit: 0, salary_earned: 0, net_profit: 0 }
   );
 
   const handleExport = () => {
     exportToCsv(
       `تقرير_السائقين_${from}_${to}`,
-      ["السائق", "الحالة", "عدد الرحلات", "قيمة الرحلات", "الترب", "الديزل", "الربح التشغيلي", "الراتب", "صافي الربح"],
+      ["السائق", "الحالة", "عدد الرحلات", "قيمة الرحلات", "الترب", "الديزل", "الربح التشغيلي", "الراتب المستحق", "صافي الربح"],
       rows.map((r) => [
         r.driver_name,
         r.driver_status === "active" ? "نشط" : "غير نشط",
@@ -66,7 +66,7 @@ export function DriversReportTable({
         r.total_driver_payment,
         r.total_diesel,
         r.operating_profit,
-        r.salary_basic,
+        r.salary_earned,
         r.net_profit,
       ])
     );
@@ -105,7 +105,7 @@ export function DriversReportTable({
                   <th className="px-4 py-3 font-medium">الترب</th>
                   <th className="px-4 py-3 font-medium">الديزل</th>
                   <th className="px-4 py-3 font-medium">الربح التشغيلي</th>
-                  <th className="px-4 py-3 font-medium">الراتب</th>
+                  <th className="px-4 py-3 font-medium">الراتب المستحق</th>
                   <th className="px-4 py-3 font-medium">صافي الربح</th>
                 </tr>
               </thead>
@@ -118,7 +118,7 @@ export function DriversReportTable({
                     <td className="px-4 py-3 whitespace-nowrap" dir="ltr">{formatCurrency(r.total_driver_payment, currencySymbol)}</td>
                     <td className="px-4 py-3 whitespace-nowrap" dir="ltr">{formatCurrency(r.total_diesel, currencySymbol)}</td>
                     <td className="px-4 py-3 whitespace-nowrap font-semibold text-emerald-700" dir="ltr">{formatCurrency(r.operating_profit, currencySymbol)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap" dir="ltr">{formatCurrency(r.salary_basic, currencySymbol)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap" dir="ltr">{formatCurrency(r.salary_earned, currencySymbol)}</td>
                     <td className="px-4 py-3 whitespace-nowrap font-semibold text-zinc-900" dir="ltr">{formatCurrency(r.net_profit, currencySymbol)}</td>
                   </tr>
                 ))}
@@ -131,7 +131,7 @@ export function DriversReportTable({
                   <td className="px-4 py-3 whitespace-nowrap" dir="ltr">{formatCurrency(totals.total_driver_payment, currencySymbol)}</td>
                   <td className="px-4 py-3 whitespace-nowrap" dir="ltr">{formatCurrency(totals.total_diesel, currencySymbol)}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-emerald-700" dir="ltr">{formatCurrency(totals.operating_profit, currencySymbol)}</td>
-                  <td className="px-4 py-3 whitespace-nowrap" dir="ltr">{formatCurrency(totals.salary_basic, currencySymbol)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap" dir="ltr">{formatCurrency(totals.salary_earned, currencySymbol)}</td>
                   <td className="px-4 py-3 whitespace-nowrap" dir="ltr">{formatCurrency(totals.net_profit, currencySymbol)}</td>
                 </tr>
               </tfoot>

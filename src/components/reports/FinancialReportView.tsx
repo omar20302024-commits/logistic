@@ -74,7 +74,7 @@ export function FinancialReportView({
         <TotalRow label="الربح التشغيلي" value={summary.operating_profit} currencySymbol={currencySymbol} />
 
         <Section title="المصروفات الإضافية">
-          <Row label="الرواتب" value={summary.total_salaries} currencySymbol={currencySymbol} sign="minus" />
+          <Row label="الرواتب (حسب أيام العمل)" value={summary.total_salaries} currencySymbol={currencySymbol} sign="minus" />
           <Row
             label="مصروفات دفعها السائقون"
             value={summary.total_driver_expenses}
