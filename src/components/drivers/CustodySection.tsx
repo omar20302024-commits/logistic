@@ -5,19 +5,26 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { CustodyFormModal, type CustodyRecord } from "./CustodyFormModal";
+import {
+  CustodyFormModal,
+  type CustodyRecord,
+  type CustodyTripOption,
+} from "./CustodyFormModal";
 import { deleteCustodyEntry } from "@/app/(dashboard)/drivers/custody-actions";
+import { custodyReasonLabels } from "@/lib/validation/custody";
 import { formatCurrency } from "@/lib/format";
 
 export function CustodySection({
   driverId,
   entries,
   balance,
+  trips,
   currencySymbol,
 }: {
   driverId: string;
   entries: CustodyRecord[];
   balance: number;
+  trips: CustodyTripOption[];
   currencySymbol: string;
 }) {
   const router = useRouter();
@@ -77,10 +84,32 @@ export function CustodySection({
                   <ArrowUpCircle size={16} className="text-red-500" />
                 )}
                 <div>
-                  <div className="text-sm text-zinc-800" dir="ltr">
-                    {entry.date}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-sm text-zinc-800" dir="ltr">
+                      {entry.date}
+                    </span>
+                    {entry.expense_category && (
+                      <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
+                        {entry.expense_category}
+                      </span>
+                    )}
+                    {entry.settlement_id && (
+                      <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                        مُصفّى
+                      </span>
+                    )}
+                    {entry.reason === "unspecified" && (
+                      <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                        غير مصنّف
+                      </span>
+                    )}
                   </div>
-                  {entry.description && <div className="text-xs text-zinc-400">{entry.description}</div>}
+                  <div className="text-xs text-zinc-400">
+                    {entry.reason && entry.reason !== "unspecified"
+                      ? custodyReasonLabels[entry.reason]
+                      : null}
+                    {entry.description ? ` — ${entry.description}` : ""}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -121,6 +150,8 @@ export function CustodySection({
         onClose={() => setFormOpen(false)}
         driverId={driverId}
         entry={editingEntry}
+        trips={trips}
+        currencySymbol={currencySymbol}
         onSaved={() => router.refresh()}
       />
 

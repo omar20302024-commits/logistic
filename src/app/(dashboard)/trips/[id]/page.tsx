@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { TripForm } from "@/components/trips/TripForm";
 import { DeleteTripButton } from "@/components/trips/DeleteTripButton";
@@ -64,6 +64,23 @@ export default async function EditTripPage({
         </div>
         <DeleteTripButton tripId={trip.id} tripNumber={trip.trip_number} />
       </div>
+
+      {trip.settlement_id && (
+        <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          <div>
+            <p className="font-medium">ترب هذه الرحلة مُصفّى بالفعل</p>
+            <p className="text-xs">
+              التعديل مسموح، لكن مبلغ سند التصفية لن يتغيّر لأنه مجمَّد وقت الصرف — والرحلة لن
+              تدخل أي تصفية قادمة لأنها موسومة بهذا السند. فلو عدّلت الترب هنا، سوِّ الفرق بإلغاء
+              السند وإعادة تصفيته، أو بقيد عهدة يدوي.{" "}
+              <Link href={`/settlements/${trip.settlement_id}`} className="font-medium underline">
+                عرض السند
+              </Link>
+            </p>
+          </div>
+        </div>
+      )}
 
       <TripForm
         drivers={drivers ?? []}

@@ -32,6 +32,7 @@ export default async function FinancialReportPage({
     total_diesel: number;
     operating_profit: number;
     total_salaries: number;
+    total_driver_expenses: number;
     total_other_expenses: number;
     net_profit: number;
   };
@@ -42,6 +43,7 @@ export default async function FinancialReportPage({
     total_diesel: 0,
     operating_profit: 0,
     total_salaries: 0,
+    total_driver_expenses: 0,
     total_other_expenses: 0,
     net_profit: 0,
   };

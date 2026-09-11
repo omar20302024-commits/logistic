@@ -7,6 +7,7 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { LedgerSection } from "@/components/drivers/LedgerSection";
 import { CustodySection } from "@/components/drivers/CustodySection";
 import { RouteRatesSection } from "@/components/drivers/RouteRatesSection";
+import { SettlementsSection } from "@/components/drivers/SettlementsSection";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 export default async function DriverDetailPage({
@@ -82,6 +83,20 @@ export default async function DriverDetailPage({
         .eq("driver_id", id)
         .order("from_city"),
     ]);
+
+  // رحلات السائق: لربط مصروفاته برحلة، ولاختيار ما يُصفّى
+  const { data: driverTrips } = await supabase
+    .from("trips")
+    .select("id, trip_number, trip_date, diesel_amount, driver_trip_payment, settlement_id, status")
+    .eq("driver_id", id)
+    .order("trip_date", { ascending: false })
+    .limit(200);
+
+  const { data: settlements } = await supabase
+    .from("driver_settlements")
+    .select("*")
+    .eq("driver_id", id)
+    .order("to_date", { ascending: false });
 
   return (
     <div className="flex flex-col gap-6">
@@ -206,6 +221,14 @@ export default async function DriverDetailPage({
         driverId={id}
         entries={custodyEntries ?? []}
         balance={s.custody_balance}
+        trips={driverTrips ?? []}
+        currencySymbol={currencySymbol}
+      />
+
+      <SettlementsSection
+        driverId={id}
+        driverName={driver.name}
+        settlements={settlements ?? []}
         currencySymbol={currencySymbol}
       />
 

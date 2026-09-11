@@ -11,6 +11,7 @@ type Summary = {
   total_diesel: number;
   operating_profit: number;
   total_salaries: number;
+  total_driver_expenses: number;
   total_other_expenses: number;
   net_profit: number;
 };
@@ -74,6 +75,12 @@ export function FinancialReportView({
 
         <Section title="المصروفات الإضافية">
           <Row label="الرواتب" value={summary.total_salaries} currencySymbol={currencySymbol} sign="minus" />
+          <Row
+            label="مصروفات دفعها السائقون"
+            value={summary.total_driver_expenses}
+            currencySymbol={currencySymbol}
+            sign="minus"
+          />
           <Row label="مصروفات أخرى" value={summary.total_other_expenses} currencySymbol={currencySymbol} sign="minus" />
         </Section>
 

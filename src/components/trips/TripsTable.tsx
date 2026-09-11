@@ -27,6 +27,8 @@ type TripRow = {
   diesel_amount: number;
   trip_profit: number;
   status: "new" | "in_progress" | "completed" | "cancelled";
+  settlement_id: string | null;
+  settlement_number: string | null;
 };
 
 const statusColors: Record<string, string> = {
@@ -206,9 +208,27 @@ export function TripsTable({
                     {trip.trip_date}
                   </td>
                   <td className="px-4 py-3">
-                    <Link href={`/trips/${trip.id}`} className="font-medium text-zinc-900 hover:underline">
-                      {trip.trip_number}
-                    </Link>
+                    <div className="flex flex-col gap-0.5">
+                      <Link
+                        href={`/trips/${trip.id}`}
+                        className="font-medium text-zinc-900 hover:underline"
+                      >
+                        {trip.trip_number}
+                      </Link>
+                      {trip.settlement_id ? (
+                        <Link
+                          href={`/settlements/${trip.settlement_id}`}
+                          className="w-fit rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 hover:bg-emerald-100"
+                          title="عرض سند التصفية"
+                        >
+                          تم تصفية الترب{trip.settlement_number ? ` · ${trip.settlement_number}` : ""}
+                        </Link>
+                      ) : (
+                        <span className="w-fit rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">
+                          الترب غير مُصفّى
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-zinc-600">{trip.driver_name}</td>
                   <td className="px-4 py-3 text-zinc-600">{trip.company_name}</td>
