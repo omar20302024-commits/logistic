@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { ExternalDriversReportTable } from "@/components/reports/ExternalDriversReportTable";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { ReviewedByFooter } from "@/components/ui/ReviewedByFooter";
 
 function firstDayOfMonth() {
   const now = new Date();
@@ -23,7 +24,7 @@ export default async function ExternalDriversReportPage({
 
   const [{ data: rows, error }, { data: settings }] = await Promise.all([
     supabase.rpc("fn_external_drivers_report", { p_from: from, p_to: to }),
-    supabase.from("settings").select("currency_symbol").single(),
+    supabase.from("settings").select("currency_symbol, reviewed_by").single(),
   ]);
 
   return (
@@ -43,6 +44,8 @@ export default async function ExternalDriversReportPage({
         to={to}
         currencySymbol={settings?.currency_symbol ?? "ر.س"}
       />
+
+      <ReviewedByFooter name={settings?.reviewed_by} />
     </div>
   );
 }

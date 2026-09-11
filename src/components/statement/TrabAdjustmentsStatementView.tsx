@@ -89,14 +89,13 @@ export function TrabAdjustmentsStatementView({
                 <th className="px-3 py-2.5 font-medium">الشركة</th>
                 <th className="px-3 py-2.5 font-medium">من</th>
                 <th className="px-3 py-2.5 font-medium">إلى</th>
-                <th className="px-3 py-2.5 font-medium">مواقع التنزيل</th>
                 <th className="px-3 py-2.5 font-medium">الترب</th>
               </tr>
             </thead>
             <tbody>
               {trips.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-zinc-400">
+                  <td colSpan={6} className="py-8 text-center text-zinc-400">
                     لا توجد رحلات في هذه الفترة
                   </td>
                 </tr>
@@ -110,7 +109,6 @@ export function TrabAdjustmentsStatementView({
                     <td className="border-t border-zinc-100 px-3 py-2">{t.company_name}</td>
                     <td className="border-t border-zinc-100 px-3 py-2">{t.from_location}</td>
                     <td className="border-t border-zinc-100 px-3 py-2">{t.to_location}</td>
-                    <td className="border-t border-zinc-100 px-3 py-2 text-center">{t.unloading_count}</td>
                     <td className="border-t border-zinc-100 px-3 py-2 whitespace-nowrap font-semibold text-zinc-900" dir="ltr">
                       {formatCurrency(t.driver_trip_payment, currencySymbol)}
                     </td>

@@ -8,6 +8,7 @@ import { LedgerSection } from "@/components/drivers/LedgerSection";
 import { CustodySection } from "@/components/drivers/CustodySection";
 import { RouteRatesSection } from "@/components/drivers/RouteRatesSection";
 import { SettlementsSection } from "@/components/drivers/SettlementsSection";
+import { LeavesSection } from "@/components/drivers/LeavesSection";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 export default async function DriverDetailPage({
@@ -97,6 +98,12 @@ export default async function DriverDetailPage({
     .select("*")
     .eq("driver_id", id)
     .order("to_date", { ascending: false });
+
+  const { data: leaves } = await supabase
+    .from("driver_leaves")
+    .select("*")
+    .eq("driver_id", id)
+    .order("from_date", { ascending: false });
 
   return (
     <div className="flex flex-col gap-6">
@@ -224,6 +231,8 @@ export default async function DriverDetailPage({
         trips={driverTrips ?? []}
         currencySymbol={currencySymbol}
       />
+
+      <LeavesSection driverId={id} leaves={leaves ?? []} />
 
       <SettlementsSection
         driverId={id}

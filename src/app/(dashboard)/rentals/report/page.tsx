@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { RentalReportView } from "@/components/rentals/RentalReportView";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { ReviewedByFooter } from "@/components/ui/ReviewedByFooter";
 
 export default async function RentalReportPage({
   searchParams,
@@ -16,7 +17,7 @@ export default async function RentalReportPage({
 
   const [{ data: rows, error }, { data: settings }] = await Promise.all([
     supabase.rpc("fn_rental_contracts_report", { p_month: Number(month), p_year: Number(year) }),
-    supabase.from("settings").select("currency_symbol").single(),
+    supabase.from("settings").select("currency_symbol, reviewed_by").single(),
   ]);
 
   return (
@@ -34,6 +35,8 @@ export default async function RentalReportPage({
         year={year}
         currencySymbol={settings?.currency_symbol ?? "ر.س"}
       />
+
+      <ReviewedByFooter name={settings?.reviewed_by} />
     </div>
   );
 }

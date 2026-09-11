@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { ProfitabilityReportTable } from "@/components/reports/ProfitabilityReportTable";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { ReviewedByFooter } from "@/components/ui/ReviewedByFooter";
 
 const PAGE_SIZE = 25;
 
@@ -54,7 +55,7 @@ export default async function ProfitabilityReportPage({
         .single(),
       supabase.from("drivers").select("id, name").order("name"),
       supabase.from("companies").select("id, name").order("name"),
-      supabase.from("settings").select("currency_symbol").single(),
+      supabase.from("settings").select("currency_symbol, reviewed_by").single(),
     ]);
 
   type Totals = {
@@ -87,6 +88,8 @@ export default async function ProfitabilityReportPage({
         currencySymbol={settings?.currency_symbol ?? "ر.س"}
         filters={{ from, to, driverId, companyId, status }}
       />
+
+      <ReviewedByFooter name={settings?.reviewed_by} />
     </div>
   );
 }

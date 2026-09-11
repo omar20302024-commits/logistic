@@ -18,6 +18,7 @@ export default async function SettingsPage() {
             org_name: settings?.org_name ?? "",
             org_phone: settings?.org_phone ?? "",
             org_address: settings?.org_address ?? "",
+            reviewed_by: settings?.reviewed_by ?? "",
             currency_code: settings?.currency_code ?? "SAR",
             currency_symbol: settings?.currency_symbol ?? "ر.س",
             count_cancelled_trips_in_profit: settings?.count_cancelled_trips_in_profit ?? false,

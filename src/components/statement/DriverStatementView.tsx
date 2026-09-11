@@ -23,6 +23,9 @@ type PublicSummary = {
   total_advances: number;
   total_deductions: number;
   salary_basic: number;
+  salary_earned: number;
+  leave_days: number;
+  worked_days: number;
   net_salary: number;
   custody_balance: number;
   total_due_to_driver: number;
@@ -94,7 +97,6 @@ export function DriverStatementView({
                 <th className="px-3 py-2.5 font-medium">الشركة</th>
                 <th className="px-3 py-2.5 font-medium">من</th>
                 <th className="px-3 py-2.5 font-medium">إلى</th>
-                <th className="px-3 py-2.5 font-medium">مواقع التنزيل</th>
                 <th className="px-3 py-2.5 font-medium">ترب الرحلة</th>
                 <th className="px-3 py-2.5 font-medium">ترب مواقع إضافية</th>
                 <th className="px-3 py-2.5 font-medium">الإجمالي</th>
@@ -103,7 +105,7 @@ export function DriverStatementView({
             <tbody>
               {trips.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-zinc-400">
+                  <td colSpan={8} className="py-8 text-center text-zinc-400">
                     لا توجد رحلات في هذه الفترة
                   </td>
                 </tr>
@@ -119,7 +121,6 @@ export function DriverStatementView({
                       <td className="border-t border-zinc-100 px-3 py-2">{t.company_name}</td>
                       <td className="border-t border-zinc-100 px-3 py-2">{t.from_location}</td>
                       <td className="border-t border-zinc-100 px-3 py-2">{t.to_location}</td>
-                      <td className="border-t border-zinc-100 px-3 py-2 text-center">{t.unloading_count}</td>
                       <td className="border-t border-zinc-100 px-3 py-2 whitespace-nowrap" dir="ltr">
                         {formatCurrency(t.driver_base_payment, currencySymbol)}
                       </td>
@@ -142,6 +143,18 @@ export function DriverStatementView({
           <SummaryRow label="عدد الرحلات" value={formatNumber(summary.trips_count)} />
           <SummaryRow label="إجمالي الترب" value={formatCurrency(summary.total_driver_payment, currencySymbol)} />
           <SummaryRow label="الراتب الأساسي" value={formatCurrency(summary.salary_basic, currencySymbol)} />
+          {summary.leave_days > 0 && (
+            <>
+              <SummaryRow
+                label="أيام العمل"
+                value={`${formatNumber(summary.worked_days)} من 30 (إجازة ${formatNumber(summary.leave_days)} يوماً)`}
+              />
+              <SummaryRow
+                label="الراتب المستحق"
+                value={formatCurrency(summary.salary_earned, currencySymbol)}
+              />
+            </>
+          )}
           <SummaryRow label="الخصومات" value={formatCurrency(summary.total_deductions, currencySymbol)} />
           <SummaryRow label="السلف" value={formatCurrency(summary.total_advances, currencySymbol)} />
           {summary.custody_balance !== 0 && (

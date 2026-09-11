@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { FinancialReportView } from "@/components/reports/FinancialReportView";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { ReviewedByFooter } from "@/components/ui/ReviewedByFooter";
 
 function firstDayOfMonth() {
   const now = new Date();
@@ -23,7 +24,7 @@ export default async function FinancialReportPage({
 
   const [{ data: summary, error }, { data: settings }] = await Promise.all([
     supabase.rpc("fn_financial_summary", { p_from: from, p_to: to }).single(),
-    supabase.from("settings").select("currency_symbol").single(),
+    supabase.from("settings").select("currency_symbol, reviewed_by").single(),
   ]);
 
   type Summary = {
@@ -63,6 +64,8 @@ export default async function FinancialReportPage({
         summary={(summary as Summary | null) ?? emptySummary}
         currencySymbol={settings?.currency_symbol ?? "ر.س"}
       />
+
+      <ReviewedByFooter name={settings?.reviewed_by} />
     </div>
   );
 }

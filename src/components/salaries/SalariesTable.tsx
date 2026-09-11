@@ -16,6 +16,9 @@ type DriverOption = { id: string; name: string; salary: number };
 
 type SalaryRow = SalaryRecord & {
   driver_name: string;
+  leave_days: number;
+  worked_days: number;
+  earned_salary: number;
   deductions_total: number;
   advances_total: number;
   net_salary: number;
@@ -138,6 +141,8 @@ export function SalariesTable({
                 <th className="px-4 py-3 font-medium">السائق</th>
                 <th className="px-4 py-3 font-medium">الشهر/السنة</th>
                 <th className="px-4 py-3 font-medium">الراتب الأساسي</th>
+                <th className="px-4 py-3 font-medium">أيام العمل</th>
+                <th className="px-4 py-3 font-medium">المستحق</th>
                 <th className="px-4 py-3 font-medium">الخصومات</th>
                 <th className="px-4 py-3 font-medium">السلف</th>
                 <th className="px-4 py-3 font-medium">صافي الراتب</th>
@@ -155,6 +160,17 @@ export function SalariesTable({
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-zinc-700" dir="ltr">
                     {formatCurrency(s.basic_salary, currencySymbol)}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap" dir="ltr">
+                    <span className={s.leave_days > 0 ? "font-semibold text-amber-600" : "text-zinc-500"}>
+                      {s.worked_days} / 30
+                    </span>
+                    {s.leave_days > 0 && (
+                      <span className="text-[11px] text-zinc-400"> (إجازة {s.leave_days})</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-zinc-900" dir="ltr">
+                    {formatCurrency(s.earned_salary, currencySymbol)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-red-600" dir="ltr">
                     {formatCurrency(s.deductions_total, currencySymbol)}

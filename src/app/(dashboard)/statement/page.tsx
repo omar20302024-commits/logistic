@@ -4,6 +4,7 @@ import { InternalStatementView } from "@/components/statement/InternalStatementV
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { FileText } from "lucide-react";
+import { ReviewedByFooter } from "@/components/ui/ReviewedByFooter";
 
 function firstDayOfMonth() {
   const now = new Date();
@@ -28,7 +29,7 @@ export default async function StatementPage({
 
   const [{ data: drivers }, { data: settings }] = await Promise.all([
     supabase.from("drivers").select("id, name").order("name"),
-    supabase.from("settings").select("currency_symbol, org_name").single(),
+    supabase.from("settings").select("currency_symbol, org_name, reviewed_by").single(),
   ]);
 
   const currencySymbol = settings?.currency_symbol ?? "ر.س";
@@ -113,6 +114,8 @@ export default async function StatementPage({
           currencySymbol={currencySymbol}
         />
       )}
+
+      <ReviewedByFooter name={settings?.reviewed_by} />
     </div>
   );
 }

@@ -17,6 +17,7 @@ export async function updateSettings(input: unknown): Promise<ActionResult> {
       org_name: parsed.data.org_name,
       org_phone: parsed.data.org_phone || null,
       org_address: parsed.data.org_address || null,
+      reviewed_by: parsed.data.reviewed_by || "",
       currency_code: parsed.data.currency_code,
       currency_symbol: parsed.data.currency_symbol,
       count_cancelled_trips_in_profit: parsed.data.count_cancelled_trips_in_profit,

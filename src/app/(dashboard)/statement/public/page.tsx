@@ -6,6 +6,7 @@ import { PrintClientButton } from "@/components/statement/PrintClientButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { FileText } from "lucide-react";
+import { ReviewedByFooter } from "@/components/ui/ReviewedByFooter";
 
 function firstDayOfMonth() {
   const now = new Date();
@@ -32,7 +33,7 @@ export default async function PublicStatementPage({
 
   const { data: settings } = await supabase
     .from("settings")
-    .select("currency_symbol, org_name, org_phone")
+    .select("currency_symbol, org_name, org_phone, reviewed_by")
     .single();
   const currencySymbol = settings?.currency_symbol ?? "ر.س";
   const orgName = settings?.org_name ?? "مؤسستي";
@@ -72,6 +73,9 @@ export default async function PublicStatementPage({
     total_advances: 0,
     total_deductions: 0,
     salary_basic: 0,
+    salary_earned: 0,
+    leave_days: 0,
+    worked_days: 30,
     net_salary: 0,
     custody_balance: 0,
     total_due_to_driver: 0,
@@ -107,6 +111,8 @@ export default async function PublicStatementPage({
         summary={(summary as typeof emptySummary | null) ?? emptySummary}
         currencySymbol={currencySymbol}
       />
+
+      <ReviewedByFooter name={settings?.reviewed_by} />
     </div>
   );
 }

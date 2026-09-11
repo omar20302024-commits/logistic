@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { DieselReportTable } from "@/components/reports/DieselReportTable";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { ReviewedByFooter } from "@/components/ui/ReviewedByFooter";
 
 const PAGE_SIZE = 25;
 
@@ -53,7 +54,7 @@ export default async function DieselReportPage({
         .single(),
       supabase.from("drivers").select("id, name").order("name"),
       supabase.from("companies").select("id, name").order("name"),
-      supabase.from("settings").select("currency_symbol").single(),
+      supabase.from("settings").select("currency_symbol, reviewed_by").single(),
     ]);
 
   const totals = totalsRaw as Totals | null;
@@ -79,6 +80,8 @@ export default async function DieselReportPage({
         currencySymbol={settings?.currency_symbol ?? "ر.س"}
         filters={{ from, to, driverId, companyId }}
       />
+
+      <ReviewedByFooter name={settings?.reviewed_by} />
     </div>
   );
 }

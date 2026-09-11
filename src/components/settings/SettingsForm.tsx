@@ -44,6 +44,13 @@ export function SettingsForm({ initial }: { initial: SettingsFormValues }) {
             <label className="text-sm font-medium text-zinc-700">العنوان</label>
             <input {...register("org_address")} className="rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900" />
           </div>
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <label className="text-sm font-medium text-zinc-700">اسم المراجِع</label>
+            <input {...register("reviewed_by")} className="rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900" />
+            <p className="text-[11px] text-zinc-400">
+              يظهر أسفل كل تقرير وكشف: «تمت المراجعة بواسطة ...». اتركه فارغاً لإخفاء التذييل.
+            </p>
+          </div>
         </div>
       </div>
 

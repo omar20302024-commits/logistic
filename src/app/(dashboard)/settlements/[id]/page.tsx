@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { PrintClientButton } from "@/components/statement/PrintClientButton";
 import { SettlementVoucher } from "@/components/settlements/SettlementVoucher";
+import { ReviewedByFooter } from "@/components/ui/ReviewedByFooter";
 
 /**
  * ملاحظة أمان (قاعدتا #3 و#11): سند التصفية مستند يخرج للسائق، فلا يُنتقى منه
@@ -28,7 +29,7 @@ export default async function SettlementVoucherPage({
 
   const [{ data: settings }, { data: driver }, { data: trips }, { data: custody }] =
     await Promise.all([
-      supabase.from("settings").select("org_name, org_phone, currency_symbol").single(),
+      supabase.from("settings").select("org_name, org_phone, currency_symbol, reviewed_by").single(),
       supabase.from("drivers").select("name, phone").eq("id", settlement.driver_id).single(),
       supabase
         .from("trips")
@@ -80,6 +81,8 @@ export default async function SettlementVoucherPage({
         deductions={deductions ?? []}
         currencySymbol={settings?.currency_symbol ?? "ر.س"}
       />
+
+      <ReviewedByFooter name={settings?.reviewed_by} />
     </div>
   );
 }

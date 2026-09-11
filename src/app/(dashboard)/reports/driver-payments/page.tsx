@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { DriverPaymentsReportTable } from "@/components/reports/DriverPaymentsReportTable";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { ReviewedByFooter } from "@/components/ui/ReviewedByFooter";
 
 function firstDayOfMonth() {
   const now = new Date();
@@ -32,7 +33,7 @@ export default async function DriverPaymentsReportPage({
     }),
     supabase.from("drivers").select("id, name").order("name"),
     supabase.from("companies").select("id, name").order("name"),
-    supabase.from("settings").select("currency_symbol").single(),
+    supabase.from("settings").select("currency_symbol, reviewed_by").single(),
   ]);
 
   return (
@@ -51,6 +52,8 @@ export default async function DriverPaymentsReportPage({
         currencySymbol={settings?.currency_symbol ?? "ر.س"}
         filters={{ from, to, driverId, companyId }}
       />
+
+      <ReviewedByFooter name={settings?.reviewed_by} />
     </div>
   );
 }
