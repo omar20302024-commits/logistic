@@ -4,8 +4,12 @@ type Props = {
   totalTripAmount: number;
   totalDriverPayments: number;
   totalDiesel: number;
+  totalRentalRevenue: number;
+  totalRentalDiesel: number;
   operatingProfit: number;
   totalSalaries: number;
+  totalDriverExpenses: number;
+  totalHousingCost: number;
   totalOtherExpenses: number;
   netProfit: number;
   currencySymbol: string;
@@ -45,8 +49,12 @@ export function ProfitabilityBreakdown(props: Props) {
     totalTripAmount,
     totalDriverPayments,
     totalDiesel,
+    totalRentalRevenue,
+    totalRentalDiesel,
     operatingProfit,
     totalSalaries,
+    totalDriverExpenses,
+    totalHousingCost,
     totalOtherExpenses,
     netProfit,
     currencySymbol,
@@ -59,8 +67,10 @@ export function ProfitabilityBreakdown(props: Props) {
 
       <div className="divide-y divide-zinc-100">
         <Row label="إجمالي قيمة الرحلات" value={totalTripAmount} currencySymbol={currencySymbol} />
+        <Row label="عقود الإيجار الشهري" value={totalRentalRevenue} currencySymbol={currencySymbol} />
         <Row label="إجمالي الترب" value={totalDriverPayments} currencySymbol={currencySymbol} sign="minus" />
-        <Row label="إجمالي الديزل" value={totalDiesel} currencySymbol={currencySymbol} sign="minus" />
+        <Row label="الديزل (الرحلات)" value={totalDiesel} currencySymbol={currencySymbol} sign="minus" />
+        <Row label="الديزل (عقود الإيجار)" value={totalRentalDiesel} currencySymbol={currencySymbol} sign="minus" />
         <Row
           label="الربح التشغيلي"
           value={operatingProfit}
@@ -73,7 +83,9 @@ export function ProfitabilityBreakdown(props: Props) {
 
       <div className="divide-y divide-zinc-100">
         <Row label="الربح التشغيلي" value={operatingProfit} currencySymbol={currencySymbol} />
-        <Row label="الرواتب" value={totalSalaries} currencySymbol={currencySymbol} sign="minus" />
+        <Row label="الرواتب (حسب أيام العمل)" value={totalSalaries} currencySymbol={currencySymbol} sign="minus" />
+        <Row label="مصروفات دفعها السائقون" value={totalDriverExpenses} currencySymbol={currencySymbol} sign="minus" />
+        <Row label="إيجار السكن" value={totalHousingCost} currencySymbol={currencySymbol} sign="minus" />
         <Row label="مصروفات أخرى" value={totalOtherExpenses} currencySymbol={currencySymbol} sign="minus" />
         <Row
           label="صافي الربح"

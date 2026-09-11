@@ -31,9 +31,12 @@ export default async function FinancialReportPage({
     total_revenue: number;
     total_driver_payments: number;
     total_diesel: number;
+    total_rental_revenue: number;
+    total_rental_diesel: number;
     operating_profit: number;
     total_salaries: number;
     total_driver_expenses: number;
+    total_housing_cost: number;
     total_other_expenses: number;
     net_profit: number;
   };
@@ -42,9 +45,12 @@ export default async function FinancialReportPage({
     total_revenue: 0,
     total_driver_payments: 0,
     total_diesel: 0,
+    total_rental_revenue: 0,
+    total_rental_diesel: 0,
     operating_profit: 0,
     total_salaries: 0,
     total_driver_expenses: 0,
+    total_housing_cost: 0,
     total_other_expenses: 0,
     net_profit: 0,
   };

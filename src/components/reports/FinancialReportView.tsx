@@ -9,9 +9,12 @@ type Summary = {
   total_revenue: number;
   total_driver_payments: number;
   total_diesel: number;
+  total_rental_revenue: number;
+  total_rental_diesel: number;
   operating_profit: number;
   total_salaries: number;
   total_driver_expenses: number;
+  total_housing_cost: number;
   total_other_expenses: number;
   net_profit: number;
 };
@@ -64,11 +67,22 @@ export function FinancialReportView({
 
         <Section title="الإيرادات">
           <Row label="إجمالي قيمة الرحلات" value={summary.total_revenue} currencySymbol={currencySymbol} />
+          <Row
+            label="عقود الإيجار الشهري"
+            value={summary.total_rental_revenue}
+            currencySymbol={currencySymbol}
+          />
         </Section>
 
         <Section title="المصروفات المباشرة">
           <Row label="الترب" value={summary.total_driver_payments} currencySymbol={currencySymbol} sign="minus" />
-          <Row label="الديزل" value={summary.total_diesel} currencySymbol={currencySymbol} sign="minus" />
+          <Row label="الديزل (الرحلات)" value={summary.total_diesel} currencySymbol={currencySymbol} sign="minus" />
+          <Row
+            label="الديزل (عقود الإيجار)"
+            value={summary.total_rental_diesel}
+            currencySymbol={currencySymbol}
+            sign="minus"
+          />
         </Section>
 
         <TotalRow label="الربح التشغيلي" value={summary.operating_profit} currencySymbol={currencySymbol} />
@@ -78,6 +92,12 @@ export function FinancialReportView({
           <Row
             label="مصروفات دفعها السائقون"
             value={summary.total_driver_expenses}
+            currencySymbol={currencySymbol}
+            sign="minus"
+          />
+          <Row
+            label="إيجار السكن"
+            value={summary.total_housing_cost}
             currencySymbol={currencySymbol}
             sign="minus"
           />
