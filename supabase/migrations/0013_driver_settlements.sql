@@ -145,7 +145,13 @@ $$;
 -- 3) كشف الراتب: يحسب السلف والخصومات المحمّلة على الراتب فقط
 --    اللي اتحوّلت للتربات بقت مسؤولية سند التصفية، فلو فضلت هنا تتخصم مرتين
 -- ----------------------------------------------------------------------------
-create or replace view v_salary_statements
+-- drop + create مش `create or replace`: الأخيرة بترفض أي تغيير في مجموعة الأعمدة
+-- (خطأ 42P16 "cannot drop columns from view"). ده بيحصل فعلاً لو 0015 اتشغّل قبل
+-- كده وضاف أعمدة الإجازات للـ view، وبعدين اتعاد تشغيل 0013.
+-- مفيش دالة أو view تانية بتعتمد على v_salary_statements، فالحذف آمن.
+drop view if exists v_salary_statements;
+
+create view v_salary_statements
   with (security_invoker = true) as
 select
   s.id,
