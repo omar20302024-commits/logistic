@@ -19,35 +19,51 @@
 -- عشان أرقامك التاريخية ما تتغيّرش فجأة. صنّفها يدوياً وقت ما تحب.
 -- ----------------------------------------------------------------------------
 
-create type custody_entry_reason as enum (
-  'unspecified',            -- قيد قديم قبل التصنيف — محايد، لا يدخل الربح
-  'from_company',           -- credit: الشركة سلّمت السائق مبلغاً
-  'collected_for_company',  -- credit: السائق حصّل كاش من عميل نيابة عن الشركة
-  'work_expense',           -- debit : صرف على مصروف عمل → مصروف حقيقي يخصم من الربح
-  'returned_to_company'     -- debit : أرجع مبلغاً للشركة → حركة نقدية فقط
-);
+-- الملف كله قابل لإعادة التشغيل بأمان (idempotent): لو وقف في النص لأي سبب،
+-- شغّله تاني من أوله من غير ما تحذف حاجة.
+
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'custody_entry_reason') then
+    create type custody_entry_reason as enum (
+      'unspecified',            -- قيد قديم قبل التصنيف — محايد، لا يدخل الربح
+      'from_company',           -- credit: الشركة سلّمت السائق مبلغاً
+      'collected_for_company',  -- credit: السائق حصّل كاش من عميل نيابة عن الشركة
+      'work_expense',           -- debit : صرف على مصروف عمل → مصروف حقيقي يخصم من الربح
+      'returned_to_company'     -- debit : أرجع مبلغاً للشركة → حركة نقدية فقط
+    );
+  end if;
+end $$;
 
 alter table driver_custody_entries
-  add column reason           custody_entry_reason not null default 'unspecified',
-  add column expense_category text,
-  add column trip_id          uuid references trips(id) on delete set null;
+  add column if not exists reason           custody_entry_reason not null default 'unspecified',
+  add column if not exists expense_category text,
+  add column if not exists trip_id          uuid references trips(id) on delete set null;
 
 -- السبب لازم يكون متسقاً مع نوع الحركة — مستحيل يتسجل credit بسبب debit
-alter table driver_custody_entries
-  add constraint chk_custody_reason_matches_type check (
-    reason = 'unspecified'
-    or (type = 'credit' and reason in ('from_company', 'collected_for_company'))
-    or (type = 'debit'  and reason in ('work_expense', 'returned_to_company'))
-  );
+-- (`add constraint` مفيهاش `if not exists`، فنتأكد يدوياً)
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'chk_custody_reason_matches_type') then
+    alter table driver_custody_entries
+      add constraint chk_custody_reason_matches_type check (
+        reason = 'unspecified'
+        or (type = 'credit' and reason in ('from_company', 'collected_for_company'))
+        or (type = 'debit'  and reason in ('work_expense', 'returned_to_company'))
+      );
+  end if;
 
--- بند المصروف (ديزل/صيانة/…) له معنى فقط لما يكون القيد مصروف عمل
-alter table driver_custody_entries
-  add constraint chk_custody_category_only_for_expense check (
-    expense_category is null or reason = 'work_expense'
-  );
+  -- بند المصروف (ديزل/صيانة/…) له معنى فقط لما يكون القيد مصروف عمل
+  if not exists (select 1 from pg_constraint where conname = 'chk_custody_category_only_for_expense') then
+    alter table driver_custody_entries
+      add constraint chk_custody_category_only_for_expense check (
+        expense_category is null or reason = 'work_expense'
+      );
+  end if;
+end $$;
 
-create index idx_custody_reason on driver_custody_entries(reason);
-create index idx_custody_trip on driver_custody_entries(trip_id) where trip_id is not null;
+create index if not exists idx_custody_reason on driver_custody_entries(reason);
+create index if not exists idx_custody_trip on driver_custody_entries(trip_id) where trip_id is not null;
 
 -- ----------------------------------------------------------------------------
 -- مصروفات دفعها السائق خلال فترة — المصدر الوحيد لهذا الرقم في كل النظام

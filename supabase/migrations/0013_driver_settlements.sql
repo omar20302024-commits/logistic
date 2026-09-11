@@ -16,12 +16,20 @@
 -- عشان كل البيانات القديمة تفضل زي ما هي بالظبط.
 -- ----------------------------------------------------------------------------
 
-create type settle_bucket as enum ('salary', 'trabs');
+-- الملف كله قابل لإعادة التشغيل بأمان (idempotent): لو وقف في النص لأي سبب،
+-- شغّله تاني من أوله من غير ما تحذف حاجة.
+
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'settle_bucket') then
+    create type settle_bucket as enum ('salary', 'trabs');
+  end if;
+end $$;
 
 -- ----------------------------------------------------------------------------
 -- 1) جدول التصفيات
 -- ----------------------------------------------------------------------------
-create table driver_settlements (
+create table if not exists driver_settlements (
   id                 uuid primary key default gen_random_uuid(),
   settlement_number  text not null unique,
   driver_id          uuid not null references drivers(id) on delete restrict,
@@ -45,9 +53,11 @@ create table driver_settlements (
   constraint chk_settlement_period check (to_date >= from_date)
 );
 
-create index idx_settlements_driver on driver_settlements(driver_id, to_date desc);
+create index if not exists idx_settlements_driver on driver_settlements(driver_id, to_date desc);
 
 alter table driver_settlements enable row level security;
+
+drop policy if exists "driver_settlements_admin_all" on driver_settlements;
 create policy "driver_settlements_admin_all" on driver_settlements
   for all using (is_admin()) with check (is_admin());
 
@@ -67,6 +77,7 @@ begin
 end;
 $$;
 
+drop trigger if exists trg_generate_settlement_number on driver_settlements;
 create trigger trg_generate_settlement_number
   before insert on driver_settlements
   for each row execute function fn_generate_settlement_number();
@@ -76,31 +87,38 @@ create trigger trg_generate_settlement_number
 --    on delete set null: لو اتلغى سند، عناصره ترجع قابلة للتصفية تاني
 -- ----------------------------------------------------------------------------
 alter table trips
-  add column settlement_id uuid references driver_settlements(id) on delete set null;
-create index idx_trips_settlement on trips(settlement_id) where settlement_id is not null;
+  add column if not exists settlement_id uuid references driver_settlements(id) on delete set null;
+create index if not exists idx_trips_settlement on trips(settlement_id) where settlement_id is not null;
 
 alter table driver_custody_entries
-  add column settlement_id uuid references driver_settlements(id) on delete set null;
-create index idx_custody_settlement on driver_custody_entries(settlement_id) where settlement_id is not null;
+  add column if not exists settlement_id uuid references driver_settlements(id) on delete set null;
+create index if not exists idx_custody_settlement on driver_custody_entries(settlement_id) where settlement_id is not null;
 
 alter table driver_advances
-  add column settle_against settle_bucket not null default 'salary',
-  add column settlement_id  uuid references driver_settlements(id) on delete set null;
+  add column if not exists settle_against settle_bucket not null default 'salary',
+  add column if not exists settlement_id  uuid references driver_settlements(id) on delete set null;
 
 alter table driver_deductions
-  add column settle_against settle_bucket not null default 'salary',
-  add column settlement_id  uuid references driver_settlements(id) on delete set null;
+  add column if not exists settle_against settle_bucket not null default 'salary',
+  add column if not exists settlement_id  uuid references driver_settlements(id) on delete set null;
 
 -- عنصر محمّل على الراتب لا يجوز يتوسم بسند تصفية — الحارس ضد الخصم المزدوج
-alter table driver_advances
-  add constraint chk_advance_bucket_matches_settlement check (
-    settlement_id is null or settle_against = 'trabs'
-  );
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'chk_advance_bucket_matches_settlement') then
+    alter table driver_advances
+      add constraint chk_advance_bucket_matches_settlement check (
+        settlement_id is null or settle_against = 'trabs'
+      );
+  end if;
 
-alter table driver_deductions
-  add constraint chk_deduction_bucket_matches_settlement check (
-    settlement_id is null or settle_against = 'trabs'
-  );
+  if not exists (select 1 from pg_constraint where conname = 'chk_deduction_bucket_matches_settlement') then
+    alter table driver_deductions
+      add constraint chk_deduction_bucket_matches_settlement check (
+        settlement_id is null or settle_against = 'trabs'
+      );
+  end if;
+end $$;
 
 -- ----------------------------------------------------------------------------
 -- 2.1) رصيد العهدة بقى يحسب الحركات غير المُصفّاة بس

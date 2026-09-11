@@ -18,7 +18,11 @@
 -- مجزَّأة بتتدخل يدوياً (قاعدة #5).
 -- ----------------------------------------------------------------------------
 
-create table driver_leaves (
+-- الملف كله قابل لإعادة التشغيل بأمان (idempotent): لو وقف في النص لأي سبب،
+-- شغّله تاني من أوله من غير ما تحذف حاجة. كل خطوة بتتأكد الأول إن الكائن مش
+-- موجود. (السبب: النسخة الأولى وقفت عند `create table` لما اتشغّلت مرتين.)
+
+create table if not exists driver_leaves (
   id         uuid primary key default gen_random_uuid(),
   driver_id  uuid not null references drivers(id) on delete cascade,
   from_date  date not null,
@@ -30,9 +34,11 @@ create table driver_leaves (
   constraint chk_leave_period check (to_date is null or to_date >= from_date)
 );
 
-create index idx_driver_leaves_driver on driver_leaves(driver_id, from_date);
+create index if not exists idx_driver_leaves_driver on driver_leaves(driver_id, from_date);
 
 alter table driver_leaves enable row level security;
+
+drop policy if exists "driver_leaves_admin_all" on driver_leaves;
 create policy "driver_leaves_admin_all" on driver_leaves
   for all using (is_admin()) with check (is_admin());
 
@@ -42,12 +48,20 @@ create policy "driver_leaves_admin_all" on driver_leaves
 -- ملاحظة: محتاج امتداد btree_gist (متاح في Supabase).
 create extension if not exists btree_gist;
 
-alter table driver_leaves
-  add constraint no_overlapping_driver_leaves
-  exclude using gist (
-    driver_id with =,
-    daterange(from_date, coalesce(to_date, 'infinity'::date), '[]') with &&
-  );
+-- `add constraint` مفيهاش `if not exists`، فنتأكد يدوياً
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'no_overlapping_driver_leaves'
+  ) then
+    alter table driver_leaves
+      add constraint no_overlapping_driver_leaves
+      exclude using gist (
+        driver_id with =,
+        daterange(from_date, coalesce(to_date, 'infinity'::date), '[]') with &&
+      );
+  end if;
+end $$;
 
 -- ----------------------------------------------------------------------------
 -- عدد أيام إجازة السائق المتقاطعة مع شهر معيّن

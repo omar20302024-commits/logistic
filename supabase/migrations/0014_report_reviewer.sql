@@ -10,4 +10,4 @@
 -- ----------------------------------------------------------------------------
 
 alter table settings
-  add column reviewed_by text not null default 'م/محمود جعفر';
+  add column if not exists reviewed_by text not null default 'م/محمود جعفر';
