@@ -3,12 +3,12 @@
 import { useState, useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Wallet } from "lucide-react";
+import { Plus, Pencil, Trash2, Wallet, Sparkles } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { SalaryFormModal, type SalaryRecord } from "./SalaryFormModal";
-import { deleteSalary } from "@/app/(dashboard)/salaries/actions";
+import { deleteSalary, generateMonthSalaries } from "@/app/(dashboard)/salaries/actions";
 import { formatCurrency } from "@/lib/format";
 import { monthLabels } from "@/lib/validation/salary";
 
@@ -16,6 +16,7 @@ type DriverOption = { id: string; name: string; salary: number };
 
 type SalaryRow = SalaryRecord & {
   driver_name: string;
+  pre_hire_days: number;
   leave_days: number;
   worked_days: number;
   earned_salary: number;
@@ -49,6 +50,34 @@ export function SalariesTable({
   const [formOpen, setFormOpen] = useState(false);
   const [editingSalary, setEditingSalary] = useState<SalaryRecord | null>(null);
   const [deletingSalary, setDeletingSalary] = useState<SalaryRow | null>(null);
+  const [confirmGenerate, setConfirmGenerate] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
+  // الشهر المستهدَف: اللي في الفلتر، وإلا الشهر الحالي
+  const now = new Date();
+  const targetYear = filters.year ? Number(filters.year) : now.getFullYear();
+  const targetMonth = filters.month ? Number(filters.month) : now.getMonth() + 1;
+
+  const handleGenerate = () => setConfirmGenerate(true);
+
+  const runGenerate = async () => {
+    setGenerating(true);
+    const result = await generateMonthSalaries(targetYear, targetMonth);
+    setGenerating(false);
+    setConfirmGenerate(false);
+
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+
+    toast.success(
+      result.created
+        ? `تم إنشاء ${result.created} سجل راتب لشهر ${monthLabels[targetMonth - 1]} ${targetYear}`
+        : `كل السائقين لديهم سجل راتب بالفعل في ${monthLabels[targetMonth - 1]} ${targetYear}`
+    );
+    router.refresh();
+  };
 
   const updateParams = useCallback(
     (updates: Record<string, string>) => {
@@ -118,17 +147,29 @@ export function SalariesTable({
             ))}
           </select>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setEditingSalary(null);
-            setFormOpen(true);
-          }}
-          className="flex items-center justify-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-        >
-          <Plus size={16} />
-          تسجيل راتب
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={generating}
+            title="ينشئ سجل راتب لكل سائق داخلي نشط لم يُسجَّل له راتب في الشهر المحدد"
+            className="flex items-center justify-center gap-1.5 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+          >
+            <Sparkles size={16} />
+            {generating ? "جارٍ التوليد..." : "توليد رواتب الشهر"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setEditingSalary(null);
+              setFormOpen(true);
+            }}
+            className="flex items-center justify-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+          >
+            <Plus size={16} />
+            تسجيل راتب
+          </button>
+        </div>
       </div>
 
       {salaries.length === 0 ? (
@@ -162,11 +203,24 @@ export function SalariesTable({
                     {formatCurrency(s.basic_salary, currencySymbol)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap" dir="ltr">
-                    <span className={s.leave_days > 0 ? "font-semibold text-amber-600" : "text-zinc-500"}>
+                    <span
+                      className={
+                        s.worked_days < 30 ? "font-semibold text-amber-600" : "text-zinc-500"
+                      }
+                    >
                       {s.worked_days} / 30
                     </span>
-                    {s.leave_days > 0 && (
-                      <span className="text-[11px] text-zinc-400"> (إجازة {s.leave_days})</span>
+                    {(s.leave_days > 0 || s.pre_hire_days > 0) && (
+                      <span className="text-[11px] text-zinc-400">
+                        {" ("}
+                        {[
+                          s.leave_days > 0 ? `إجازة ${s.leave_days}` : null,
+                          s.pre_hire_days > 0 ? `قبل التعيين ${s.pre_hire_days}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" + ")}
+                        {")"}
+                      </span>
                     )}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-zinc-900" dir="ltr">
@@ -235,6 +289,18 @@ export function SalariesTable({
         salary={editingSalary}
         drivers={drivers}
         onSaved={() => router.refresh()}
+      />
+
+      <ConfirmDialog
+        open={confirmGenerate}
+        onClose={() => setConfirmGenerate(false)}
+        onConfirm={runGenerate}
+        title={`توليد رواتب ${monthLabels[targetMonth - 1]} ${targetYear}`}
+        description={`سيُنشأ سجل راتب لكل سائق داخلي نشط معيَّن قبل نهاية الشهر — حتى من ليس له أي رحلة، لأن الراتب مستقل عن الرحلات. المبلغ يُؤخذ من الراتب التعاقدي لكل سائق، ويُخصم منه تلقائياً أيام الإجازة وما قبل التعيين. من له سجل بالفعل يُترك كما هو، فالتكرار آمن. الموردون الخارجيون مستثنون.${
+          filters.month || filters.year
+            ? ""
+            : " (لم تحدّد شهراً في الفلتر، فسيُستخدم الشهر الحالي.)"
+        }`}
       />
 
       <ConfirmDialog

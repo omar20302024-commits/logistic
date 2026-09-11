@@ -77,3 +77,28 @@ export async function deleteSalary(id: string): Promise<ActionResult> {
   revalidatePath("/dashboard");
   return { error: null };
 }
+
+/**
+ * ينشئ سجل راتب لكل سائق داخلي نشط معيَّن قبل نهاية الشهر — حتى لو لم تكن له
+ * أي رحلة، لأن الراتب مصروف شهري مستقل عن الرحلات (قاعدة #4).
+ *
+ * آمن للتكرار: الموجود يُترك كما هو والناقص يُضاف، فالضغط مرتين لا يضاعف شيئاً.
+ */
+export async function generateMonthSalaries(
+  year: number,
+  month: number
+): Promise<ActionResult & { created?: number }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("fn_generate_month_salaries", {
+    p_year: year,
+    p_month: month,
+  });
+
+  if (error) {
+    return { error: "تعذّر توليد الرواتب — تأكد من تشغيل ملف SQL رقم 0016" };
+  }
+
+  revalidatePath("/salaries");
+  revalidatePath("/dashboard");
+  return { error: null, created: (data as number) ?? 0 };
+}

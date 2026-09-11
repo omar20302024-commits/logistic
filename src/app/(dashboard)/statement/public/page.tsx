@@ -74,6 +74,7 @@ export default async function PublicStatementPage({
     total_deductions: 0,
     salary_basic: 0,
     salary_earned: 0,
+    pre_hire_days: 0,
     leave_days: 0,
     worked_days: 30,
     net_salary: 0,

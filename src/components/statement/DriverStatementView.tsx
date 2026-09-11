@@ -24,6 +24,7 @@ type PublicSummary = {
   total_deductions: number;
   salary_basic: number;
   salary_earned: number;
+  pre_hire_days: number;
   leave_days: number;
   worked_days: number;
   net_salary: number;
@@ -143,11 +144,13 @@ export function DriverStatementView({
           <SummaryRow label="عدد الرحلات" value={formatNumber(summary.trips_count)} />
           <SummaryRow label="إجمالي الترب" value={formatCurrency(summary.total_driver_payment, currencySymbol)} />
           <SummaryRow label="الراتب الأساسي" value={formatCurrency(summary.salary_basic, currencySymbol)} />
-          {summary.leave_days > 0 && (
+          {summary.worked_days < 30 && (
             <>
               <SummaryRow
                 label="أيام العمل"
-                value={`${formatNumber(summary.worked_days)} من 30 (إجازة ${formatNumber(summary.leave_days)} يوماً)`}
+                value={`${formatNumber(summary.worked_days)} من 30${
+                  summary.leave_days > 0 ? ` (إجازة ${formatNumber(summary.leave_days)} يوماً)` : ""
+                }`}
               />
               <SummaryRow
                 label="الراتب المستحق"
