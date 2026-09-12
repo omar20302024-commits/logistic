@@ -43,6 +43,7 @@ export type TripInitialData = {
   extra_location_fare: number;
   overnight_fare: number;
   driver_base_payment: number;
+  driver_overnight_payment: number;
   diesel_amount: number;
   requester: string | null;
   status: TripFormInput["status"];
@@ -63,6 +64,7 @@ const emptyValues: TripFormInput = {
   extra_location_fare: 0,
   overnight_fare: 0,
   driver_base_payment: 0,
+  driver_overnight_payment: 0,
   diesel_amount: 0,
   requester: "",
   status: "completed",
@@ -106,6 +108,7 @@ export function TripForm({
           extra_location_fare: initialData.extra_location_fare,
           overnight_fare: initialData.overnight_fare,
           driver_base_payment: initialData.driver_base_payment,
+          driver_overnight_payment: initialData.driver_overnight_payment,
           diesel_amount: initialData.diesel_amount,
           requester: initialData.requester ?? "",
           status: initialData.status,
@@ -131,13 +134,14 @@ export function TripForm({
   const watchedLaborFare = watch("labor_fare");
   const watchedExtraFare = watch("extra_location_fare");
   const watchedOvernightFare = watch("overnight_fare");
+  const watchedDriverOvernight = watch("driver_overnight_payment");
 
   const selectedDriver = drivers.find((d) => d.id === watchedDriverId);
   const selectedCompany = companies.find((c) => c.id === watchedCompanyId);
 
   // جانب العميل وجانب السائق منفصلان تماماً (قاعدة #10):
   //   سعر الرحلة = الأساسية + العمالة + الموقع الإضافي + المبيت
-  //   ترب السائق  = الترب الأساسي + (المواقع الإضافية × معدَّل هذا السائق)
+  //   ترب السائق  = الترب الأساسي + (المواقع الإضافية × معدَّل هذا السائق) + بدل المبيت
   // لكلٍّ معدَّله ومصدره؛ مبالغ المواقع لم تعد تحدد سعر الرحلة.
   const loadingList = watchedLoading ?? [];
   const unloadingList = watchedUnloading ?? [];
@@ -181,7 +185,8 @@ export function TripForm({
     setValue("extra_location_fare", suggestedExtraFare);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [suggestedExtraFare]);
-  const totalDriverPayment = (Number(watchedBasePayment) || 0) + extraStopsPayment;
+  const totalDriverPayment =
+    (Number(watchedBasePayment) || 0) + extraStopsPayment + (Number(watchedDriverOvernight) || 0);
   const estimatedProfit = totalTripAmount - totalDriverPayment - (Number(watchedDiesel) || 0);
 
   // تعبئة الترب الأساسي تلقائياً: أولوية لخط سير مطابق (نفس مدينتي التحميل/التنزيل)،
@@ -431,6 +436,22 @@ export function TripForm({
                 أو أضف خط السير من صفحة السائق.
               </p>
             )}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-zinc-700">بدل مبيت السائق</label>
+            <input
+              {...register("driver_overnight_payment")}
+              type="number"
+              step="0.01"
+              dir="ltr"
+              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-right outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+            />
+            {errors.driver_overnight_payment && (
+              <p className="text-xs text-red-600">{errors.driver_overnight_payment.message}</p>
+            )}
+            <p className="text-[11px] text-zinc-400">
+              اتركه صفراً إن لم يستحقه — يُضاف لتربه ويظهر في كشوفاته
+            </p>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-zinc-700">مصروف الديزل *</label>

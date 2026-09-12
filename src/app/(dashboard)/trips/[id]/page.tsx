@@ -98,6 +98,7 @@ export default async function EditTripPage({
           labor_fare: trip.labor_fare,
           extra_location_fare: trip.extra_location_fare,
           overnight_fare: trip.overnight_fare,
+          driver_overnight_payment: trip.driver_overnight_payment,
           driver_base_payment: trip.driver_base_payment,
           diesel_amount: trip.diesel_amount,
           requester: trip.requester,
