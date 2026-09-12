@@ -34,7 +34,7 @@ export default async function TripsReportPage({
   let query = supabase
     .from("v_trips_full")
     .select(
-      "id, trip_number, trip_date, company_name, driver_name, vehicle_type_label, vehicle_id, from_location, to_location, requester, status, base_fare, labor_fare, extra_location_fare, overnight_fare, trip_amount, driver_trip_payment"
+      "id, trip_number, trip_date, company_name, driver_name, vehicle_no, vehicle_type_label, from_location, to_location, requester, status, base_fare, labor_fare, extra_location_fare, overnight_fare, trip_amount, driver_trip_payment"
     )
     .gte("trip_date", from)
     .lte("trip_date", to)
@@ -44,21 +44,13 @@ export default async function TripsReportPage({
   if (company) query = query.eq("company_id", company);
   if (status) query = query.eq("status", status);
 
-  const [{ data: rows, error }, { data: drivers }, { data: companies }, { data: vehicles }, { data: settings }] =
+  const [{ data: trips, error }, { data: drivers }, { data: companies }, { data: settings }] =
     await Promise.all([
       query,
       supabase.from("drivers").select("id, name").order("name"),
       supabase.from("companies").select("id, name").order("name"),
-      supabase.from("vehicles").select("id, vehicle_no"),
-      supabase.from("settings").select("currency_symbol, reviewed_by").single(),
+      supabase.from("settings").select("org_name, currency_symbol, reviewed_by").single(),
     ]);
-
-  const vehicleNoById = new Map((vehicles ?? []).map((v) => [v.id, v.vehicle_no]));
-
-  const trips = (rows ?? []).map((r) => ({
-    ...r,
-    vehicle_no: r.vehicle_id ? (vehicleNoById.get(r.vehicle_id) ?? null) : null,
-  }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -69,13 +61,14 @@ export default async function TripsReportPage({
 
       <ErrorBanner
         error={error}
-        hint="تأكد من تشغيل ملفات SQL حتى رقم 0022 (بنود الأجرة والسيارات)."
+        hint="تأكد من تشغيل ملفات SQL حتى رقم 0024 (إعادة بناء v_trips_full بعد أعمدة الأجرة والسيارات)."
       />
 
       <TripsReportTable
-        trips={trips}
+        trips={trips ?? []}
         drivers={drivers ?? []}
         companies={companies ?? []}
+        orgName={settings?.org_name ?? "—"}
         currencySymbol={settings?.currency_symbol ?? "ر.س"}
         filters={{ from, to, driver, company, status }}
       />

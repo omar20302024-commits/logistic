@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Printer, Download, Truck } from "lucide-react";
+import { toast } from "sonner";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatCurrency, formatNumber } from "@/lib/format";
-import { exportToCsv } from "@/lib/csv";
 import { statusLabels } from "@/lib/validation/trip";
 
 type TripRow = {
@@ -35,12 +35,14 @@ export function TripsReportTable({
   trips,
   drivers,
   companies,
+  orgName,
   currencySymbol,
   filters,
 }: {
   trips: TripRow[];
   drivers: Option[];
   companies: Option[];
+  orgName: string;
   currencySymbol: string;
   filters: { from: string; to: string; driver: string; company: string; status: string };
 }) {
@@ -69,46 +71,70 @@ export function TripsReportTable({
     { base: 0, labor: 0, extra: 0, overnight: 0, amount: 0, trab: 0 }
   );
 
-  const handleExport = () => {
-    exportToCsv(
-      `تقرير-الرحلات-${filters.from}-${filters.to}.csv`,
-      [
-        "التاريخ",
-        "رقم الرحلة",
-        "العميل",
-        "السائق",
-        "السيارة",
-        "النوع",
-        "من",
-        "إلى",
-        "صاحب الطلب",
-        "الحالة",
-        "الأساسية",
-        "العمالة",
-        "الموقع الإضافي",
-        "المبيت",
-        "سعر الرحلة",
-        "الترب",
-      ],
-      trips.map((t) => [
-        t.trip_date,
-        t.trip_number,
-        t.company_name,
-        t.driver_name,
-        t.vehicle_no ?? "",
-        t.vehicle_type_label ?? "",
-        t.from_location,
-        t.to_location,
-        t.requester ?? "",
-        statusLabels[t.status] ?? t.status,
-        t.base_fare,
-        t.labor_fare,
-        t.extra_location_fare,
-        t.overnight_fare,
-        t.trip_amount,
-        t.driver_trip_payment,
-      ])
-    );
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      // التحميل عند الطلب: exceljs مكتبة كبيرة، فلا داعي أن تدخل حزمة الصفحة
+      // ويدفع ثمنها كل من يفتح التقرير دون أن يصدّر
+      const { exportToExcel } = await import("@/lib/excel");
+      await exportToExcel({
+        fileName: `تقرير-الرحلات-${filters.from}-${filters.to}`,
+        sheetName: "الرحلات",
+        title: `${orgName} — تقرير الرحلات`,
+        subtitle: `من ${filters.from} إلى ${filters.to} · ${formatNumber(trips.length)} رحلة`,
+        columns: [
+          { header: "التاريخ", key: "trip_date", width: 12, ltr: true },
+          { header: "رقم الرحلة", key: "trip_number", width: 14, ltr: true },
+          { header: "العميل", key: "company_name", width: 22 },
+          { header: "السائق", key: "driver_name", width: 20 },
+          { header: "السيارة", key: "vehicle_no", width: 12, ltr: true },
+          { header: "النوع", key: "vehicle_type_label", width: 10 },
+          { header: "من", key: "from_location", width: 16 },
+          { header: "إلى", key: "to_location", width: 16 },
+          { header: "صاحب الطلب", key: "requester", width: 16 },
+          { header: "الحالة", key: "status", width: 18 },
+          { header: "الأساسية", key: "base_fare", width: 13, money: true },
+          { header: "العمالة", key: "labor_fare", width: 12, money: true },
+          { header: "الموقع الإضافي", key: "extra_location_fare", width: 15, money: true },
+          { header: "المبيت", key: "overnight_fare", width: 12, money: true },
+          { header: "سعر الرحلة", key: "trip_amount", width: 14, money: true },
+          { header: "الترب", key: "driver_trip_payment", width: 13, money: true },
+        ],
+        rows: trips.map((t) => ({
+          trip_date: t.trip_date,
+          trip_number: t.trip_number,
+          company_name: t.company_name,
+          driver_name: t.driver_name,
+          vehicle_no: t.vehicle_no ?? "—",
+          vehicle_type_label: t.vehicle_type_label ?? "—",
+          from_location: t.from_location,
+          to_location: t.to_location,
+          requester: t.requester ?? "—",
+          status: statusLabels[t.status] ?? t.status,
+          base_fare: Number(t.base_fare),
+          labor_fare: Number(t.labor_fare),
+          extra_location_fare: Number(t.extra_location_fare),
+          overnight_fare: Number(t.overnight_fare),
+          trip_amount: Number(t.trip_amount),
+          driver_trip_payment: Number(t.driver_trip_payment),
+        })),
+        totals: {
+          trip_date: "الإجمالي",
+          base_fare: totals.base,
+          labor_fare: totals.labor,
+          extra_location_fare: totals.extra,
+          overnight_fare: totals.overnight,
+          trip_amount: totals.amount,
+          driver_trip_payment: totals.trab,
+        },
+      });
+    } catch {
+      toast.error("تعذّر إنشاء ملف Excel");
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -179,9 +205,10 @@ export function TripsReportTable({
           <button
             type="button"
             onClick={handleExport}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            disabled={exporting}
+            className="flex items-center gap-1.5 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
           >
-            <Download size={15} /> تصدير CSV
+            <Download size={15} /> {exporting ? "جارٍ التصدير..." : "تصدير Excel"}
           </button>
           <button
             type="button"
