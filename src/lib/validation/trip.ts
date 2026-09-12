@@ -17,6 +17,7 @@ export const tripSchema = z.object({
   base_fare: z.coerce.number().min(0, "الأجرة الأساسية يجب أن تكون رقماً موجباً"),
   labor_fare: z.coerce.number().min(0, "أجرة العمالة يجب أن تكون رقماً موجباً"),
   extra_location_fare: z.coerce.number().min(0, "أجرة الموقع الإضافي يجب أن تكون رقماً موجباً"),
+  overnight_fare: z.coerce.number().min(0, "أجرة المبيت يجب أن تكون رقماً موجباً"),
 
   // ترب السائق — منفصل تماماً عن بنود العميل أعلاه (قاعدة #10)
   driver_base_payment: z.coerce.number().min(0, "الترب يجب أن يكون رقماً موجباً"),

@@ -6,8 +6,10 @@
 -- بنود صريحة زي نظام wattam:
 --
 --   سعر الرحلة (العميل) = الأجرة الأساسية + أجرة العمالة + أجرة الموقع الإضافي
+--                        + أجرة المبيت
 --
--- (المرتجع اتشال بطلب المستخدم: المرتجع بيتسجل كرحلة عادية، فمالوش معنى كبند.)
+-- (المرتجع اتشال بطلب المستخدم: المرتجع بيتسجل كرحلة عادية، فمالوش معنى كبند.
+--  والمبيت اتضاف لأن السائق ممكن يستنى لليوم التاني عشان التنزيل.)
 --
 -- ⚠️ الترب ما اتغيّرش ولا حرف. معادلته تفضل:
 --   ترب السائق = الترب الأساسي + (المواقع الإضافية × معدل السائق)
@@ -51,6 +53,8 @@ alter table trips
     check (labor_fare >= 0),
   add column if not exists extra_location_fare numeric(12,2) not null default 0
     check (extra_location_fare >= 0),
+  add column if not exists overnight_fare      numeric(12,2) not null default 0
+    check (overnight_fare >= 0),
   add column if not exists requester           text,
   add column if not exists created_by          uuid references profiles(id) on delete set null,
   add column if not exists updated_by          uuid references profiles(id) on delete set null;
@@ -78,14 +82,15 @@ begin
   new.trip_amount :=
       coalesce(new.base_fare, 0)
     + coalesce(new.labor_fare, 0)
-    + coalesce(new.extra_location_fare, 0);
+    + coalesce(new.extra_location_fare, 0)
+    + coalesce(new.overnight_fare, 0);
   return new;
 end;
 $$;
 
 drop trigger if exists trg_sync_trip_amount_from_fares on trips;
 create trigger trg_sync_trip_amount_from_fares
-  before insert or update of base_fare, labor_fare, extra_location_fare
+  before insert or update of base_fare, labor_fare, extra_location_fare, overnight_fare
   on trips
   for each row execute function fn_sync_trip_amount_from_fares();
 

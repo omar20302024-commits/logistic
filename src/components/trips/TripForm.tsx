@@ -41,6 +41,7 @@ export type TripInitialData = {
   base_fare: number;
   labor_fare: number;
   extra_location_fare: number;
+  overnight_fare: number;
   driver_base_payment: number;
   diesel_amount: number;
   requester: string | null;
@@ -60,6 +61,7 @@ const emptyValues: TripFormInput = {
   base_fare: 0,
   labor_fare: 0,
   extra_location_fare: 0,
+  overnight_fare: 0,
   driver_base_payment: 0,
   diesel_amount: 0,
   requester: "",
@@ -102,6 +104,7 @@ export function TripForm({
           base_fare: initialData.base_fare,
           labor_fare: initialData.labor_fare,
           extra_location_fare: initialData.extra_location_fare,
+          overnight_fare: initialData.overnight_fare,
           driver_base_payment: initialData.driver_base_payment,
           diesel_amount: initialData.diesel_amount,
           requester: initialData.requester ?? "",
@@ -127,12 +130,13 @@ export function TripForm({
   const watchedBaseFare = watch("base_fare");
   const watchedLaborFare = watch("labor_fare");
   const watchedExtraFare = watch("extra_location_fare");
+  const watchedOvernightFare = watch("overnight_fare");
 
   const selectedDriver = drivers.find((d) => d.id === watchedDriverId);
   const selectedCompany = companies.find((c) => c.id === watchedCompanyId);
 
   // جانب العميل وجانب السائق منفصلان تماماً (قاعدة #10):
-  //   سعر الرحلة = الأجرة الأساسية + أجرة العمالة + أجرة الموقع الإضافي
+  //   سعر الرحلة = الأساسية + العمالة + الموقع الإضافي + المبيت
   //   ترب السائق  = الترب الأساسي + (المواقع الإضافية × معدَّل هذا السائق)
   // لكلٍّ معدَّله ومصدره؛ مبالغ المواقع لم تعد تحدد سعر الرحلة.
   const loadingList = watchedLoading ?? [];
@@ -163,7 +167,8 @@ export function TripForm({
   const totalTripAmount =
     (Number(watchedBaseFare) || 0) +
     (Number(watchedLaborFare) || 0) +
-    (Number(watchedExtraFare) || 0);
+    (Number(watchedExtraFare) || 0) +
+    (Number(watchedOvernightFare) || 0);
 
   // اقتراح أجرة الموقع الإضافي للعميل = عدد المواقع الإضافية × معدَّل هذه الشركة.
   // اقتراح فقط — المستخدم يقدر يكتب رقماً مختلفاً ونحترمه، عشان في رحلات
@@ -326,7 +331,7 @@ export function TripForm({
         <p className="mb-4 text-xs text-zinc-400">بيانات سرية — للإدارة فقط</p>
         <div className="mb-4 rounded-xl border border-zinc-200 bg-zinc-50/60 p-4">
           <div className="mb-3 text-xs font-semibold text-zinc-500">أجرة العميل</div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-zinc-700">الأجرة الأساسية *</label>
               <input
@@ -371,6 +376,22 @@ export function TripForm({
                   هذه الشركة) = {formatCurrency(suggestedExtraFare, currencySymbol)}
                 </p>
               )}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-zinc-700">أجرة المبيت</label>
+              <input
+                {...register("overnight_fare")}
+                type="number"
+                step="0.01"
+                dir="ltr"
+                className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-right outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+              />
+              {errors.overnight_fare && (
+                <p className="text-xs text-red-600">{errors.overnight_fare.message}</p>
+              )}
+              <p className="text-[11px] text-zinc-400">
+                إن انتظر السائق لليوم التالي للتنزيل
+              </p>
             </div>
           </div>
           <div className="mt-3 flex items-center justify-between border-t border-zinc-200 pt-3">
