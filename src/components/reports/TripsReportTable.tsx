@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { statusLabels } from "@/lib/validation/trip";
-import type { ExcelColumn } from "@/lib/excel";
 
 type TripRow = {
   id: string;
@@ -33,6 +32,24 @@ type TripRow = {
 
 type Option = { id: string; name: string };
 
+/**
+ * تعريف عمود واحد يغذّي الثلاثة معاً: جدول الشاشة، والطباعة/PDF، وملف Excel.
+ *
+ * مصدر واحد عن قصد — لما كانت الأعمدة معرَّفة مرتين افترقت فعلاً وطلع تقرير
+ * الطباعة ناقص أعمدة موجودة في Excel.
+ *
+ * screen=false يعني: يظهر في الطباعة و Excel بس، لأن الشاشة أضيق من أن تحتمله.
+ */
+type ReportColumn = {
+  header: string;
+  key: string;
+  width: number;
+  money?: boolean;
+  ltr?: boolean;
+  center?: boolean;
+  screen?: boolean;
+};
+
 export function TripsReportTable({
   trips,
   drivers,
@@ -52,13 +69,13 @@ export function TripsReportTable({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // التقريران المطلوبان: بالترب وبدونه. مفتاح واحد بدل زرّين لكل صيغة تصدير،
-  // ويؤثر على الشاشة والطباعة أيضاً حتى لا يختلف ما تراه عمّا يُصدَّر.
+  // التقريران المطلوبان: بالترب وبدونه. يؤثر على الشاشة والطباعة والتصدير معاً
+  // حتى لا يختلف ما تراه عمّا يُصدَّر.
   const [showTrab, setShowTrab] = useState(true);
   const [exporting, setExporting] = useState(false);
 
-  // اسم العميل يتكرر في كل صف بلا فائدة حين يكون التقرير لعميل واحد،
-  // فينتقل للرأس ويختفي العمود. أما عند "كل العملاء" فالعمود ضروري.
+  // اسم العميل يتكرر في كل صف بلا فائدة حين يكون التقرير لعميل واحد، فينتقل
+  // للرأس ويختفي العمود. أما عند "كل العملاء" فالعمود هو الوسيلة الوحيدة للتمييز.
   const singleCompany = filters.company
     ? (companies.find((c) => c.id === filters.company)?.name ?? null)
     : null;
@@ -89,65 +106,64 @@ export function TripsReportTable({
 
   const periodLine = `من ${filters.from} إلى ${filters.to} · ${formatNumber(trips.length)} رحلة`;
   const reportTitle = `${orgName} — تقرير الرحلات${showTrab ? "" : " (بدون الترب)"}`;
+  const headerLines = [periodLine];
+  if (singleCompany) headerLines.push(`العميل: ${singleCompany}`);
+  if (singleDriver) headerLines.push(`السائق: ${singleDriver}`);
 
-  /** أعمدة التصدير — تُبنى حسب الفلاتر: بلا الحالة، وبلا العميل عند تحديده، وبلا الترب عند إخفائه */
-  const buildColumns = (): ExcelColumn[] => {
-    const cols: ExcelColumn[] = [
-      { header: "التاريخ", key: "trip_date", width: 12, ltr: true },
-      { header: "رقم الرحلة", key: "trip_number", width: 15, ltr: true },
-    ];
-    if (!singleCompany) cols.push({ header: "العميل", key: "company_name", width: 22 });
-    if (!singleDriver) cols.push({ header: "السائق", key: "driver_name", width: 20 });
-    cols.push(
-      { header: "السيارة", key: "vehicle_no", width: 12, ltr: true },
-      { header: "النوع", key: "vehicle_type_label", width: 10 },
-      { header: "من", key: "from_location", width: 16 },
-      { header: "إلى", key: "to_location", width: 16 },
-      { header: "عدد الفروع", key: "unloading_count", width: 11, ltr: true },
-      { header: "الأساسية", key: "base_fare", width: 13, money: true },
-      { header: "العمالة", key: "labor_fare", width: 12, money: true },
-      { header: "الموقع الإضافي", key: "extra_location_fare", width: 15, money: true },
-      { header: "المبيت", key: "overnight_fare", width: 12, money: true },
-      { header: "سعر الرحلة", key: "trip_amount", width: 14, money: true },
-      { header: "صاحب الطلب", key: "requester", width: 16 }
-    );
-    if (showTrab) cols.push({ header: "الترب", key: "driver_trip_payment", width: 13, money: true });
-    return cols;
-  };
+  const columns: ReportColumn[] = [
+    { header: "التاريخ", key: "trip_date", width: 12, ltr: true, screen: true },
+    { header: "رقم الرحلة", key: "trip_number", width: 15, ltr: true, screen: true },
+    ...(singleCompany
+      ? []
+      : [{ header: "العميل", key: "company_name", width: 22, screen: true } as ReportColumn]),
+    ...(singleDriver
+      ? []
+      : [{ header: "السائق", key: "driver_name", width: 20, screen: true } as ReportColumn]),
+    { header: "السيارة", key: "vehicle_no", width: 12, ltr: true, screen: true },
+    { header: "النوع", key: "vehicle_type_label", width: 10 },
+    { header: "من", key: "from_location", width: 16, screen: true },
+    { header: "إلى", key: "to_location", width: 16, screen: true },
+    { header: "عدد الفروع", key: "unloading_count", width: 11, center: true, screen: true },
+    { header: "الأساسية", key: "base_fare", width: 13, money: true },
+    { header: "العمالة", key: "labor_fare", width: 12, money: true },
+    { header: "الموقع الإضافي", key: "extra_location_fare", width: 15, money: true },
+    { header: "المبيت", key: "overnight_fare", width: 12, money: true },
+    { header: "سعر الرحلة", key: "trip_amount", width: 14, money: true, screen: true },
+    { header: "صاحب الطلب", key: "requester", width: 16 },
+    ...(showTrab
+      ? [{ header: "الترب", key: "driver_trip_payment", width: 13, money: true, screen: true } as ReportColumn]
+      : []),
+  ];
 
-  const buildRows = () =>
-    trips.map((t) => ({
-      trip_date: t.trip_date,
-      trip_number: t.trip_number,
-      company_name: t.company_name,
-      driver_name: t.driver_name,
-      vehicle_no: t.vehicle_no ?? "—",
-      vehicle_type_label: t.vehicle_type_label ?? "—",
-      from_location: t.from_location,
-      to_location: t.to_location,
-      unloading_count: Number(t.unloading_count),
-      requester: t.requester ?? "—",
-      base_fare: Number(t.base_fare),
-      labor_fare: Number(t.labor_fare),
-      extra_location_fare: Number(t.extra_location_fare),
-      overnight_fare: Number(t.overnight_fare),
-      trip_amount: Number(t.trip_amount),
-      driver_trip_payment: Number(t.driver_trip_payment),
-    }));
+  const rows: Record<string, string | number>[] = trips.map((t) => ({
+    trip_date: t.trip_date,
+    trip_number: t.trip_number,
+    company_name: t.company_name,
+    driver_name: t.driver_name,
+    vehicle_no: t.vehicle_no ?? "—",
+    vehicle_type_label: t.vehicle_type_label ?? "—",
+    from_location: t.from_location,
+    to_location: t.to_location,
+    unloading_count: Number(t.unloading_count),
+    requester: t.requester ?? "—",
+    base_fare: Number(t.base_fare),
+    labor_fare: Number(t.labor_fare),
+    extra_location_fare: Number(t.extra_location_fare),
+    overnight_fare: Number(t.overnight_fare),
+    trip_amount: Number(t.trip_amount),
+    driver_trip_payment: Number(t.driver_trip_payment),
+  }));
 
-  const buildTotals = () => ({
+  const totalsRow: Record<string, string | number> = {
     trip_date: "الإجمالي",
+    trip_number: `${formatNumber(trips.length)} رحلة`,
     base_fare: totals.base,
     labor_fare: totals.labor,
     extra_location_fare: totals.extra,
     overnight_fare: totals.overnight,
     trip_amount: totals.amount,
     ...(showTrab ? { driver_trip_payment: totals.trab } : {}),
-  });
-
-  const headerLines = [periodLine];
-  if (singleCompany) headerLines.push(`العميل: ${singleCompany}`);
-  if (singleDriver) headerLines.push(`السائق: ${singleDriver}`);
+  };
 
   const handleExportExcel = async () => {
     setExporting(true);
@@ -159,15 +175,34 @@ export function TripsReportTable({
         sheetName: "الرحلات",
         title: reportTitle,
         subtitle: headerLines.join("  ·  "),
-        columns: buildColumns(),
-        rows: buildRows(),
-        totals: buildTotals(),
+        columns: columns.map(({ header, key, width, money, ltr }) => ({
+          header,
+          key,
+          width,
+          money,
+          ltr,
+        })),
+        rows,
+        totals: totalsRow,
       });
     } catch {
       toast.error("تعذّر إنشاء ملف Excel");
     } finally {
       setExporting(false);
     }
+  };
+
+  /** الأعمدة المخصصة للطباعة فقط تُخفى على الشاشة وتظهر في PDF */
+  const cellClass = (col: ReportColumn) =>
+    col.screen ? "" : "hidden print:table-cell";
+
+  const align = (col: ReportColumn) =>
+    col.center ? "text-center" : col.money || col.ltr ? "text-left" : "text-right";
+
+  const display = (col: ReportColumn, value: string | number | undefined) => {
+    if (value === undefined || value === "") return "";
+    if (col.money) return formatCurrency(Number(value), currencySymbol);
+    return String(value);
   };
 
   return (
@@ -277,83 +312,70 @@ export function TripsReportTable({
         </div>
       </div>
 
-      {/* رأس يظهر في الطباعة و PDF فقط — الرأس الذي على الشاشة غير مناسب للورق */}
+      <p className="text-[11px] text-zinc-400 print:hidden">
+        الطباعة و PDF تعرضان كل أعمدة ملف Excel — بما فيها البنود التفصيلية المخفية هنا
+        لضيق الشاشة.
+      </p>
+
+      {/* رأس يظهر في الطباعة و PDF فقط — رأس الصفحة غير مناسب للورق */}
       <div className="hidden print:block">
-        <h1 className="text-center text-lg font-bold text-zinc-900">{reportTitle}</h1>
-        <p className="mt-1 text-center text-xs text-zinc-500">{headerLines.join("  ·  ")}</p>
+        <h1 className="text-center text-base font-bold text-zinc-900">{reportTitle}</h1>
+        <p className="mt-1 mb-3 text-center text-[10px] text-zinc-500">
+          {headerLines.join("  ·  ")}
+        </p>
       </div>
 
       <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm print:border-0 print:shadow-none">
         {trips.length === 0 ? (
           <EmptyState icon={Truck} title="لا توجد رحلات في هذه الفترة" />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto print:overflow-visible">
+            <table className="w-full text-sm print:text-[9px]">
               <thead>
-                <tr className="border-b border-zinc-100 text-right text-xs text-zinc-500">
-                  <th className="px-3 py-3 font-medium">التاريخ</th>
-                  <th className="px-3 py-3 font-medium">رقم الرحلة</th>
-                  {!singleCompany && <th className="px-3 py-3 font-medium">العميل</th>}
-                  {!singleDriver && <th className="px-3 py-3 font-medium">السائق</th>}
-                  <th className="px-3 py-3 font-medium">السيارة</th>
-                  <th className="px-3 py-3 font-medium">خط السير</th>
-                  <th className="px-3 py-3 font-medium">الفروع</th>
-                  <th className="px-3 py-3 font-medium">سعر الرحلة</th>
-                  {showTrab && <th className="px-3 py-3 font-medium">الترب</th>}
+                <tr className="border-b border-zinc-100 text-right text-xs text-zinc-500 print:bg-zinc-100 print:text-[9px] print:text-zinc-900">
+                  {columns.map((col) => (
+                    <th
+                      key={col.key}
+                      className={`px-3 py-3 font-medium print:px-1.5 print:py-1.5 ${align(col)} ${cellClass(col)}`}
+                    >
+                      {col.header}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {trips.map((t) => (
-                  <tr key={t.id} className="border-b border-zinc-50 hover:bg-zinc-50/60">
-                    <td className="px-3 py-2.5 whitespace-nowrap text-zinc-600" dir="ltr">
-                      {t.trip_date}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <Link
-                        href={`/trips/${t.id}`}
-                        className="font-medium text-zinc-900 hover:underline"
+                {rows.map((row, i) => (
+                  <tr key={trips[i].id} className="border-b border-zinc-50 hover:bg-zinc-50/60">
+                    {columns.map((col) => (
+                      <td
+                        key={col.key}
+                        dir={col.money || col.ltr || col.center ? "ltr" : undefined}
+                        className={`px-3 py-2.5 whitespace-nowrap text-zinc-700 print:px-1.5 print:py-1 ${align(col)} ${cellClass(col)}`}
                       >
-                        {t.trip_number}
-                      </Link>
-                    </td>
-                    {!singleCompany && (
-                      <td className="px-3 py-2.5 text-zinc-600">{t.company_name}</td>
-                    )}
-                    {!singleDriver && <td className="px-3 py-2.5 text-zinc-600">{t.driver_name}</td>}
-                    <td className="px-3 py-2.5 whitespace-nowrap text-zinc-600" dir="ltr">
-                      {t.vehicle_no ?? "—"}
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-zinc-600">
-                      {t.from_location} ← {t.to_location}
-                    </td>
-                    <td className="px-3 py-2.5 text-center text-zinc-600" dir="ltr">
-                      {t.unloading_count}
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-zinc-900" dir="ltr">
-                      {formatCurrency(t.trip_amount, currencySymbol)}
-                    </td>
-                    {showTrab && (
-                      <td className="px-3 py-2.5 whitespace-nowrap text-zinc-700" dir="ltr">
-                        {formatCurrency(t.driver_trip_payment, currencySymbol)}
+                        {col.key === "trip_number" ? (
+                          <Link
+                            href={`/trips/${trips[i].id}`}
+                            className="font-medium text-zinc-900 hover:underline"
+                          >
+                            {row.trip_number}
+                          </Link>
+                        ) : (
+                          display(col, row[col.key])
+                        )}
                       </td>
-                    )}
+                    ))}
                   </tr>
                 ))}
-                <tr className="bg-zinc-50 font-semibold text-zinc-900">
-                  <td
-                    className="px-3 py-3"
-                    colSpan={5 + (singleCompany ? 0 : 1) + (singleDriver ? 0 : 1)}
-                  >
-                    الإجمالي — {formatNumber(trips.length)} رحلة
-                  </td>
-                  <td className="px-3 py-3 whitespace-nowrap" dir="ltr">
-                    {formatCurrency(totals.amount, currencySymbol)}
-                  </td>
-                  {showTrab && (
-                    <td className="px-3 py-3 whitespace-nowrap" dir="ltr">
-                      {formatCurrency(totals.trab, currencySymbol)}
+                <tr className="bg-zinc-50 font-semibold text-zinc-900 print:bg-zinc-100">
+                  {columns.map((col) => (
+                    <td
+                      key={col.key}
+                      dir={col.money || col.ltr || col.center ? "ltr" : undefined}
+                      className={`px-3 py-3 whitespace-nowrap print:px-1.5 print:py-1.5 ${align(col)} ${cellClass(col)}`}
+                    >
+                      {display(col, totalsRow[col.key])}
                     </td>
-                  )}
+                  ))}
                 </tr>
               </tbody>
             </table>
@@ -362,7 +384,7 @@ export function TripsReportTable({
       </div>
 
       {trips.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 print:hidden">
           <Tile label="الأجرة الأساسية" value={totals.base} currencySymbol={currencySymbol} />
           <Tile label="أجرة العمالة" value={totals.labor} currencySymbol={currencySymbol} />
           <Tile label="المواقع الإضافية" value={totals.extra} currencySymbol={currencySymbol} />
