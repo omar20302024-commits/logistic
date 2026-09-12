@@ -34,6 +34,7 @@ type Overview = {
   total_rental_revenue: number;
   total_rental_diesel: number;
   total_driver_expenses: number;
+  total_monthly_diesel: number;
   total_housing_cost: number;
   total_other_expenses: number;
   net_profit: number;
@@ -54,6 +55,7 @@ const emptyOverview: Overview = {
   total_rental_revenue: 0,
   total_rental_diesel: 0,
   total_driver_expenses: 0,
+  total_monthly_diesel: 0,
   total_housing_cost: 0,
   total_other_expenses: 0,
   net_profit: 0,
@@ -186,6 +188,7 @@ export default async function DashboardPage() {
           totalRentalRevenue={overview.total_rental_revenue}
           totalRentalDiesel={overview.total_rental_diesel}
           totalDriverExpenses={overview.total_driver_expenses}
+          totalMonthlyDiesel={overview.total_monthly_diesel}
           totalHousingCost={overview.total_housing_cost}
           totalOtherExpenses={overview.total_other_expenses}
           netProfit={overview.net_profit}

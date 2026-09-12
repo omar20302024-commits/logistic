@@ -453,19 +453,6 @@ export function TripForm({
               اتركه صفراً إن لم يستحقه — يُضاف لتربه ويظهر في كشوفاته
             </p>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-zinc-700">مصروف الديزل *</label>
-            <input
-              {...register("diesel_amount")}
-              type="number"
-              step="0.01"
-              dir="ltr"
-              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-right outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
-            />
-            {errors.diesel_amount && (
-              <p className="text-xs text-red-600">{errors.diesel_amount.message}</p>
-            )}
-          </div>
         </div>
 
         {extraStopsCount > 0 && (
@@ -482,6 +469,15 @@ export function TripForm({
             {formatCurrency(estimatedProfit, currencySymbol)}
           </span>
         </div>
+        <p className="mt-2 text-[11px] text-zinc-400">
+          الديزل لم يعد يُسجَّل على الرحلة — يُدخَل مرة واحدة لكل سائق في صفحة «الديزل الشهري» عند
+          تقفيل الشهر، ويُخصم من صافي الربح هناك.
+          {(Number(watchedDiesel) || 0) > 0 &&
+            ` هذه الرحلة تحمل ديزلاً قديماً بقيمة ${formatCurrency(
+              Number(watchedDiesel) || 0,
+              currencySymbol
+            )} وهو مخصوم من الربح أعلاه.`}
+        </p>
       </div>
 
       {/* مواقع التحميل */}

@@ -36,6 +36,7 @@ export default async function FinancialReportPage({
     operating_profit: number;
     total_salaries: number;
     total_driver_expenses: number;
+    total_monthly_diesel: number;
     total_housing_cost: number;
     total_other_expenses: number;
     net_profit: number;
@@ -50,6 +51,7 @@ export default async function FinancialReportPage({
     operating_profit: 0,
     total_salaries: 0,
     total_driver_expenses: 0,
+    total_monthly_diesel: 0,
     total_housing_cost: 0,
     total_other_expenses: 0,
     net_profit: 0,

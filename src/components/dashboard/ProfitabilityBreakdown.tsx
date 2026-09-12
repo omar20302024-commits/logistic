@@ -9,6 +9,7 @@ type Props = {
   operatingProfit: number;
   totalSalaries: number;
   totalDriverExpenses: number;
+  totalMonthlyDiesel: number;
   totalHousingCost: number;
   totalOtherExpenses: number;
   netProfit: number;
@@ -54,6 +55,7 @@ export function ProfitabilityBreakdown(props: Props) {
     operatingProfit,
     totalSalaries,
     totalDriverExpenses,
+    totalMonthlyDiesel,
     totalHousingCost,
     totalOtherExpenses,
     netProfit,
@@ -85,6 +87,7 @@ export function ProfitabilityBreakdown(props: Props) {
         <Row label="الربح التشغيلي" value={operatingProfit} currencySymbol={currencySymbol} />
         <Row label="الرواتب (حسب أيام العمل)" value={totalSalaries} currencySymbol={currencySymbol} sign="minus" />
         <Row label="مصروفات دفعها السائقون" value={totalDriverExpenses} currencySymbol={currencySymbol} sign="minus" />
+        <Row label="الديزل الشهري للسائقين" value={totalMonthlyDiesel} currencySymbol={currencySymbol} sign="minus" />
         <Row label="إيجار السكن" value={totalHousingCost} currencySymbol={currencySymbol} sign="minus" />
         <Row label="مصروفات أخرى" value={totalOtherExpenses} currencySymbol={currencySymbol} sign="minus" />
         <Row

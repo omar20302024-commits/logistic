@@ -14,6 +14,7 @@ type Summary = {
   operating_profit: number;
   total_salaries: number;
   total_driver_expenses: number;
+  total_monthly_diesel: number;
   total_housing_cost: number;
   total_other_expenses: number;
   net_profit: number;
@@ -92,6 +93,12 @@ export function FinancialReportView({
           <Row
             label="مصروفات دفعها السائقون"
             value={summary.total_driver_expenses}
+            currencySymbol={currencySymbol}
+            sign="minus"
+          />
+          <Row
+            label="الديزل الشهري للسائقين"
+            value={summary.total_monthly_diesel}
             currencySymbol={currencySymbol}
             sign="minus"
           />
