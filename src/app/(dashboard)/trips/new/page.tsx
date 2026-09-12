@@ -6,7 +6,8 @@ import { TripForm } from "@/components/trips/TripForm";
 export default async function NewTripPage() {
   const supabase = await createClient();
 
-  const [{ data: driversRaw }, { data: companies }, { data: settings }] = await Promise.all([
+  const [{ data: driversRaw }, { data: companies }, { data: branches }, { data: settings }] =
+    await Promise.all([
     supabase
       .from("drivers")
       .select(
@@ -15,6 +16,11 @@ export default async function NewTripPage() {
       .eq("status", "active")
       .order("name"),
     supabase.from("companies").select("id, name, extra_location_rate").eq("status", "active").order("name"),
+    supabase
+      .from("company_branches")
+      .select("company_id, branch_code, branch_name")
+      .eq("is_active", true)
+      .order("branch_code"),
     supabase.from("settings").select("currency_symbol").single(),
   ]);
 
@@ -42,6 +48,7 @@ export default async function NewTripPage() {
       <TripForm
         drivers={drivers ?? []}
         companies={companies ?? []}
+        branches={branches ?? []}
         currencySymbol={settings?.currency_symbol ?? "ر.س"}
       />
     </div>

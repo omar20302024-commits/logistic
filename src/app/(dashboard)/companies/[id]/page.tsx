@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
+import { BranchesSection } from "@/components/companies/BranchesSection";
 
 export default async function CompanyDetailPage({
   params,
@@ -58,6 +59,12 @@ export default async function CompanyDetailPage({
     .from("trips")
     .select("driver:drivers(id, name)")
     .eq("company_id", id);
+
+  const { data: branches } = await supabase
+    .from("company_branches")
+    .select("*")
+    .eq("company_id", id)
+    .order("branch_code");
 
   const uniqueDrivers = new Map<string, string>();
   (driverRows ?? []).forEach((row) => {
@@ -147,6 +154,8 @@ export default async function CompanyDetailPage({
           </div>
         )}
       </div>
+
+      <BranchesSection companyId={id} branches={branches ?? []} />
 
       {company.address && (
         <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600">

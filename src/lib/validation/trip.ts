@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const locationRowSchema = z.object({
   location_name: z.string().trim().min(1, "اسم الموقع مطلوب"),
+  // كود الفرع اختياري — النص الحر يظل مقبولاً، والربط بالسجل ميزة إضافية
+  branch_code: z.string().trim().optional().or(z.literal("")),
   amount: z.coerce.number().min(0, "المبلغ يجب أن يكون رقماً موجباً"),
 });
 

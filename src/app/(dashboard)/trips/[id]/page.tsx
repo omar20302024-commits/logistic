@@ -13,8 +13,14 @@ export default async function EditTripPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: trip, error }, { data: locations }, { data: driversRaw }, { data: companies }, { data: settings }] =
-    await Promise.all([
+  const [
+    { data: trip, error },
+    { data: locations },
+    { data: driversRaw },
+    { data: companies },
+    { data: branches },
+    { data: settings },
+  ] = await Promise.all([
       supabase.from("trips").select("*").eq("id", id).single(),
       supabase
         .from("trip_locations")
@@ -29,6 +35,11 @@ export default async function EditTripPage({
         )
         .order("name"),
       supabase.from("companies").select("id, name, extra_location_rate").order("name"),
+      supabase
+        .from("company_branches")
+        .select("company_id, branch_code, branch_name")
+        .eq("is_active", true)
+        .order("branch_code"),
       supabase.from("settings").select("currency_symbol").single(),
     ]);
 
@@ -44,10 +55,18 @@ export default async function EditTripPage({
 
   const loading_locations = (locations ?? [])
     .filter((l) => l.location_type === "loading")
-    .map((l) => ({ location_name: l.location_name, amount: l.amount }));
+    .map((l) => ({
+      location_name: l.location_name,
+      branch_code: l.branch_code ?? null,
+      amount: l.amount,
+    }));
   const unloading_locations = (locations ?? [])
     .filter((l) => l.location_type === "unloading")
-    .map((l) => ({ location_name: l.location_name, amount: l.amount }));
+    .map((l) => ({
+      location_name: l.location_name,
+      branch_code: l.branch_code ?? null,
+      amount: l.amount,
+    }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -85,6 +104,7 @@ export default async function EditTripPage({
       <TripForm
         drivers={drivers ?? []}
         companies={companies ?? []}
+        branches={branches ?? []}
         currencySymbol={settings?.currency_symbol ?? "ر.س"}
         initialData={{
           id: trip.id,

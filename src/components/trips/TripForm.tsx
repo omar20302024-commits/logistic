@@ -12,7 +12,7 @@ import {
   type TripFormInput,
   type TripFormValues,
 } from "@/lib/validation/trip";
-import { createTrip, updateTrip } from "@/app/(dashboard)/trips/actions";
+import { createTrip, updateTrip, getLastTripBranches } from "@/app/(dashboard)/trips/actions";
 import { formatCurrency } from "@/lib/format";
 import { normalizeArabic } from "@/lib/arabic";
 
@@ -25,6 +25,7 @@ type DriverOption = {
   route_rates: RouteRate[];
 };
 type CompanyOption = { id: string; name: string; extra_location_rate: number };
+type BranchOption = { company_id: string; branch_code: string; branch_name: string | null };
 
 // مطابقة أسماء المدن تتجاهل الفروق الإملائية الشائعة (جده/جدة، الاحساء/الأحساء،
 // المسافات الزائدة) — التفاصيل في src/lib/arabic.ts
@@ -48,8 +49,8 @@ export type TripInitialData = {
   requester: string | null;
   status: TripFormInput["status"];
   notes: string | null;
-  loading_locations: { location_name: string; amount: number }[];
-  unloading_locations: { location_name: string; amount: number }[];
+  loading_locations: { location_name: string; branch_code: string | null; amount: number }[];
+  unloading_locations: { location_name: string; branch_code: string | null; amount: number }[];
 };
 
 const emptyValues: TripFormInput = {
@@ -76,11 +77,13 @@ const emptyValues: TripFormInput = {
 export function TripForm({
   drivers,
   companies,
+  branches,
   initialData,
   currencySymbol,
 }: {
   drivers: DriverOption[];
   companies: CompanyOption[];
+  branches: BranchOption[];
   initialData?: TripInitialData;
   currencySymbol: string;
 }) {
@@ -113,8 +116,14 @@ export function TripForm({
           requester: initialData.requester ?? "",
           status: initialData.status,
           notes: initialData.notes ?? "",
-          loading_locations: initialData.loading_locations,
-          unloading_locations: initialData.unloading_locations,
+          loading_locations: initialData.loading_locations.map((l) => ({
+            ...l,
+            branch_code: l.branch_code ?? "",
+          })),
+          unloading_locations: initialData.unloading_locations.map((l) => ({
+            ...l,
+            branch_code: l.branch_code ?? "",
+          })),
         }
       : emptyValues,
   });
@@ -185,6 +194,33 @@ export function TripForm({
     setValue("extra_location_fare", suggestedExtraFare);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [suggestedExtraFare]);
+  // فروع هذا العميل فقط — الأكواد مميزة داخل العميل الواحد لا عبر النظام كله
+  const companyBranches = branches.filter((b) => b.company_id === watchedCompanyId);
+
+  // جلب فروع آخر رحلة لنفس العميل ونفس الوجهة — يوفّر إعادة كتابتها كل مرة
+  const canFetchBranches = !!watchedCompanyId && !!(watchedToLocation ?? "").trim();
+  const handleFetchBranches = async () => {
+    const result = await getLastTripBranches(watchedCompanyId, watchedToLocation ?? "");
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    if (result.branches.length === 0) {
+      toast.info("لا توجد رحلة سابقة لهذا العميل بنفس الوجهة");
+      return;
+    }
+    // يستبدل مواقع التنزيل الحالية بالكامل — أوضح من الدمج، والمستخدم يرى النتيجة قبل الحفظ
+    setValue(
+      "unloading_locations",
+      result.branches.map((b) => ({
+        location_name: b.location_name,
+        branch_code: b.branch_code ?? "",
+        amount: b.amount,
+      }))
+    );
+    toast.success(`تم جلب ${result.branches.length} فرعاً من آخر رحلة لهذه الوجهة`);
+  };
+
   const totalDriverPayment =
     (Number(watchedBasePayment) || 0) + extraStopsPayment + (Number(watchedDriverOvernight) || 0);
   const estimatedProfit = totalTripAmount - totalDriverPayment - (Number(watchedDiesel) || 0);
@@ -490,6 +526,15 @@ export function TripForm({
         extraNoteFrom={1}
       />
 
+      {/* قائمة أكواد فروع هذا العميل — تظهر كاقتراحات في كل حقل كود */}
+      <datalist id="company-branch-codes">
+        {companyBranches.map((b) => (
+          <option key={b.branch_code} value={b.branch_code}>
+            {b.branch_name ?? ""}
+          </option>
+        ))}
+      </datalist>
+
       {/* مواقع التنزيل */}
       <LocationsEditor
         title="مواقع التنزيل"
@@ -498,6 +543,7 @@ export function TripForm({
         namePrefix="unloading_locations"
         hint="المبالغ هنا توزيع داخلي على المواقع ولم تعد تحدد سعر الرحلة — السعر يأتي من بنود الأجرة أعلاه. أي موقع تنزيل بعد الأول يضيف ترباً ثابتاً للسائق (حسب معدله) تلقائياً"
         extraNoteFrom={1}
+        onFetchBranches={canFetchBranches ? handleFetchBranches : undefined}
       />
 
       {/* ملاحظات */}
@@ -537,6 +583,7 @@ function LocationsEditor({
   namePrefix,
   hint,
   extraNoteFrom,
+  onFetchBranches,
 }: {
   title: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -546,6 +593,7 @@ function LocationsEditor({
   namePrefix: "loading_locations" | "unloading_locations";
   hint?: string;
   extraNoteFrom?: number;
+  onFetchBranches?: () => void;
 }) {
   const { fields, append, remove } = fieldArray;
 
@@ -553,14 +601,26 @@ function LocationsEditor({
     <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
       <div className="mb-1 flex items-center justify-between">
         <h3 className="text-sm font-bold text-zinc-900">{title}</h3>
+        <div className="flex items-center gap-2">
+        {onFetchBranches && (
+          <button
+            type="button"
+            onClick={onFetchBranches}
+            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+            title="يستبدل المواقع الحالية بفروع آخر رحلة لنفس العميل ونفس الوجهة"
+          >
+            جلب فروع آخر رحلة
+          </button>
+        )}
         <button
           type="button"
-          onClick={() => append({ location_name: "", amount: 0 })}
+          onClick={() => append({ location_name: "", branch_code: "", amount: 0 })}
           className="flex items-center gap-1 rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
         >
           <Plus size={14} />
           إضافة موقع
         </button>
+        </div>
       </div>
       {hint && <p className="mb-4 text-[11px] text-zinc-400">{hint}</p>}
 
@@ -571,6 +631,16 @@ function LocationsEditor({
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {fields.map((field: any, index: number) => (
             <div key={field.id} className="flex flex-wrap items-end gap-2 rounded-lg bg-zinc-50 p-3">
+              <div className="flex w-24 flex-col gap-1">
+                <label className="text-xs text-zinc-500">كود الفرع</label>
+                <input
+                  {...register(`${namePrefix}.${index}.branch_code` as const)}
+                  list="company-branch-codes"
+                  placeholder="5072"
+                  dir="ltr"
+                  className="rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-sm text-right outline-none focus:border-zinc-900"
+                />
+              </div>
               <div className="flex min-w-[160px] flex-1 flex-col gap-1">
                 <label className="text-xs text-zinc-500">اسم/وصف الموقع</label>
                 <input

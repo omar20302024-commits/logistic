@@ -15,28 +15,49 @@ async function currentUserId(
   return data.user?.id ?? null;
 }
 
-function buildLocationRows(
+type LocationRow = { location_name: string; branch_code?: string; amount: number };
+
+/**
+ * كود الفرع يُحفظ نصاً دائماً، ويُربط بسجل الفرع إن وُجد له كود مطابق لدى هذا
+ * العميل. الكود النصي هو الأصل: لو حُذف الفرع من السجل لاحقاً تبقى الرحلة شاهدة
+ * على الكود الذي نُفِّذت عليه فعلاً.
+ */
+async function buildLocationRows(
+  supabase: Awaited<ReturnType<typeof createClient>>,
   tripId: string,
-  values: {
-    loading_locations: { location_name: string; amount: number }[];
-    unloading_locations: { location_name: string; amount: number }[];
-  }
+  companyId: string,
+  values: { loading_locations: LocationRow[]; unloading_locations: LocationRow[] }
 ) {
+  const codes = [...values.loading_locations, ...values.unloading_locations]
+    .map((l) => l.branch_code?.trim())
+    .filter((c): c is string => !!c);
+
+  const codeToId = new Map<string, string>();
+  if (codes.length > 0) {
+    const { data } = await supabase
+      .from("company_branches")
+      .select("id, branch_code")
+      .eq("company_id", companyId)
+      .in("branch_code", codes);
+    for (const b of data ?? []) codeToId.set(b.branch_code, b.id);
+  }
+
+  const row = (l: LocationRow, i: number, type: "loading" | "unloading") => {
+    const code = l.branch_code?.trim() || null;
+    return {
+      trip_id: tripId,
+      location_type: type,
+      location_name: l.location_name,
+      branch_code: code,
+      branch_id: code ? (codeToId.get(code) ?? null) : null,
+      amount: l.amount,
+      sort_order: i,
+    };
+  };
+
   return [
-    ...values.loading_locations.map((l, i) => ({
-      trip_id: tripId,
-      location_type: "loading" as const,
-      location_name: l.location_name,
-      amount: l.amount,
-      sort_order: i,
-    })),
-    ...values.unloading_locations.map((l, i) => ({
-      trip_id: tripId,
-      location_type: "unloading" as const,
-      location_name: l.location_name,
-      amount: l.amount,
-      sort_order: i,
-    })),
+    ...values.loading_locations.map((l, i) => row(l, i, "loading")),
+    ...values.unloading_locations.map((l, i) => row(l, i, "unloading")),
   ];
 }
 
@@ -80,7 +101,7 @@ export async function createTrip(input: unknown): Promise<ActionResult & { id?: 
     return { error: "حدث خطأ أثناء إضافة الرحلة" };
   }
 
-  const locationRows = buildLocationRows(trip.id, values);
+  const locationRows = await buildLocationRows(supabase, trip.id, values.company_id, values);
   if (locationRows.length > 0) {
     const { error: locError } = await supabase.from("trip_locations").insert(locationRows);
     if (locError) {
@@ -136,7 +157,7 @@ export async function updateTrip(id: string, input: unknown): Promise<ActionResu
   const { error: deleteError } = await supabase.from("trip_locations").delete().eq("trip_id", id);
   if (deleteError) return { error: "حدث خطأ أثناء تحديث مواقع الرحلة" };
 
-  const locationRows = buildLocationRows(id, values);
+  const locationRows = await buildLocationRows(supabase, id, values.company_id, values);
   if (locationRows.length > 0) {
     const { error: locError } = await supabase.from("trip_locations").insert(locationRows);
     if (locError) return { error: "حدث خطأ أثناء حفظ مواقع الرحلة" };
@@ -163,4 +184,35 @@ export async function deleteTripAndRedirect(id: string) {
   const result = await deleteTrip(id);
   if (!result.error) redirect("/trips");
   return result;
+}
+
+/**
+ * فروع آخر رحلة لنفس العميل ونفس الوجهة — يوفّر إعادة كتابتها للوجهات المتكررة.
+ * المطابقة على الوجهة تتجاهل الفروق الإملائية العربية (fn_normalize_ar).
+ */
+export async function getLastTripBranches(
+  companyId: string,
+  toLocation: string
+): Promise<{
+  branches: { location_name: string; branch_code: string | null; amount: number }[];
+  error: string | null;
+}> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("fn_last_trip_branches", {
+    p_company_id: companyId,
+    p_to_location: toLocation,
+  });
+
+  if (error) {
+    return { branches: [], error: "تعذّر جلب الفروع — تأكد من تشغيل ملف SQL رقم 0021" };
+  }
+
+  return {
+    branches: (data ?? []) as {
+      location_name: string;
+      branch_code: string | null;
+      amount: number;
+    }[],
+    error: null,
+  };
 }
