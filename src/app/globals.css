@@ -43,3 +43,38 @@ body {
    */
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------------------------------------------------------------------------
+   الطباعة / حفظ PDF
+   ملاحظة: PDF بيتولّد من محرك طباعة المتصفح لا من مكتبة JS، لأن مكتبات PDF في
+   المتصفح (jsPDF/pdfmake) ما بتعملش تشكيل عربي (Arabic shaping) — الحروف بتطلع
+   مفكّكة ومعكوسة. محرك المتصفح بيستخدم نظام النصوص بتاع الجهاز فالعربي يطلع سليم.
+--------------------------------------------------------------------------- */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  /* الجداول الطويلة تتقسّم على صفحات بدل ما تتقص */
+  table {
+    page-break-inside: auto;
+  }
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+  thead {
+    display: table-header-group; /* يعيد رأس الجدول في كل صفحة */
+  }
+
+  /* الألوان الخلفية تتطبع زي ما هي (الافتراضي إن المتصفح بيشيلها) */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
