@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, AlertTriangle } from "lucide-react";
+import { ArrowRight, AlertTriangle, FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { TripForm } from "@/components/trips/TripForm";
 import { DeleteTripButton } from "@/components/trips/DeleteTripButton";
@@ -103,7 +103,16 @@ export default async function EditTripPage({
           </Link>
           <h1 className="text-xl font-bold text-zinc-900">تعديل الرحلة {trip.trip_number}</h1>
         </div>
-        <DeleteTripButton tripId={trip.id} tripNumber={trip.trip_number} />
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/trips/${trip.id}/waybill`}
+            className="flex items-center gap-1.5 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+          >
+            <FileText size={15} />
+            بوليصة الشحن
+          </Link>
+          <DeleteTripButton tripId={trip.id} tripNumber={trip.trip_number} />
+        </div>
       </div>
 
       {trip.settlement_id && (

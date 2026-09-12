@@ -55,6 +55,7 @@ export const navGroups: NavGroup[] = [
   {
     title: "التقارير",
     items: [
+      { label: "تقرير الرحلات", href: "/reports/trips", icon: Truck },
       { label: "تقرير السائقين", href: "/reports/drivers", icon: BarChart3 },
       { label: "تقرير الشركات", href: "/reports/companies", icon: BarChart3 },
       { label: "ربحية الرحلات", href: "/reports/profitability", icon: BarChart3 },
