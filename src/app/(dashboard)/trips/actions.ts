@@ -16,71 +16,27 @@ async function currentUserId(
 }
 
 /**
- * اسم نوع السيارة وقت الرحلة يُحفظ نصاً على الرحلة نفسها. لو تغيّر نوع السيارة
- * لاحقاً أو حُذفت، تبقى الرحلة شاهدة على ما نُفِّذت به — نفس مبدأ branch_code.
+ * اسم نوع السيارة يُحفظ نصاً على الرحلة بجانب المعرّف. لو أُعيدت تسمية النوع
+ * لاحقاً أو حُذف، تبقى الرحلة شاهدة على ما نُفِّذت به.
  */
 async function vehicleTypeLabel(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  vehicleId: string | undefined
+  slug: string | undefined
 ): Promise<string | null> {
-  if (!vehicleId) return null;
+  if (!slug) return null;
   const { data } = await supabase
-    .from("vehicles")
-    .select("vehicle_types(name_ar)")
-    .eq("id", vehicleId)
+    .from("vehicle_types")
+    .select("name_ar")
+    .eq("slug", slug)
     .single();
-  const types = (data as { vehicle_types?: { name_ar: string } | { name_ar: string }[] } | null)
-    ?.vehicle_types;
-  const type = Array.isArray(types) ? types[0] : types;
-  return type?.name_ar ?? null;
+  return data?.name_ar ?? null;
 }
-
-type LocationRow = { location_name: string; branch_code?: string; amount: number };
 
 /**
- * كود الفرع يُحفظ نصاً دائماً، ويُربط بسجل الفرع إن وُجد له كود مطابق لدى هذا
- * العميل. الكود النصي هو الأصل: لو حُذف الفرع من السجل لاحقاً تبقى الرحلة شاهدة
- * على الكود الذي نُفِّذت عليه فعلاً.
+ * ملاحظة: جدول trip_locations لم يعد يُكتب إليه — عدد الفروع صار رقماً واحداً
+ * على الرحلة (branches_count منذ 0025). صفوف الرحلات القديمة تبقى كما هي ولا
+ * تُلمس، فتاريخها محفوظ.
  */
-async function buildLocationRows(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  tripId: string,
-  companyId: string,
-  values: { loading_locations: LocationRow[]; unloading_locations: LocationRow[] }
-) {
-  const codes = [...values.loading_locations, ...values.unloading_locations]
-    .map((l) => l.branch_code?.trim())
-    .filter((c): c is string => !!c);
-
-  const codeToId = new Map<string, string>();
-  if (codes.length > 0) {
-    const { data } = await supabase
-      .from("company_branches")
-      .select("id, branch_code")
-      .eq("company_id", companyId)
-      .in("branch_code", codes);
-    for (const b of data ?? []) codeToId.set(b.branch_code, b.id);
-  }
-
-  const row = (l: LocationRow, i: number, type: "loading" | "unloading") => {
-    const code = l.branch_code?.trim() || null;
-    return {
-      trip_id: tripId,
-      location_type: type,
-      location_name: l.location_name,
-      branch_code: code,
-      branch_id: code ? (codeToId.get(code) ?? null) : null,
-      amount: l.amount,
-      sort_order: i,
-    };
-  };
-
-  return [
-    ...values.loading_locations.map((l, i) => row(l, i, "loading")),
-    ...values.unloading_locations.map((l, i) => row(l, i, "unloading")),
-  ];
-}
-
 export async function createTrip(input: unknown): Promise<ActionResult & { id?: string }> {
   const parsed = tripSchema.safeParse(input);
   if (!parsed.success) {
@@ -90,7 +46,7 @@ export async function createTrip(input: unknown): Promise<ActionResult & { id?: 
 
   const supabase = await createClient();
 
-  const { data: trip, error: tripError } = await supabase
+  const { data: trip, error } = await supabase
     .from("trips")
     .insert({
       trip_number: values.trip_number || null,
@@ -99,16 +55,17 @@ export async function createTrip(input: unknown): Promise<ActionResult & { id?: 
       trip_date: values.trip_date,
       from_location: values.from_location,
       to_location: values.to_location,
+      branches_count: values.branches_count,
+      vehicle_type_slug: values.vehicle_type_slug || null,
+      vehicle_type_label: await vehicleTypeLabel(supabase, values.vehicle_type_slug),
       base_fare: values.base_fare,
       labor_fare: values.labor_fare,
       extra_location_fare: values.extra_location_fare,
       overnight_fare: values.overnight_fare,
-      driver_overnight_payment: values.driver_overnight_payment,
       driver_base_payment: values.driver_base_payment,
+      driver_overnight_payment: values.driver_overnight_payment,
       diesel_amount: values.diesel_amount,
       requester: values.requester || null,
-      vehicle_id: values.vehicle_id || null,
-      vehicle_type_label: await vehicleTypeLabel(supabase, values.vehicle_id),
       status: values.status,
       notes: values.notes || null,
       created_by: await currentUserId(supabase),
@@ -116,19 +73,11 @@ export async function createTrip(input: unknown): Promise<ActionResult & { id?: 
     .select("id")
     .single();
 
-  if (tripError || !trip) {
-    if (tripError?.code === "23505") {
+  if (error || !trip) {
+    if (error?.code === "23505") {
       return { error: "رقم الرحلة مستخدم بالفعل، اختر رقماً آخر أو اتركه فارغاً للتوليد التلقائي" };
     }
     return { error: "حدث خطأ أثناء إضافة الرحلة" };
-  }
-
-  const locationRows = await buildLocationRows(supabase, trip.id, values.company_id, values);
-  if (locationRows.length > 0) {
-    const { error: locError } = await supabase.from("trip_locations").insert(locationRows);
-    if (locError) {
-      return { error: "تم إنشاء الرحلة لكن حدث خطأ أثناء حفظ المواقع" };
-    }
   }
 
   revalidatePath("/trips");
@@ -145,7 +94,7 @@ export async function updateTrip(id: string, input: unknown): Promise<ActionResu
 
   const supabase = await createClient();
 
-  const { error: tripError } = await supabase
+  const { error } = await supabase
     .from("trips")
     .update({
       trip_number: values.trip_number || null,
@@ -154,37 +103,28 @@ export async function updateTrip(id: string, input: unknown): Promise<ActionResu
       trip_date: values.trip_date,
       from_location: values.from_location,
       to_location: values.to_location,
+      branches_count: values.branches_count,
+      vehicle_type_slug: values.vehicle_type_slug || null,
+      vehicle_type_label: await vehicleTypeLabel(supabase, values.vehicle_type_slug),
       base_fare: values.base_fare,
       labor_fare: values.labor_fare,
       extra_location_fare: values.extra_location_fare,
       overnight_fare: values.overnight_fare,
-      driver_overnight_payment: values.driver_overnight_payment,
       driver_base_payment: values.driver_base_payment,
+      driver_overnight_payment: values.driver_overnight_payment,
       diesel_amount: values.diesel_amount,
       requester: values.requester || null,
-      vehicle_id: values.vehicle_id || null,
-      vehicle_type_label: await vehicleTypeLabel(supabase, values.vehicle_id),
       status: values.status,
       notes: values.notes || null,
       updated_by: await currentUserId(supabase),
     })
     .eq("id", id);
 
-  if (tripError) {
-    if (tripError.code === "23505") {
+  if (error) {
+    if (error.code === "23505") {
       return { error: "رقم الرحلة مستخدم بالفعل، اختر رقماً آخر" };
     }
     return { error: "حدث خطأ أثناء تعديل الرحلة" };
-  }
-
-  // نستبدل كل مواقع الرحلة بالمجموعة الحالية من النموذج (أبسط وأضمن من محاولة المطابقة)
-  const { error: deleteError } = await supabase.from("trip_locations").delete().eq("trip_id", id);
-  if (deleteError) return { error: "حدث خطأ أثناء تحديث مواقع الرحلة" };
-
-  const locationRows = await buildLocationRows(supabase, id, values.company_id, values);
-  if (locationRows.length > 0) {
-    const { error: locError } = await supabase.from("trip_locations").insert(locationRows);
-    if (locError) return { error: "حدث خطأ أثناء حفظ مواقع الرحلة" };
   }
 
   revalidatePath("/trips");
@@ -208,35 +148,4 @@ export async function deleteTripAndRedirect(id: string) {
   const result = await deleteTrip(id);
   if (!result.error) redirect("/trips");
   return result;
-}
-
-/**
- * فروع آخر رحلة لنفس العميل ونفس الوجهة — يوفّر إعادة كتابتها للوجهات المتكررة.
- * المطابقة على الوجهة تتجاهل الفروق الإملائية العربية (fn_normalize_ar).
- */
-export async function getLastTripBranches(
-  companyId: string,
-  toLocation: string
-): Promise<{
-  branches: { location_name: string; branch_code: string | null; amount: number }[];
-  error: string | null;
-}> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("fn_last_trip_branches", {
-    p_company_id: companyId,
-    p_to_location: toLocation,
-  });
-
-  if (error) {
-    return { branches: [], error: "تعذّر جلب الفروع — تأكد من تشغيل ملف SQL رقم 0021" };
-  }
-
-  return {
-    branches: (data ?? []) as {
-      location_name: string;
-      branch_code: string | null;
-      amount: number;
-    }[],
-    error: null,
-  };
 }

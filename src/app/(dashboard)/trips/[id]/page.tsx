@@ -5,90 +5,37 @@ import { createClient } from "@/lib/supabase/server";
 import { TripForm } from "@/components/trips/TripForm";
 import { DeleteTripButton } from "@/components/trips/DeleteTripButton";
 
-export default async function EditTripPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function EditTripPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
 
-  const [
-    { data: trip, error },
-    { data: locations },
-    { data: driversRaw },
-    { data: companies },
-    { data: branches },
-    { data: vehiclesRaw },
-    { data: settings },
-  ] = await Promise.all([
+  const [{ data: trip, error }, { data: driversRaw }, { data: companies }, { data: vehicleTypes }, { data: settings }] =
+    await Promise.all([
       supabase.from("trips").select("*").eq("id", id).single(),
-      supabase
-        .from("trip_locations")
-        .select("*")
-        .eq("trip_id", id)
-        .order("sort_order")
-        .order("created_at"),
       supabase
         .from("drivers")
         .select(
-          "id, name, default_trip_payment, extra_stop_rate, vehicle_id, driver_route_rates(from_city, to_city, trab_amount)"
+          "id, name, default_trip_payment, extra_stop_rate, driver_route_rates(from_city, to_city, trab_amount)"
         )
         .order("name"),
       supabase.from("companies").select("id, name, extra_location_rate").order("name"),
       supabase
-        .from("company_branches")
-        .select("company_id, branch_code, branch_name")
+        .from("vehicle_types")
+        .select("slug, name_ar")
         .eq("is_active", true)
-        .order("branch_code"),
-      supabase
-        .from("vehicles")
-        .select("id, vehicle_no, plate_no, vehicle_types(name_ar)")
-        .order("vehicle_no"),
+        .order("sort_order"),
       supabase.from("settings").select("currency_symbol").single(),
     ]);
 
   if (error || !trip) notFound();
-
-  const vehicles = (vehiclesRaw ?? []).map((v) => {
-    const raw = v as unknown as {
-      id: string;
-      vehicle_no: string;
-      plate_no: string | null;
-      vehicle_types: { name_ar: string } | { name_ar: string }[] | null;
-    };
-    const type = Array.isArray(raw.vehicle_types) ? raw.vehicle_types[0] : raw.vehicle_types;
-    return {
-      id: raw.id,
-      vehicle_no: raw.vehicle_no,
-      plate_no: raw.plate_no,
-      type_name: type?.name_ar ?? null,
-    };
-  });
 
   const drivers = (driversRaw ?? []).map((d) => ({
     id: d.id,
     name: d.name,
     default_trip_payment: d.default_trip_payment,
     extra_stop_rate: d.extra_stop_rate,
-    vehicle_id: d.vehicle_id,
     route_rates: d.driver_route_rates ?? [],
   }));
-
-  const loading_locations = (locations ?? [])
-    .filter((l) => l.location_type === "loading")
-    .map((l) => ({
-      location_name: l.location_name,
-      branch_code: l.branch_code ?? null,
-      amount: l.amount,
-    }));
-  const unloading_locations = (locations ?? [])
-    .filter((l) => l.location_type === "unloading")
-    .map((l) => ({
-      location_name: l.location_name,
-      branch_code: l.branch_code ?? null,
-      amount: l.amount,
-    }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -133,10 +80,9 @@ export default async function EditTripPage({
       )}
 
       <TripForm
-        drivers={drivers ?? []}
+        drivers={drivers}
         companies={companies ?? []}
-        branches={branches ?? []}
-        vehicles={vehicles}
+        vehicleTypes={vehicleTypes ?? []}
         currencySymbol={settings?.currency_symbol ?? "ر.س"}
         initialData={{
           id: trip.id,
@@ -146,19 +92,18 @@ export default async function EditTripPage({
           trip_date: trip.trip_date,
           from_location: trip.from_location,
           to_location: trip.to_location,
+          branches_count: trip.branches_count,
+          vehicle_type_slug: trip.vehicle_type_slug,
           base_fare: trip.base_fare,
           labor_fare: trip.labor_fare,
           extra_location_fare: trip.extra_location_fare,
           overnight_fare: trip.overnight_fare,
-          driver_overnight_payment: trip.driver_overnight_payment,
           driver_base_payment: trip.driver_base_payment,
+          driver_overnight_payment: trip.driver_overnight_payment,
           diesel_amount: trip.diesel_amount,
           requester: trip.requester,
-          vehicle_id: trip.vehicle_id,
           status: trip.status,
           notes: trip.notes,
-          loading_locations,
-          unloading_locations,
         }}
       />
     </div>

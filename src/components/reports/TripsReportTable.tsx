@@ -15,11 +15,9 @@ type TripRow = {
   trip_date: string;
   company_name: string;
   driver_name: string;
-  vehicle_no: string | null;
   vehicle_type_label: string | null;
   from_location: string;
   to_location: string;
-  unloading_count: number;
   requester: string | null;
   status: string;
   base_fare: number;
@@ -119,11 +117,9 @@ export function TripsReportTable({
     ...(singleDriver
       ? []
       : [{ header: "السائق", key: "driver_name", width: 20, screen: true } as ReportColumn]),
-    { header: "السيارة", key: "vehicle_no", width: 12, ltr: true, screen: true },
-    { header: "النوع", key: "vehicle_type_label", width: 10 },
+    { header: "نوع السيارة", key: "vehicle_type_label", width: 12, screen: true },
     { header: "من", key: "from_location", width: 16, screen: true },
     { header: "إلى", key: "to_location", width: 16, screen: true },
-    { header: "عدد الفروع", key: "unloading_count", width: 11, center: true, screen: true },
     { header: "الأساسية", key: "base_fare", width: 13, money: true },
     { header: "العمالة", key: "labor_fare", width: 12, money: true },
     { header: "الموقع الإضافي", key: "extra_location_fare", width: 15, money: true },
@@ -140,11 +136,9 @@ export function TripsReportTable({
     trip_number: t.trip_number,
     company_name: t.company_name,
     driver_name: t.driver_name,
-    vehicle_no: t.vehicle_no ?? "—",
     vehicle_type_label: t.vehicle_type_label ?? "—",
     from_location: t.from_location,
     to_location: t.to_location,
-    unloading_count: Number(t.unloading_count),
     requester: t.requester ?? "—",
     base_fare: Number(t.base_fare),
     labor_fare: Number(t.labor_fare),

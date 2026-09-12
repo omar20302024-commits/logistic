@@ -18,7 +18,7 @@ export default async function WaybillPage({ params }: { params: Promise<{ id: st
   const { data: trip, error: tripError } = await supabase
     .from("trips")
     .select(
-      "id, trip_number, trip_date, from_location, to_location, requester, notes, vehicle_type_label, companies(name), drivers(name, phone), vehicles(vehicle_no)"
+      "id, trip_number, trip_date, from_location, to_location, branches_count, requester, notes, vehicle_type_label, companies(name), drivers(name, phone)"
     )
     .eq("id", id)
     .single();
@@ -35,13 +35,8 @@ export default async function WaybillPage({ params }: { params: Promise<{ id: st
     p_issued_by: user?.id ?? null,
   });
 
-  const [{ data: waybill }, { data: locations }, { data: settings }] = await Promise.all([
+  const [{ data: waybill }, { data: settings }] = await Promise.all([
     supabase.from("waybills").select("waybill_no, issued_at").eq("id", waybillId).single(),
-    supabase
-      .from("trip_locations")
-      .select("location_name, branch_code, location_type")
-      .eq("trip_id", id)
-      .order("sort_order"),
     supabase.from("settings").select("org_name, org_phone, org_address").single(),
   ]);
 
@@ -56,9 +51,9 @@ export default async function WaybillPage({ params }: { params: Promise<{ id: st
     requester: string | null;
     notes: string | null;
     vehicle_type_label: string | null;
+    branches_count: number;
     companies: { name: string } | { name: string }[] | null;
     drivers: { name: string; phone: string | null } | { name: string; phone: string | null }[] | null;
-    vehicles: { vehicle_no: string } | { vehicle_no: string }[] | null;
   };
 
   return (
@@ -88,12 +83,11 @@ export default async function WaybillPage({ params }: { params: Promise<{ id: st
           companyName={one(t.companies)?.name ?? "—"}
           driverName={one(t.drivers)?.name ?? "—"}
           driverPhone={one(t.drivers)?.phone ?? null}
-          vehicleNo={one(t.vehicles)?.vehicle_no ?? null}
           vehicleType={t.vehicle_type_label}
           fromLocation={t.from_location}
           toLocation={t.to_location}
           requester={t.requester}
-          locations={locations ?? []}
+          branchesCount={t.branches_count}
           notes={t.notes}
         />
       )}

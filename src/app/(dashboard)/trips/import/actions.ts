@@ -110,6 +110,12 @@ export async function confirmImport(
         trip_date: row.date,
         from_location: row.fromLocation,
         to_location: row.toLocation,
+        // سعر الرحلة بقى من بنود الأجرة لا من مجموع المواقع (0019). من غير
+        // السطرين دول كانت كل رحلة مستوردة تطلع بسعر صفر.
+        base_fare: row.baseFare,
+        extra_location_fare: row.extraAmount,
+        // الملف المستورد فيه وجهة واحدة بلا فروع إضافية (0025)
+        branches_count: 1,
         driver_base_payment: row.driverTripPayment,
         diesel_amount: 0,
         status: row.status,
@@ -120,28 +126,6 @@ export async function confirmImport(
 
     if (tripError || !trip) {
       return { ok: false, error: "حدث خطأ أثناء إنشاء إحدى الرحلات" };
-    }
-
-    const locationRows = [
-      {
-        trip_id: trip.id,
-        location_type: "loading" as const,
-        location_name: row.fromLocation,
-        amount: row.baseFare,
-        sort_order: 0,
-      },
-      {
-        trip_id: trip.id,
-        location_type: "unloading" as const,
-        location_name: row.toLocation,
-        amount: row.extraAmount,
-        sort_order: 0,
-      },
-    ];
-
-    const { error: locError } = await supabase.from("trip_locations").insert(locationRows);
-    if (locError) {
-      return { ok: false, error: "تم إنشاء بعض الرحلات لكن حدث خطأ أثناء حفظ مواقعها" };
     }
 
     createdTrips += 1;

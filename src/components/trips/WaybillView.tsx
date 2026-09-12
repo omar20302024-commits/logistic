@@ -2,12 +2,6 @@
 // 🔒 لا تحتوي ولا تستقبل أي مبلغ إطلاقاً: لا سعر رحلة، ولا ترب، ولا ديزل،
 // ولا ربح (قاعدتا #3 و#11). أنواع الـ props هنا لا تسمح بتمرير أي منها.
 
-type WaybillLocation = {
-  location_name: string;
-  branch_code: string | null;
-  location_type: "loading" | "unloading";
-};
-
 export function WaybillView({
   orgName,
   orgPhone,
@@ -19,12 +13,11 @@ export function WaybillView({
   companyName,
   driverName,
   driverPhone,
-  vehicleNo,
   vehicleType,
   fromLocation,
   toLocation,
   requester,
-  locations,
+  branchesCount,
   notes,
 }: {
   orgName: string;
@@ -37,16 +30,13 @@ export function WaybillView({
   companyName: string;
   driverName: string;
   driverPhone: string | null;
-  vehicleNo: string | null;
   vehicleType: string | null;
   fromLocation: string;
   toLocation: string;
   requester: string | null;
-  locations: WaybillLocation[];
+  branchesCount: number;
   notes: string | null;
 }) {
-  const loading = locations.filter((l) => l.location_type === "loading");
-  const unloading = locations.filter((l) => l.location_type === "unloading");
 
   return (
     <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
@@ -80,7 +70,6 @@ export function WaybillView({
         <Info label="صاحب الطلب" value={requester ?? "—"} />
         <Info label="السائق" value={driverName} />
         <Info label="جوال السائق" value={driverPhone ?? "—"} ltr />
-        <Info label="السيارة" value={vehicleNo ?? "—"} ltr />
         <Info label="نوع السيارة" value={vehicleType ?? "—"} />
       </div>
 
@@ -92,9 +81,11 @@ export function WaybillView({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 px-6 py-5 sm:grid-cols-2">
-        <LocationList title="مواقع التحميل" items={loading} />
-        <LocationList title="مواقع التنزيل" items={unloading} />
+      <div className="border-b border-zinc-200 px-6 py-4">
+        <span className="text-xs text-zinc-400">عدد الفروع في الرحلة: </span>
+        <span className="text-base font-bold text-zinc-900" dir="ltr">
+          {branchesCount}
+        </span>
       </div>
 
       {notes && (
@@ -119,36 +110,7 @@ export function WaybillView({
   );
 }
 
-function LocationList({ title, items }: { title: string; items: WaybillLocation[] }) {
-  return (
-    <div>
-      <h3 className="mb-2 text-sm font-bold text-zinc-900">{title}</h3>
-      {items.length === 0 ? (
-        <p className="text-xs text-zinc-400">—</p>
-      ) : (
-        <ol className="flex flex-col gap-1.5">
-          {items.map((l, i) => (
-            <li key={i} className="flex items-start gap-2 text-sm text-zinc-700">
-              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[10px] font-bold text-zinc-600">
-                {i + 1}
-              </span>
-              <span>
-                {l.location_name}
-                {l.branch_code && (
-                  <span className="ms-1.5 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500">
-                    {l.branch_code}
-                  </span>
-                )}
-              </span>
-            </li>
-          ))}
-        </ol>
-      )}
-    </div>
-  );
-}
-
-function Info({ label, value, ltr }: { label: string; value: string; ltr?: boolean }) {
+  function Info({ label, value, ltr }: { label: string; value: string; ltr?: boolean }) {
   return (
     <div>
       <div className="text-xs text-zinc-400">{label}</div>

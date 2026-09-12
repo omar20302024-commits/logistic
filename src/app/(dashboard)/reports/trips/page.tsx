@@ -34,7 +34,7 @@ export default async function TripsReportPage({
   let query = supabase
     .from("v_trips_full")
     .select(
-      "id, trip_number, trip_date, company_name, driver_name, vehicle_no, vehicle_type_label, from_location, to_location, unloading_count, requester, status, base_fare, labor_fare, extra_location_fare, overnight_fare, trip_amount, driver_trip_payment"
+      "id, trip_number, trip_date, company_name, driver_name, vehicle_type_label, from_location, to_location, requester, status, base_fare, labor_fare, extra_location_fare, overnight_fare, trip_amount, driver_trip_payment"
     )
     .gte("trip_date", from)
     .lte("trip_date", to)
