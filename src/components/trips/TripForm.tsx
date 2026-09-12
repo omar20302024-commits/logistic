@@ -24,7 +24,7 @@ type DriverOption = {
   extra_stop_rate: number;
   route_rates: RouteRate[];
 };
-type CompanyOption = { id: string; name: string };
+type CompanyOption = { id: string; name: string; extra_location_rate: number };
 
 // مطابقة أسماء المدن تتجاهل الفروق الإملائية الشائعة (جده/جدة، الاحساء/الأحساء،
 // المسافات الزائدة) — التفاصيل في src/lib/arabic.ts
@@ -38,9 +38,13 @@ export type TripInitialData = {
   trip_date: string;
   from_location: string;
   to_location: string;
+  base_fare: number;
+  labor_fare: number;
+  extra_location_fare: number;
   driver_base_payment: number;
   diesel_amount: number;
-  status: "new" | "in_progress" | "completed" | "cancelled";
+  requester: string | null;
+  status: TripFormInput["status"];
   notes: string | null;
   loading_locations: { location_name: string; amount: number }[];
   unloading_locations: { location_name: string; amount: number }[];
@@ -53,8 +57,12 @@ const emptyValues: TripFormInput = {
   trip_date: new Date().toISOString().slice(0, 10),
   from_location: "",
   to_location: "",
+  base_fare: 0,
+  labor_fare: 0,
+  extra_location_fare: 0,
   driver_base_payment: 0,
   diesel_amount: 0,
+  requester: "",
   status: "completed",
   notes: "",
   loading_locations: [],
@@ -91,8 +99,12 @@ export function TripForm({
           trip_date: initialData.trip_date,
           from_location: initialData.from_location,
           to_location: initialData.to_location,
+          base_fare: initialData.base_fare,
+          labor_fare: initialData.labor_fare,
+          extra_location_fare: initialData.extra_location_fare,
           driver_base_payment: initialData.driver_base_payment,
           diesel_amount: initialData.diesel_amount,
+          requester: initialData.requester ?? "",
           status: initialData.status,
           notes: initialData.notes ?? "",
           loading_locations: initialData.loading_locations,
@@ -109,19 +121,22 @@ export function TripForm({
   const watchedBasePayment = watch("driver_base_payment");
   const watchedDiesel = watch("diesel_amount");
   const watchedDriverId = watch("driver_id");
+  const watchedCompanyId = watch("company_id");
   const watchedFromLocation = watch("from_location");
   const watchedToLocation = watch("to_location");
+  const watchedBaseFare = watch("base_fare");
+  const watchedLaborFare = watch("labor_fare");
+  const watchedExtraFare = watch("extra_location_fare");
 
   const selectedDriver = drivers.find((d) => d.id === watchedDriverId);
+  const selectedCompany = companies.find((c) => c.id === watchedCompanyId);
 
-  // سعر الرحلة للعميل = مجموع كل المواقع (تحميل وتنزيل) بلا استثناء — المبلغ
-  // المكتوب على أي موقع هو دائماً سعر العميل. أما ترب السائق فمواقع إضافية
-  // (أكثر من موقع تحميل واحد أو أكثر من موقع تنزيل واحد) تضيف له مبلغاً ثابتاً
-  // محدَّداً مسبقاً لهذا السائق (extra_stop_rate)، بصرف النظر عن سعر العميل.
+  // جانب العميل وجانب السائق منفصلان تماماً (قاعدة #10):
+  //   سعر الرحلة = الأجرة الأساسية + أجرة العمالة + أجرة الموقع الإضافي
+  //   ترب السائق  = الترب الأساسي + (المواقع الإضافية × معدَّل هذا السائق)
+  // لكلٍّ معدَّله ومصدره؛ مبالغ المواقع لم تعد تحدد سعر الرحلة.
   const loadingList = watchedLoading ?? [];
   const unloadingList = watchedUnloading ?? [];
-  const loadingTotal = loadingList.reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
-  const unloadingTotal = unloadingList.reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
 
   const extraStopsCount = Math.max(loadingList.length - 1, 0) + Math.max(unloadingList.length - 1, 0);
   const extraStopRate = selectedDriver?.extra_stop_rate ?? 0;
@@ -145,7 +160,22 @@ export function TripForm({
     norm(watchedFromLocation ?? "") !== "" &&
     norm(watchedToLocation ?? "") !== "";
 
-  const totalTripAmount = loadingTotal + unloadingTotal;
+  const totalTripAmount =
+    (Number(watchedBaseFare) || 0) +
+    (Number(watchedLaborFare) || 0) +
+    (Number(watchedExtraFare) || 0);
+
+  // اقتراح أجرة الموقع الإضافي للعميل = عدد المواقع الإضافية × معدَّل هذه الشركة.
+  // اقتراح فقط — المستخدم يقدر يكتب رقماً مختلفاً ونحترمه، عشان في رحلات
+  // بتتفق على مبلغ خاص. المعدَّل ده للعميل وحده ولا علاقة له بمعدَّل السائق.
+  const companyExtraRate = selectedCompany?.extra_location_rate ?? 0;
+  const suggestedExtraFare = extraStopsCount * companyExtraRate;
+  const userTouchedExtraFare = useRef(!!initialData);
+  useEffect(() => {
+    if (userTouchedExtraFare.current) return;
+    setValue("extra_location_fare", suggestedExtraFare);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestedExtraFare]);
   const totalDriverPayment = (Number(watchedBasePayment) || 0) + extraStopsPayment;
   const estimatedProfit = totalTripAmount - totalDriverPayment - (Number(watchedDiesel) || 0);
 
@@ -226,6 +256,15 @@ export function TripForm({
           </div>
 
           <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-zinc-700">صاحب الطلب</label>
+            <input
+              {...register("requester")}
+              placeholder="اسم مقدّم الطلب"
+              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-zinc-700">السائق *</label>
             <select
               {...register("driver_id")}
@@ -285,17 +324,64 @@ export function TripForm({
       <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
         <h3 className="mb-1 text-sm font-bold text-zinc-900">المبالغ المالية</h3>
         <p className="mb-4 text-xs text-zinc-400">بيانات سرية — للإدارة فقط</p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-zinc-700">سعر الرحلة (تلقائي)</label>
-            <div
-              dir="ltr"
-              className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-3 py-2 text-sm font-semibold text-zinc-700"
-            >
-              {formatCurrency(totalTripAmount, currencySymbol)}
+        <div className="mb-4 rounded-xl border border-zinc-200 bg-zinc-50/60 p-4">
+          <div className="mb-3 text-xs font-semibold text-zinc-500">أجرة العميل</div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-zinc-700">الأجرة الأساسية *</label>
+              <input
+                {...register("base_fare")}
+                type="number"
+                step="0.01"
+                dir="ltr"
+                className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-right outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+              />
+              {errors.base_fare && <p className="text-xs text-red-600">{errors.base_fare.message}</p>}
             </div>
-            <p className="text-[11px] text-zinc-400">= مجموع كل مبالغ مواقع التحميل والتنزيل</p>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-zinc-700">أجرة العمالة</label>
+              <input
+                {...register("labor_fare")}
+                type="number"
+                step="0.01"
+                dir="ltr"
+                className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-right outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+              />
+              {errors.labor_fare && <p className="text-xs text-red-600">{errors.labor_fare.message}</p>}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-zinc-700">أجرة الموقع الإضافي</label>
+              <input
+                {...register("extra_location_fare")}
+                type="number"
+                step="0.01"
+                dir="ltr"
+                onChange={(e) => {
+                  userTouchedExtraFare.current = true;
+                  register("extra_location_fare").onChange(e);
+                }}
+                className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-right outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+              />
+              {errors.extra_location_fare && (
+                <p className="text-xs text-red-600">{errors.extra_location_fare.message}</p>
+              )}
+              {companyExtraRate > 0 && extraStopsCount > 0 && (
+                <p className="text-[11px] text-zinc-500">
+                  مقترح: {extraStopsCount} × {formatCurrency(companyExtraRate, currencySymbol)} (معدَّل
+                  هذه الشركة) = {formatCurrency(suggestedExtraFare, currencySymbol)}
+                </p>
+              )}
+            </div>
           </div>
+          <div className="mt-3 flex items-center justify-between border-t border-zinc-200 pt-3">
+            <span className="text-sm font-medium text-zinc-700">سعر الرحلة</span>
+            <span className="text-sm font-bold text-zinc-900" dir="ltr">
+              {formatCurrency(totalTripAmount, currencySymbol)}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-zinc-700">الترب الأساسي *</label>
             <input
@@ -362,7 +448,7 @@ export function TripForm({
         fieldArray={loadingArray}
         register={register}
         namePrefix="loading_locations"
-        hint="كل المبالغ هنا تُحسب على العميل ضمن سعر الرحلة. أي موقع تحميل بعد الأول يضيف ترباً ثابتاً للسائق (حسب معدله) تلقائياً — بصرف النظر عن المبلغ المكتوب"
+        hint="المبالغ هنا توزيع داخلي على المواقع ولم تعد تحدد سعر الرحلة — السعر يأتي من بنود الأجرة أعلاه. أي موقع تحميل بعد الأول يضيف ترباً ثابتاً للسائق (حسب معدله) تلقائياً"
         extraNoteFrom={1}
       />
 
@@ -372,7 +458,7 @@ export function TripForm({
         fieldArray={unloadingArray}
         register={register}
         namePrefix="unloading_locations"
-        hint="كل المبالغ هنا تُحسب على العميل ضمن سعر الرحلة. أي موقع تنزيل بعد الأول يضيف ترباً ثابتاً للسائق (حسب معدله) تلقائياً — بصرف النظر عن المبلغ المكتوب"
+        hint="المبالغ هنا توزيع داخلي على المواقع ولم تعد تحدد سعر الرحلة — السعر يأتي من بنود الأجرة أعلاه. أي موقع تنزيل بعد الأول يضيف ترباً ثابتاً للسائق (حسب معدله) تلقائياً"
         extraNoteFrom={1}
       />
 

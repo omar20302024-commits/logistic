@@ -5,7 +5,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Modal } from "@/components/ui/Modal";
-import { companySchema, type CompanyFormValues } from "@/lib/validation/company";
+import {
+  companySchema,
+  type CompanyFormInput,
+  type CompanyFormValues,
+} from "@/lib/validation/company";
 import { createCompany, updateCompany } from "@/app/(dashboard)/companies/actions";
 
 export type CompanyRecord = {
@@ -14,15 +18,17 @@ export type CompanyRecord = {
   phone: string | null;
   address: string | null;
   contact_person: string | null;
+  extra_location_rate: number;
   status: "active" | "inactive";
   notes: string | null;
 };
 
-const emptyValues: CompanyFormValues = {
+const emptyValues: CompanyFormInput = {
   name: "",
   phone: "",
   address: "",
   contact_person: "",
+  extra_location_rate: 0,
   status: "active",
   notes: "",
 };
@@ -43,7 +49,7 @@ export function CompanyFormModal({
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<CompanyFormValues>({
+  } = useForm<CompanyFormInput, unknown, CompanyFormValues>({
     resolver: zodResolver(companySchema),
     defaultValues: emptyValues,
   });
@@ -57,6 +63,7 @@ export function CompanyFormModal({
             phone: company.phone ?? "",
             address: company.address ?? "",
             contact_person: company.contact_person ?? "",
+            extra_location_rate: company.extra_location_rate,
             status: company.status,
             notes: company.notes ?? "",
           }
@@ -106,6 +113,19 @@ export function CompanyFormModal({
               {...register("contact_person")}
               className="rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
             />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-zinc-700">سعر الموقع الإضافي</label>
+            <input
+              {...register("extra_location_rate")}
+              type="number"
+              step="0.01"
+              dir="ltr"
+              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-right outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+            />
+            <p className="text-[11px] text-zinc-400">
+              يُقترَح تلقائياً في نموذج الرحلة. منفصل تماماً عن معدَّل السائق
+            </p>
           </div>
         </div>
 

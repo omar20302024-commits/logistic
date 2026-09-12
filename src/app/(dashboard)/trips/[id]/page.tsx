@@ -28,7 +28,7 @@ export default async function EditTripPage({
           "id, name, default_trip_payment, extra_stop_rate, driver_route_rates(from_city, to_city, trab_amount)"
         )
         .order("name"),
-      supabase.from("companies").select("id, name").order("name"),
+      supabase.from("companies").select("id, name, extra_location_rate").order("name"),
       supabase.from("settings").select("currency_symbol").single(),
     ]);
 
@@ -94,8 +94,12 @@ export default async function EditTripPage({
           trip_date: trip.trip_date,
           from_location: trip.from_location,
           to_location: trip.to_location,
+          base_fare: trip.base_fare,
+          labor_fare: trip.labor_fare,
+          extra_location_fare: trip.extra_location_fare,
           driver_base_payment: trip.driver_base_payment,
           diesel_amount: trip.diesel_amount,
+          requester: trip.requester,
           status: trip.status,
           notes: trip.notes,
           loading_locations,

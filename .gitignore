@@ -43,3 +43,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# نسخة نظام wattam المرجعية — فيها config/ ونسخ احتياطية قد تحوي بيانات اتصال أو بيانات عملاء
+wattam/

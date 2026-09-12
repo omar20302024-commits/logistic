@@ -14,7 +14,7 @@ export default async function NewTripPage() {
       )
       .eq("status", "active")
       .order("name"),
-    supabase.from("companies").select("id, name").eq("status", "active").order("name"),
+    supabase.from("companies").select("id, name, extra_location_rate").eq("status", "active").order("name"),
     supabase.from("settings").select("currency_symbol").single(),
   ]);
 

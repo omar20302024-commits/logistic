@@ -18,6 +18,7 @@ export async function createCompany(input: unknown): Promise<ActionResult> {
     phone: parsed.data.phone || null,
     address: parsed.data.address || null,
     contact_person: parsed.data.contact_person || null,
+    extra_location_rate: parsed.data.extra_location_rate,
     status: parsed.data.status,
     notes: parsed.data.notes || null,
   });
@@ -43,6 +44,7 @@ export async function updateCompany(id: string, input: unknown): Promise<ActionR
       phone: parsed.data.phone || null,
       address: parsed.data.address || null,
       contact_person: parsed.data.contact_person || null,
+      extra_location_rate: parsed.data.extra_location_rate,
       status: parsed.data.status,
       notes: parsed.data.notes || null,
     })

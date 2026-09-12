@@ -12,9 +12,27 @@ export const tripSchema = z.object({
   trip_date: z.string().min(1, "التاريخ مطلوب"),
   from_location: z.string().trim().min(1, "مكان الانطلاق مطلوب"),
   to_location: z.string().trim().min(1, "مكان الوصول مطلوب"),
+
+  // بنود أجرة العميل — مجموعها هو سعر الرحلة (تريغر trg_sync_trip_amount_from_fares)
+  base_fare: z.coerce.number().min(0, "الأجرة الأساسية يجب أن تكون رقماً موجباً"),
+  labor_fare: z.coerce.number().min(0, "أجرة العمالة يجب أن تكون رقماً موجباً"),
+  extra_location_fare: z.coerce.number().min(0, "أجرة الموقع الإضافي يجب أن تكون رقماً موجباً"),
+
+  // ترب السائق — منفصل تماماً عن بنود العميل أعلاه (قاعدة #10)
   driver_base_payment: z.coerce.number().min(0, "الترب يجب أن يكون رقماً موجباً"),
   diesel_amount: z.coerce.number().min(0, "الديزل يجب أن يكون رقماً موجباً"),
-  status: z.enum(["new", "in_progress", "completed", "cancelled"]),
+
+  requester: z.string().trim().optional().or(z.literal("")),
+  status: z.enum([
+    "new",
+    "in_progress",
+    "completed",
+    "completed_invoiced",
+    "completed_not_invoiced",
+    "suspended",
+    "delivered_returned",
+    "cancelled",
+  ]),
   notes: z.string().trim().optional().or(z.literal("")),
   loading_locations: z.array(locationRowSchema),
   unloading_locations: z.array(locationRowSchema),
@@ -29,5 +47,9 @@ export const statusLabels: Record<string, string> = {
   new: "جديدة",
   in_progress: "قيد التنفيذ",
   completed: "مكتملة",
+  completed_invoiced: "مكتملة — استُلمت الفواتير",
+  completed_not_invoiced: "مكتملة — لم تُستلم الفواتير",
+  suspended: "معلّقة",
+  delivered_returned: "تم التسليم والمرتجع",
   cancelled: "ملغاة",
 };

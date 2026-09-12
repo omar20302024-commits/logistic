@@ -7,6 +7,14 @@ import { tripSchema } from "@/lib/validation/trip";
 
 export type ActionResult = { error: string | null };
 
+// سجل من أنشأ/عدّل — يُؤخذ من الجلسة نفسها لا من النموذج، حتى لا يُزوَّر
+async function currentUserId(
+  supabase: Awaited<ReturnType<typeof createClient>>
+): Promise<string | null> {
+  const { data } = await supabase.auth.getUser();
+  return data.user?.id ?? null;
+}
+
 function buildLocationRows(
   tripId: string,
   values: {
@@ -50,10 +58,15 @@ export async function createTrip(input: unknown): Promise<ActionResult & { id?: 
       trip_date: values.trip_date,
       from_location: values.from_location,
       to_location: values.to_location,
+      base_fare: values.base_fare,
+      labor_fare: values.labor_fare,
+      extra_location_fare: values.extra_location_fare,
       driver_base_payment: values.driver_base_payment,
       diesel_amount: values.diesel_amount,
+      requester: values.requester || null,
       status: values.status,
       notes: values.notes || null,
+      created_by: await currentUserId(supabase),
     })
     .select("id")
     .single();
@@ -96,10 +109,15 @@ export async function updateTrip(id: string, input: unknown): Promise<ActionResu
       trip_date: values.trip_date,
       from_location: values.from_location,
       to_location: values.to_location,
+      base_fare: values.base_fare,
+      labor_fare: values.labor_fare,
+      extra_location_fare: values.extra_location_fare,
       driver_base_payment: values.driver_base_payment,
       diesel_amount: values.diesel_amount,
+      requester: values.requester || null,
       status: values.status,
       notes: values.notes || null,
+      updated_by: await currentUserId(supabase),
     })
     .eq("id", id);
 
