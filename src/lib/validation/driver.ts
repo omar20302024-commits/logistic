@@ -7,6 +7,7 @@ export const driverSchema = z.object({
   default_trip_payment: z.coerce.number().min(0, "الترب الافتراضي يجب أن يكون رقماً موجباً"),
   extra_stop_rate: z.coerce.number().min(0, "ترب الموقع الإضافي يجب أن يكون رقماً موجباً"),
   hire_date: z.string().trim().optional().or(z.literal("")),
+  vehicle_id: z.string().trim().optional().or(z.literal("")),
   status: z.enum(["active", "inactive"]),
   employment_type: z.enum(["internal", "external"]),
   notes: z.string().trim().optional().or(z.literal("")),

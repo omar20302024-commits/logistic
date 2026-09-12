@@ -16,6 +16,7 @@ export type DriverRecord = {
   default_trip_payment: number;
   extra_stop_rate: number;
   hire_date: string | null;
+  vehicle_id: string | null;
   status: "active" | "inactive";
   employment_type: "internal" | "external";
   notes: string | null;
@@ -28,6 +29,7 @@ const emptyValues: DriverFormInput = {
   default_trip_payment: 0,
   extra_stop_rate: 0,
   hire_date: "",
+  vehicle_id: "",
   status: "active",
   employment_type: "internal",
   notes: "",
@@ -37,11 +39,13 @@ export function DriverFormModal({
   open,
   onClose,
   driver,
+  vehicles,
   onSaved,
 }: {
   open: boolean;
   onClose: () => void;
   driver?: DriverRecord | null;
+  vehicles: { id: string; vehicle_no: string; plate_no: string | null }[];
   onSaved: () => void;
 }) {
   const {
@@ -65,6 +69,7 @@ export function DriverFormModal({
             default_trip_payment: driver.default_trip_payment,
             extra_stop_rate: driver.extra_stop_rate,
             hire_date: driver.hire_date ?? "",
+            vehicle_id: driver.vehicle_id ?? "",
             status: driver.status,
             employment_type: driver.employment_type,
             notes: driver.notes ?? "",
@@ -159,6 +164,22 @@ export function DriverFormModal({
         </p>
 
         <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-zinc-700">السيارة</label>
+            <select
+              {...register("vehicle_id")}
+              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+            >
+              <option value="">— بدون —</option>
+              {vehicles.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.vehicle_no}
+                  {v.plate_no ? ` ()` : ""}
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-zinc-400">تُقترَح تلقائياً عند اختياره في رحلة</p>
+          </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-zinc-700">تاريخ التعيين</label>
             <input

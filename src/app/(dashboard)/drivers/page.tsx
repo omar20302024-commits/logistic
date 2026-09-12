@@ -17,6 +17,12 @@ export default async function DriversPage({
 
   const supabase = await createClient();
 
+  const { data: vehicles } = await supabase
+    .from("vehicles")
+    .select("id, vehicle_no, plate_no")
+    .eq("status", "active")
+    .order("vehicle_no");
+
   let query = supabase.from("drivers").select("*", { count: "exact" });
 
   if (q) {
@@ -53,6 +59,7 @@ export default async function DriversPage({
         initialQuery={q}
         initialStatus={status}
         initialType={type}
+        vehicles={vehicles ?? []}
       />
     </div>
   );

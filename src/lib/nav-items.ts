@@ -67,6 +67,7 @@ export const navGroups: NavGroup[] = [
   {
     title: "النظام",
     items: [
+      { label: "السيارات", href: "/vehicles", icon: Truck },
       { label: "الديزل الشهري", href: "/diesel", icon: Fuel },
       { label: "المصروفات", href: "/expenses", icon: Receipt },
       { label: "الإعدادات", href: "/settings", icon: Settings },

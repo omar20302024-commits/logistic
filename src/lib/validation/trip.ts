@@ -29,6 +29,7 @@ export const tripSchema = z.object({
   diesel_amount: z.coerce.number().min(0, "الديزل يجب أن يكون رقماً موجباً"),
 
   requester: z.string().trim().optional().or(z.literal("")),
+  vehicle_id: z.string().trim().optional().or(z.literal("")),
   status: z.enum([
     "new",
     "in_progress",

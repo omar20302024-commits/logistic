@@ -20,6 +20,7 @@ export function DriversTable({
   initialQuery,
   initialStatus,
   initialType,
+  vehicles,
 }: {
   drivers: DriverRecord[];
   total: number;
@@ -28,6 +29,7 @@ export function DriversTable({
   initialQuery: string;
   initialStatus: string;
   initialType: string;
+  vehicles: { id: string; vehicle_no: string; plate_no: string | null }[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -241,6 +243,7 @@ export function DriversTable({
         open={formOpen}
         onClose={() => setFormOpen(false)}
         driver={editingDriver}
+        vehicles={vehicles}
         onSaved={() => router.refresh()}
       />
 

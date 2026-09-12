@@ -22,10 +22,17 @@ type DriverOption = {
   name: string;
   default_trip_payment: number;
   extra_stop_rate: number;
+  vehicle_id: string | null;
   route_rates: RouteRate[];
 };
 type CompanyOption = { id: string; name: string; extra_location_rate: number };
 type BranchOption = { company_id: string; branch_code: string; branch_name: string | null };
+type VehicleOption = {
+  id: string;
+  vehicle_no: string;
+  plate_no: string | null;
+  type_name: string | null;
+};
 
 // مطابقة أسماء المدن تتجاهل الفروق الإملائية الشائعة (جده/جدة، الاحساء/الأحساء،
 // المسافات الزائدة) — التفاصيل في src/lib/arabic.ts
@@ -47,6 +54,7 @@ export type TripInitialData = {
   driver_overnight_payment: number;
   diesel_amount: number;
   requester: string | null;
+  vehicle_id: string | null;
   status: TripFormInput["status"];
   notes: string | null;
   loading_locations: { location_name: string; branch_code: string | null; amount: number }[];
@@ -68,6 +76,7 @@ const emptyValues: TripFormInput = {
   driver_overnight_payment: 0,
   diesel_amount: 0,
   requester: "",
+  vehicle_id: "",
   status: "completed",
   notes: "",
   loading_locations: [],
@@ -78,12 +87,14 @@ export function TripForm({
   drivers,
   companies,
   branches,
+  vehicles,
   initialData,
   currencySymbol,
 }: {
   drivers: DriverOption[];
   companies: CompanyOption[];
   branches: BranchOption[];
+  vehicles: VehicleOption[];
   initialData?: TripInitialData;
   currencySymbol: string;
 }) {
@@ -114,6 +125,7 @@ export function TripForm({
           driver_overnight_payment: initialData.driver_overnight_payment,
           diesel_amount: initialData.diesel_amount,
           requester: initialData.requester ?? "",
+          vehicle_id: initialData.vehicle_id ?? "",
           status: initialData.status,
           notes: initialData.notes ?? "",
           loading_locations: initialData.loading_locations.map((l) => ({
@@ -194,6 +206,15 @@ export function TripForm({
     setValue("extra_location_fare", suggestedExtraFare);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [suggestedExtraFare]);
+  // اقتراح سيارة السائق المرتبطة به — اقتراح فقط، لأن السائق قد يقود سيارة
+  // أخرى في رحلة بعينها، والرحلة هي سجل ما حدث فعلاً
+  const userTouchedVehicle = useRef(!!initialData);
+  useEffect(() => {
+    if (userTouchedVehicle.current || !selectedDriver?.vehicle_id) return;
+    setValue("vehicle_id", selectedDriver.vehicle_id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchedDriverId]);
+
   // فروع هذا العميل فقط — الأكواد مميزة داخل العميل الواحد لا عبر النظام كله
   const companyBranches = branches.filter((b) => b.company_id === watchedCompanyId);
 
@@ -299,6 +320,28 @@ export function TripForm({
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-zinc-700">السيارة</label>
+            <select
+              {...register("vehicle_id")}
+              onChange={(e) => {
+                userTouchedVehicle.current = true;
+                register("vehicle_id").onChange(e);
+              }}
+              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+            >
+              <option value="">— بدون —</option>
+              {vehicles.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.vehicle_no}
+                  {v.type_name ? ` — ${v.type_name}` : ""}
+                  {v.plate_no ? ` (${v.plate_no})` : ""}
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-zinc-400">تُقترَح سيارة السائق تلقائياً، وتقدر تغيّرها</p>
           </div>
 
           <div className="flex flex-col gap-1.5">

@@ -15,6 +15,26 @@ async function currentUserId(
   return data.user?.id ?? null;
 }
 
+/**
+ * اسم نوع السيارة وقت الرحلة يُحفظ نصاً على الرحلة نفسها. لو تغيّر نوع السيارة
+ * لاحقاً أو حُذفت، تبقى الرحلة شاهدة على ما نُفِّذت به — نفس مبدأ branch_code.
+ */
+async function vehicleTypeLabel(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  vehicleId: string | undefined
+): Promise<string | null> {
+  if (!vehicleId) return null;
+  const { data } = await supabase
+    .from("vehicles")
+    .select("vehicle_types(name_ar)")
+    .eq("id", vehicleId)
+    .single();
+  const types = (data as { vehicle_types?: { name_ar: string } | { name_ar: string }[] } | null)
+    ?.vehicle_types;
+  const type = Array.isArray(types) ? types[0] : types;
+  return type?.name_ar ?? null;
+}
+
 type LocationRow = { location_name: string; branch_code?: string; amount: number };
 
 /**
@@ -87,6 +107,8 @@ export async function createTrip(input: unknown): Promise<ActionResult & { id?: 
       driver_base_payment: values.driver_base_payment,
       diesel_amount: values.diesel_amount,
       requester: values.requester || null,
+      vehicle_id: values.vehicle_id || null,
+      vehicle_type_label: await vehicleTypeLabel(supabase, values.vehicle_id),
       status: values.status,
       notes: values.notes || null,
       created_by: await currentUserId(supabase),
@@ -140,6 +162,8 @@ export async function updateTrip(id: string, input: unknown): Promise<ActionResu
       driver_base_payment: values.driver_base_payment,
       diesel_amount: values.diesel_amount,
       requester: values.requester || null,
+      vehicle_id: values.vehicle_id || null,
+      vehicle_type_label: await vehicleTypeLabel(supabase, values.vehicle_id),
       status: values.status,
       notes: values.notes || null,
       updated_by: await currentUserId(supabase),
