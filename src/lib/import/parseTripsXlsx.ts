@@ -30,6 +30,7 @@ const HEADERS: Record<keyof typeof FIELD, string[]> = {
   baseFare: ["الأجرة الأساسية", "الاجرة الاساسية"],
   branches: ["الفروع", "عدد الفروع"],
   extra: ["موقع إضافي", "الموقع الإضافي", "أجرة الموقع الإضافي"],
+  returnFee: ["أجرة المرتجع", "المرتجع", "اجرة المرتجع"],
   total: ["سعر الرحلة الكاملة", "سعر الرحلة", "الإجمالي"],
   requester: ["صاحب الطلب"],
 };
@@ -43,6 +44,7 @@ const FIELD = {
   baseFare: 0,
   branches: 0,
   extra: 0,
+  returnFee: 0,
   total: 0,
   requester: 0,
 };
@@ -127,6 +129,7 @@ export function parseTripsXlsx(buffer: ArrayBuffer): ParseXlsxResult {
     baseFare: findCol(HEADERS.baseFare),
     branches: findCol(HEADERS.branches),
     extra: findCol(HEADERS.extra),
+    returnFee: findCol(HEADERS.returnFee),
     total: findCol(HEADERS.total),
     requester: findCol(HEADERS.requester),
   };
@@ -177,8 +180,8 @@ export function parseTripsXlsx(buffer: ArrayBuffer): ParseXlsxResult {
       driverName,
       baseFare: parseMoney(cell(r, col.baseFare)),
       extraFee: parseMoney(cell(r, col.extra)),
-      // الملف لا يحتوي عمود مرتجع (كل قيمه «—»)، والمرتجع أُلغي كبند أصلاً
-      returnFee: 0,
+      // المرتجع يُستورد في خانة "أجرة المبيت/مرتجع" — بند واحد يحمل الاثنين
+      returnFee: parseMoney(cell(r, col.returnFee)),
       totalPrice: parseMoney(cell(r, col.total)),
       // الملف لا يحتوي ترب السائق — يُملأ من الترب الافتراضي للسائق وقت الحفظ
       vendorCost: 0,

@@ -37,7 +37,8 @@ export type ImportRowInput = {
   driverId: string; // إما id موجود، أو "" لو سيتم إنشاء سائق جديد
   newDriverName: string; // مطلوب لو driverId فاضي
   baseFare: number; // -> موقع التحميل
-  extraAmount: number; // موقع إضافي + أجرة المرتجع -> موقع التنزيل
+  extraAmount: number; // أجرة الموقع الإضافي
+  overnightFare: number; // أجرة المرتجع من الملف -> خانة "المبيت/مرتجع"
   driverTripPayment: number; // تكلفة المورد/الترب — صفر يعني "استخدم الترب الافتراضي للسائق"
   branchesCount: number;
   vehicleTypeName: string;
@@ -141,6 +142,8 @@ export async function confirmImport(
         // السطرين دول كانت كل رحلة مستوردة تطلع بسعر صفر.
         base_fare: row.baseFare,
         extra_location_fare: row.extraAmount,
+        // المرتجع والمبيت بند واحد في النظام — الملف يحمل المرتجع فقط
+        overnight_fare: row.overnightFare,
         // عدد الفروع كما في الملف؛ لو فاضي نضع عدد مدن التنزيل فيصير المحاسَب عليه صفراً
         branches_count: row.branchesCount > 0 ? row.branchesCount : destinationCount(row.toLocation),
         vehicle_type_slug: matchedType?.slug ?? null,

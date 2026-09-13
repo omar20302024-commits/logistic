@@ -123,7 +123,7 @@ export function TripsReportTable({
     { header: "الأساسية", key: "base_fare", width: 13, money: true },
     { header: "العمالة", key: "labor_fare", width: 12, money: true },
     { header: "الموقع الإضافي", key: "extra_location_fare", width: 15, money: true },
-    { header: "المبيت", key: "overnight_fare", width: 12, money: true },
+    { header: "المبيت/مرتجع", key: "overnight_fare", width: 14, money: true },
     { header: "سعر الرحلة", key: "trip_amount", width: 14, money: true, screen: true },
     { header: "صاحب الطلب", key: "requester", width: 16 },
     ...(showTrab
@@ -382,7 +382,7 @@ export function TripsReportTable({
           <Tile label="الأجرة الأساسية" value={totals.base} currencySymbol={currencySymbol} />
           <Tile label="أجرة العمالة" value={totals.labor} currencySymbol={currencySymbol} />
           <Tile label="المواقع الإضافية" value={totals.extra} currencySymbol={currencySymbol} />
-          <Tile label="المبيت" value={totals.overnight} currencySymbol={currencySymbol} />
+          <Tile label="المبيت/المرتجع" value={totals.overnight} currencySymbol={currencySymbol} />
         </div>
       )}
     </div>

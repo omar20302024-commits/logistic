@@ -100,7 +100,8 @@ export function ImportWorkflow({ drivers, companies }: { drivers: Option[]; comp
       driverId: r.driverId,
       newDriverName: r.driverId ? "" : r.driverName,
       baseFare: r.baseFare,
-      extraAmount: r.extraFee + r.returnFee,
+      extraAmount: r.extraFee,
+      overnightFare: r.returnFee,
       driverTripPayment: r.vendorCost,
       branchesCount: r.branchesCount ?? 0,
       vehicleTypeName: r.vehicleTypeName ?? "",
@@ -128,7 +129,7 @@ export function ImportWorkflow({ drivers, companies }: { drivers: Option[]; comp
       <div className="rounded-2xl border-2 border-dashed border-zinc-300 bg-white p-12 text-center">
         <Upload className="mx-auto mb-3 text-zinc-400" size={32} />
         <p className="mb-4 text-sm text-zinc-500">
-          اختر ملف تقرير الرحلات (.xls / .htm) المستلَم من العميل
+          اختر ملف الرحلات — Excel (.xlsx) أو تقرير (.xls / .htm)
         </p>
         <label className="mx-auto inline-flex cursor-pointer items-center gap-2 rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800">
           {parsing ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}

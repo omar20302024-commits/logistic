@@ -428,7 +428,7 @@ export function TripForm({
               )}
             </Field>
 
-            <Field label="أجرة المبيت" error={errors.overnight_fare?.message}>
+            <Field label="أجرة المبيت/مرتجع" error={errors.overnight_fare?.message}>
               <input
                 {...register("overnight_fare")}
                 type="number"
