@@ -36,7 +36,10 @@ export type ImportRowInput = {
   toLocation: string;
   driverId: string; // إما id موجود، أو "" لو سيتم إنشاء سائق جديد
   newDriverName: string; // مطلوب لو driverId فاضي
-  baseFare: number; // -> موقع التحميل
+  // إجمالي الملف هو المرجع: الأجرة الأساسية تُشتق منه ناقص البنود الأخرى،
+  // فيطابق سعر الرحلة المحفوظ ما في الملف بالضبط مهما كان تفصيله
+  totalPrice: number;
+  baseFare: number;
   extraAmount: number; // أجرة الموقع الإضافي
   overnightFare: number; // أجرة المرتجع من الملف -> خانة "المبيت/مرتجع"
   driverTripPayment: number; // تكلفة المورد/الترب — صفر يعني "استخدم الترب الافتراضي للسائق"
@@ -130,6 +133,10 @@ export async function confirmImport(
       ? typeBySlug.get(normalizeArabic(row.vehicleTypeName))
       : undefined;
 
+    // ملفات قديمة قد لا تحمل عمود إجمالي — نرجع لمجموع البنود حينها
+    const fileTotal =
+      row.totalPrice > 0 ? row.totalPrice : row.baseFare + row.extraAmount + row.overnightFare;
+
     const { data: trip, error: tripError } = await supabase
       .from("trips")
       .insert({
@@ -138,9 +145,10 @@ export async function confirmImport(
         trip_date: row.date,
         from_location: row.fromLocation,
         to_location: row.toLocation,
-        // سعر الرحلة بقى من بنود الأجرة لا من مجموع المواقع (0019). من غير
-        // السطرين دول كانت كل رحلة مستوردة تطلع بسعر صفر.
-        base_fare: row.baseFare,
+        // سعر الرحلة = مجموع البنود (0019)، فنشتق الأساسية من إجمالي الملف حتى
+        // يخرج السعر المحفوظ مطابقاً له تماماً. عملاء كثيرون يسعّرون بالمسافة لا
+        // بعدد المواقع، فلا يصح فرض تفصيلة علينا نحن من نحسبها.
+        base_fare: Math.max(0, fileTotal - row.extraAmount - row.overnightFare),
         extra_location_fare: row.extraAmount,
         // المرتجع والمبيت بند واحد في النظام — الملف يحمل المرتجع فقط
         overnight_fare: row.overnightFare,

@@ -3,8 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Upload, AlertTriangle, Loader2 } from "lucide-react";
-import { formatCurrency } from "@/lib/format";
+import { Upload, Loader2 } from "lucide-react";
 import { statusLabels } from "@/lib/validation/trip";
 import {
   parseImportFile,
@@ -100,6 +99,7 @@ export function ImportWorkflow({ drivers, companies }: { drivers: Option[]; comp
       driverId: r.driverId,
       newDriverName: r.driverId ? "" : r.driverName,
       baseFare: r.baseFare,
+      totalPrice: r.totalPrice,
       extraAmount: r.extraFee,
       overnightFare: r.returnFee,
       driverTripPayment: r.vendorCost,
@@ -192,13 +192,11 @@ export function ImportWorkflow({ drivers, companies }: { drivers: Option[]; comp
             </thead>
             <tbody>
               {rows.map((r, i) => {
-                const computedTotal = r.baseFare + r.extraFee + r.returnFee;
-                const mismatch = Math.abs(computedTotal - r.totalPrice) > 0.01;
                 return (
                   <tr
                     key={i}
                     className={`border-b border-zinc-50 ${!r.include ? "opacity-40" : ""} ${
-                      r.needsReview || mismatch ? "bg-amber-50" : ""
+                      r.needsReview ? "bg-amber-50" : ""
                     }`}
                   >
                     <td className="px-3 py-2">
@@ -265,13 +263,15 @@ export function ImportWorkflow({ drivers, companies }: { drivers: Option[]; comp
                         className="w-20 rounded border border-zinc-200 px-1.5 py-1 text-xs text-right"
                       />
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap" dir="ltr">
-                      {formatCurrency(computedTotal)}
-                      {mismatch && (
-                        <span title={`الملف يقول ${formatCurrency(r.totalPrice)}`}>
-                          <AlertTriangle size={12} className="mr-1 inline text-amber-600" />
-                        </span>
-                      )}
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        step="0.01"
+                        dir="ltr"
+                        value={r.totalPrice}
+                        onChange={(e) => updateRow(i, { totalPrice: Number(e.target.value) || 0 })}
+                        className="w-24 rounded border border-zinc-200 px-1.5 py-1 text-right text-xs"
+                      />
                     </td>
                     <td className="px-3 py-2">
                       <select
@@ -295,7 +295,9 @@ export function ImportWorkflow({ drivers, companies }: { drivers: Option[]; comp
       </div>
 
       <p className="text-xs text-zinc-400">
-        الصفوف الملوّنة تحتاج مراجعة (عدد خانات غير متوقع أو السعر الكلي غير متطابق مع الملف الأصلي).
+        السعر الكلي يُستورد كما هو في الملف ولا يُعاد حسابه من المواقع — فالعملاء الذين
+        يسعّرون بالمسافة لا بعدد الفروع تبقى أسعارهم كما اتُّفق عليها. الصفوف الملوّنة
+        تحتاج مراجعة (تاريخ غير مقروء أو اسم سائق فارغ).
       </p>
 
       <div className="flex justify-end gap-2">
