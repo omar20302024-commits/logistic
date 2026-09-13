@@ -14,6 +14,12 @@ export type ParsedTripRow = {
   statusRaw: string;
   statusMapped: "new" | "in_progress" | "completed" | "cancelled";
   needsReview: boolean; // الصف فيه عدد خلايا أقل من المتوقع (احتمال خانة ناقصة)
+
+  // حقول ملفات .xlsx — اختيارية لأن محلّل HTML لا يوفّرها
+  branchesCount?: number;
+  vehicleTypeName?: string;
+  requester?: string;
+  reviewReason?: string;
 };
 
 export type ParseResult =

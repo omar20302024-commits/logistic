@@ -23,3 +23,17 @@ export function destinationCount(toLocation: string): number {
 export function chargeableStops(branchesCount: number, toLocation: string): number {
   return Math.max(0, (Number(branchesCount) || 0) - destinationCount(toLocation));
 }
+
+/** عدد نقاط التحميل داخل نص "من" — مفصولة بـ + مع تجاهل المسافات */
+export function loadingCount(fromLocation: string): number {
+  const parts = (fromLocation ?? "")
+    .split("+")
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+  return Math.max(1, parts.length);
+}
+
+/** نقاط التحميل الإضافية = عدد نقاط التحميل − 1 (الأولى ضمن الأجرة الأساسية) */
+export function extraLoadingPoints(fromLocation: string): number {
+  return Math.max(0, loadingCount(fromLocation) - 1);
+}

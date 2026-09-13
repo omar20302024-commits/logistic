@@ -11,8 +11,7 @@ type PublicTripRow = {
   company_name: string;
   from_location: string;
   to_location: string;
-  loading_count: number;
-  unloading_count: number;
+  branches_count: number;
   driver_base_payment: number;
   driver_trip_payment: number; // الإجمالي = الأساسي + المواقع الإضافية
 };
@@ -98,6 +97,7 @@ export function DriverStatementView({
                 <th className="px-3 py-2.5 font-medium">الشركة</th>
                 <th className="px-3 py-2.5 font-medium">من</th>
                 <th className="px-3 py-2.5 font-medium">إلى</th>
+                <th className="px-3 py-2.5 font-medium">عدد المواقع</th>
                 <th className="px-3 py-2.5 font-medium">ترب الرحلة</th>
                 <th className="px-3 py-2.5 font-medium">ترب مواقع إضافية</th>
                 <th className="px-3 py-2.5 font-medium">الإجمالي</th>
@@ -106,7 +106,7 @@ export function DriverStatementView({
             <tbody>
               {trips.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-zinc-400">
+                  <td colSpan={9} className="py-8 text-center text-zinc-400">
                     لا توجد رحلات في هذه الفترة
                   </td>
                 </tr>
@@ -122,6 +122,7 @@ export function DriverStatementView({
                       <td className="border-t border-zinc-100 px-3 py-2">{t.company_name}</td>
                       <td className="border-t border-zinc-100 px-3 py-2">{t.from_location}</td>
                       <td className="border-t border-zinc-100 px-3 py-2">{t.to_location}</td>
+                      <td className="border-t border-zinc-100 px-3 py-2 text-center">{t.branches_count}</td>
                       <td className="border-t border-zinc-100 px-3 py-2 whitespace-nowrap" dir="ltr">
                         {formatCurrency(t.driver_base_payment, currencySymbol)}
                       </td>

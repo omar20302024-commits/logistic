@@ -26,7 +26,7 @@ type TripRow = {
   driver_trip_payment: number;
   diesel_amount: number;
   trip_profit: number;
-  status: "new" | "in_progress" | "completed" | "cancelled";
+  status: string;
   settlement_id: string | null;
   settlement_number: string | null;
 };
@@ -35,6 +35,10 @@ const statusColors: Record<string, string> = {
   new: "bg-zinc-100 text-zinc-600",
   in_progress: "bg-blue-100 text-blue-700",
   completed: "bg-emerald-100 text-emerald-700",
+  completed_invoiced: "bg-emerald-100 text-emerald-700",
+  completed_not_invoiced: "bg-amber-100 text-amber-700",
+  suspended: "bg-orange-100 text-orange-700",
+  delivered_returned: "bg-indigo-100 text-indigo-700",
   cancelled: "bg-red-100 text-red-600",
 };
 
@@ -188,26 +192,25 @@ export function TripsTable({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-100 text-right text-xs text-zinc-500">
-                <th className="px-4 py-3 font-medium">التاريخ</th>
-                <th className="px-4 py-3 font-medium">رقم الرحلة</th>
-                <th className="px-4 py-3 font-medium">السائق</th>
-                <th className="px-4 py-3 font-medium">الشركة</th>
-                <th className="px-4 py-3 font-medium">من → إلى</th>
-                <th className="px-4 py-3 font-medium">سعر الرحلة</th>
-                <th className="px-4 py-3 font-medium">الترب</th>
-                <th className="px-4 py-3 font-medium">الديزل</th>
-                <th className="px-4 py-3 font-medium">الربح</th>
-                <th className="px-4 py-3 font-medium">الحالة</th>
-                <th className="px-4 py-3 font-medium">إجراءات</th>
+                <th className="px-2.5 py-2.5 font-medium">التاريخ</th>
+                <th className="px-2.5 py-2.5 font-medium">رقم الرحلة</th>
+                <th className="px-2.5 py-2.5 font-medium">السائق</th>
+                <th className="px-2.5 py-2.5 font-medium">الشركة</th>
+                <th className="px-2.5 py-2.5 font-medium">من → إلى</th>
+                <th className="px-2.5 py-2.5 font-medium">سعر الرحلة</th>
+                <th className="px-2.5 py-2.5 font-medium">الترب</th>
+                <th className="px-2.5 py-2.5 font-medium">الربح</th>
+                <th className="px-2.5 py-2.5 font-medium">الحالة</th>
+                <th className="px-2.5 py-2.5 font-medium">إجراءات</th>
               </tr>
             </thead>
             <tbody>
               {trips.map((trip) => (
                 <tr key={trip.id} className="border-b border-zinc-50 hover:bg-zinc-50/60">
-                  <td className="px-4 py-3 whitespace-nowrap text-zinc-600" dir="ltr">
+                  <td className="px-2.5 py-2.5 whitespace-nowrap text-zinc-600" dir="ltr">
                     {trip.trip_date}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-2.5 py-2.5">
                     <div className="flex flex-col gap-0.5">
                       <Link
                         href={`/trips/${trip.id}`}
@@ -221,38 +224,39 @@ export function TripsTable({
                           className="w-fit rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 hover:bg-emerald-100"
                           title="عرض سند التصفية"
                         >
-                          تم تصفية الترب{trip.settlement_number ? ` · ${trip.settlement_number}` : ""}
+                          مُصفّى{trip.settlement_number ? ` · ` : ""}
                         </Link>
                       ) : (
                         <span className="w-fit rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">
-                          الترب غير مُصفّى
+                          غير مُصفّى
                         </span>
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-zinc-600">{trip.driver_name}</td>
-                  <td className="px-4 py-3 text-zinc-600">{trip.company_name}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-zinc-600">
+                  <td className="max-w-[130px] truncate px-2.5 py-2.5 text-zinc-600" title={trip.driver_name}>
+                    {trip.driver_name}
+                  </td>
+                  <td className="max-w-[150px] truncate px-2.5 py-2.5 text-zinc-600" title={trip.company_name}>
+                    {trip.company_name}
+                  </td>
+                  <td className="max-w-[220px] truncate px-2.5 py-2.5 text-zinc-600" title={`${trip.from_location} ← ${trip.to_location}`}>
                     {trip.from_location} ← {trip.to_location}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-zinc-700" dir="ltr">
+                  <td className="px-2.5 py-2.5 whitespace-nowrap text-zinc-700" dir="ltr">
                     {formatCurrency(trip.trip_amount)}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-zinc-700" dir="ltr">
+                  <td className="px-2.5 py-2.5 whitespace-nowrap text-zinc-700" dir="ltr">
                     {formatCurrency(trip.driver_trip_payment)}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-zinc-700" dir="ltr">
-                    {formatCurrency(trip.diesel_amount)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap font-semibold text-emerald-700" dir="ltr">
+                  <td className="px-2.5 py-2.5 whitespace-nowrap font-semibold text-emerald-700" dir="ltr">
                     {formatCurrency(trip.trip_profit)}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusColors[trip.status]}`}>
-                      {statusLabels[trip.status]}
+                  <td className="px-2.5 py-2.5">
+                    <span className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${statusColors[trip.status] ?? "bg-zinc-100 text-zinc-600"}`}>
+                      {statusLabels[trip.status] ?? trip.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-2.5 py-2.5">
                     <div className="flex items-center gap-1">
                       <Link
                         href={`/trips/${trip.id}`}

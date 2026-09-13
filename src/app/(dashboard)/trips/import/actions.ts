@@ -3,6 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { parseTripsFile, type ParsedTripRow } from "@/lib/import/parseTripsFile";
+import { parseTripsXlsx } from "@/lib/import/parseTripsXlsx";
+import { normalizeArabic } from "@/lib/arabic";
+import { destinationCount } from "@/lib/trip-calc";
 
 export type ParseFileResult =
   | { ok: true; companyNameGuess: string | null; rows: ParsedTripRow[]; driverNames: string[] }
@@ -15,9 +18,16 @@ export async function parseImportFile(formData: FormData): Promise<ParseFileResu
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const content = buffer.toString("utf-8");
 
-  return parseTripsFile(content);
+  // ملفات xlsx مضغوطة وتبدأ بتوقيع ZIP — الفحص بالمحتوى لا بالامتداد، لأن
+  // بعض الأنظمة بتصدّر HTML بامتداد .xls وده بيتلخبط
+  const isXlsx = buffer.length > 4 && buffer[0] === 0x50 && buffer[1] === 0x4b;
+  if (isXlsx) {
+    const ab = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+    return parseTripsXlsx(ab as ArrayBuffer);
+  }
+
+  return parseTripsFile(buffer.toString("utf-8"));
 }
 
 export type ImportRowInput = {
@@ -28,7 +38,10 @@ export type ImportRowInput = {
   newDriverName: string; // مطلوب لو driverId فاضي
   baseFare: number; // -> موقع التحميل
   extraAmount: number; // موقع إضافي + أجرة المرتجع -> موقع التنزيل
-  driverTripPayment: number; // تكلفة المورد/الترب
+  driverTripPayment: number; // تكلفة المورد/الترب — صفر يعني "استخدم الترب الافتراضي للسائق"
+  branchesCount: number;
+  vehicleTypeName: string;
+  requester: string;
   status: "new" | "in_progress" | "completed" | "cancelled";
   notes: string;
 };
@@ -94,6 +107,16 @@ export async function confirmImport(
     createdDrivers += 1;
   }
 
+  // الترب الافتراضي لكل سائق — يُستخدم للصفوف التي لا ترب فيها في الملف
+  const { data: allDrivers } = await supabase.from("drivers").select("id, default_trip_payment");
+  const defaultTrab = new Map((allDrivers ?? []).map((d) => [d.id, Number(d.default_trip_payment) || 0]));
+
+  // مطابقة أنواع السيارات بالاسم مع تجاهل الفروق الإملائية
+  const { data: types } = await supabase.from("vehicle_types").select("slug, name_ar");
+  const typeBySlug = new Map(
+    (types ?? []).map((t) => [normalizeArabic(t.name_ar), { slug: t.slug, name: t.name_ar }])
+  );
+
   let createdTrips = 0;
 
   for (const row of rows) {
@@ -101,6 +124,10 @@ export async function confirmImport(
     if (!driverId) {
       return { ok: false, error: "تعذّر تحديد السائق لأحد الصفوف" };
     }
+
+    const matchedType = row.vehicleTypeName
+      ? typeBySlug.get(normalizeArabic(row.vehicleTypeName))
+      : undefined;
 
     const { data: trip, error: tripError } = await supabase
       .from("trips")
@@ -114,10 +141,14 @@ export async function confirmImport(
         // السطرين دول كانت كل رحلة مستوردة تطلع بسعر صفر.
         base_fare: row.baseFare,
         extra_location_fare: row.extraAmount,
-        // الملف المستورد فيه وجهة واحدة بلا فروع إضافية (0025)
-        branches_count: 1,
-        driver_base_payment: row.driverTripPayment,
+        // عدد الفروع كما في الملف؛ لو فاضي نضع عدد مدن التنزيل فيصير المحاسَب عليه صفراً
+        branches_count: row.branchesCount > 0 ? row.branchesCount : destinationCount(row.toLocation),
+        vehicle_type_slug: matchedType?.slug ?? null,
+        vehicle_type_label: matchedType?.name ?? (row.vehicleTypeName || null),
+        // الملف لا يحمل ترب السائق، فنأخذ تربه الافتراضي بدل تركه صفراً
+        driver_base_payment: row.driverTripPayment || defaultTrab.get(driverId) || 0,
         diesel_amount: 0,
+        requester: row.requester || null,
         status: row.status,
         notes: row.notes || null,
       })

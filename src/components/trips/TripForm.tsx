@@ -14,7 +14,7 @@ import {
 import { createTrip, updateTrip } from "@/app/(dashboard)/trips/actions";
 import { formatCurrency } from "@/lib/format";
 import { normalizeArabic } from "@/lib/arabic";
-import { chargeableStops, destinationCount } from "@/lib/trip-calc";
+import { chargeableStops, destinationCount, extraLoadingPoints } from "@/lib/trip-calc";
 
 type RouteRate = { from_city: string; to_city: string; trab_amount: number };
 type DriverOption = {
@@ -44,6 +44,7 @@ export type TripInitialData = {
   base_fare: number;
   labor_fare: number;
   extra_location_fare: number;
+  extra_loading_fare: number;
   overnight_fare: number;
   driver_base_payment: number;
   driver_overnight_payment: number;
@@ -65,6 +66,7 @@ const emptyValues: TripFormInput = {
   base_fare: 0,
   labor_fare: 0,
   extra_location_fare: 0,
+  extra_loading_fare: 0,
   overnight_fare: 0,
   driver_base_payment: 0,
   driver_overnight_payment: 0,
@@ -110,6 +112,7 @@ export function TripForm({
           base_fare: initialData.base_fare,
           labor_fare: initialData.labor_fare,
           extra_location_fare: initialData.extra_location_fare,
+          extra_loading_fare: initialData.extra_loading_fare,
           overnight_fare: initialData.overnight_fare,
           driver_base_payment: initialData.driver_base_payment,
           driver_overnight_payment: initialData.driver_overnight_payment,
@@ -129,6 +132,7 @@ export function TripForm({
   const watchedBaseFare = watch("base_fare");
   const watchedLaborFare = watch("labor_fare");
   const watchedExtraFare = watch("extra_location_fare");
+  const watchedExtraLoadingFare = watch("extra_loading_fare");
   const watchedOvernightFare = watch("overnight_fare");
   const watchedBasePayment = watch("driver_base_payment");
   const watchedDriverOvernight = watch("driver_overnight_payment");
@@ -138,13 +142,16 @@ export function TripForm({
   const selectedCompany = companies.find((c) => c.id === watchedCompanyId);
 
   // جانب العميل وجانب السائق منفصلان تماماً (قاعدة #10):
-  //   سعر الرحلة = الأساسية + العمالة + الموقع الإضافي + المبيت
-  //   ترب السائق  = الترب الأساسي + (الفروع المحاسَب عليها × معدَّل السائق) + بدل المبيت
+  //   سعر الرحلة = الأساسية + العمالة + الموقع الإضافي + التحميل الإضافي + المبيت
+  //   ترب السائق  = الترب الأساسي + (المواقع الإضافية × معدَّل السائق) + بدل المبيت
   // العدد واحد للاثنين، لكن لكلٍّ معدَّله.
   const destinations = destinationCount(watchedToLocation ?? "");
   const stops = chargeableStops(Number(watchedBranchesCount) || 0, watchedToLocation ?? "");
+  const loadingExtras = extraLoadingPoints(watchedFromLocation ?? "");
   const extraStopRate = selectedDriver?.extra_stop_rate ?? 0;
-  const extraStopsPayment = stops * extraStopRate;
+  // السائق يتقاضى عن فروع التنزيل الإضافية ونقاط التحميل الإضافية معاً
+  const driverStops = stops + loadingExtras;
+  const extraStopsPayment = driverStops * extraStopRate;
 
   const matchedRoute = selectedDriver
     ? selectedDriver.route_rates.find(
@@ -168,6 +175,7 @@ export function TripForm({
     (Number(watchedBaseFare) || 0) +
     (Number(watchedLaborFare) || 0) +
     (Number(watchedExtraFare) || 0) +
+    (Number(watchedExtraLoadingFare) || 0) +
     (Number(watchedOvernightFare) || 0);
 
   // اقتراح أجرة الموقع الإضافي = الفروع المحاسَب عليها × معدَّل هذه الشركة.
@@ -180,6 +188,15 @@ export function TripForm({
     setValue("extra_location_fare", suggestedExtraFare);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [suggestedExtraFare]);
+
+  // نقاط التحميل الإضافية بنفس معدَّل الشركة — أول نقطة ضمن الأجرة الأساسية
+  const suggestedLoadingFare = loadingExtras * companyExtraRate;
+  const userTouchedLoadingFare = useRef(!!initialData);
+  useEffect(() => {
+    if (userTouchedLoadingFare.current) return;
+    setValue("extra_loading_fare", suggestedLoadingFare);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestedLoadingFare]);
 
   const totalDriverPayment =
     (Number(watchedBasePayment) || 0) + extraStopsPayment + (Number(watchedDriverOvernight) || 0);
@@ -292,7 +309,16 @@ export function TripForm({
           </Field>
 
           <Field label="من *" error={errors.from_location?.message}>
-            <input {...register("from_location")} className={input} />
+            <input
+              {...register("from_location")}
+              placeholder="الكيتشن الجديد + الكيتشن القديم"
+              className={input}
+            />
+            {loadingExtras > 0 && (
+              <p className="text-[11px] text-zinc-500">
+                {loadingExtras} نقطة تحميل إضافية تُحتسب على العميل
+              </p>
+            )}
           </Field>
 
           <Field label="إلى *" error={errors.to_location?.message}>
@@ -382,6 +408,26 @@ export function TripForm({
               )}
             </Field>
 
+            <Field label="أجرة التحميل الإضافي" error={errors.extra_loading_fare?.message}>
+              <input
+                {...register("extra_loading_fare")}
+                type="number"
+                step="0.01"
+                dir="ltr"
+                onChange={(e) => {
+                  userTouchedLoadingFare.current = true;
+                  register("extra_loading_fare").onChange(e);
+                }}
+                className={`${numInput} bg-white`}
+              />
+              {companyExtraRate > 0 && loadingExtras > 0 && (
+                <p className="text-[11px] text-zinc-500">
+                  مقترح: {loadingExtras} × {formatCurrency(companyExtraRate, currencySymbol)} ={" "}
+                  {formatCurrency(suggestedLoadingFare, currencySymbol)}
+                </p>
+              )}
+            </Field>
+
             <Field label="أجرة المبيت" error={errors.overnight_fare?.message}>
               <input
                 {...register("overnight_fare")}
@@ -438,11 +484,12 @@ export function TripForm({
           </Field>
         </div>
 
-        {stops > 0 && extraStopRate > 0 && (
+        {driverStops > 0 && extraStopRate > 0 && (
           <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-            {stops} فرع محاسَب عليه × {formatCurrency(extraStopRate, currencySymbol)} (معدَّل هذا
-            السائق) = + {formatCurrency(extraStopsPayment, currencySymbol)} ترب زيادة → إجمالي ترب
-            السائق {formatCurrency(totalDriverPayment, currencySymbol)}
+            {driverStops} موقع إضافي ({stops} فرع تنزيل + {loadingExtras} نقطة تحميل) ×{" "}
+            {formatCurrency(extraStopRate, currencySymbol)} (معدَّل هذا السائق) = +{" "}
+            {formatCurrency(extraStopsPayment, currencySymbol)} ترب زيادة → إجمالي ترب السائق{" "}
+            {formatCurrency(totalDriverPayment, currencySymbol)}
           </p>
         )}
 

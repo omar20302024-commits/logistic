@@ -102,6 +102,9 @@ export function ImportWorkflow({ drivers, companies }: { drivers: Option[]; comp
       baseFare: r.baseFare,
       extraAmount: r.extraFee + r.returnFee,
       driverTripPayment: r.vendorCost,
+      branchesCount: r.branchesCount ?? 0,
+      vehicleTypeName: r.vehicleTypeName ?? "",
+      requester: r.requester ?? "",
       status: r.statusMapped,
       notes: r.statusRaw,
     }));
@@ -179,6 +182,7 @@ export function ImportWorkflow({ drivers, companies }: { drivers: Option[]; comp
                 <th className="px-3 py-3 font-medium">التاريخ</th>
                 <th className="px-3 py-3 font-medium">من</th>
                 <th className="px-3 py-3 font-medium">إلى</th>
+                <th className="px-3 py-3 font-medium">الفروع</th>
                 <th className="px-3 py-3 font-medium">السائق</th>
                 <th className="px-3 py-3 font-medium">الترب</th>
                 <th className="px-3 py-3 font-medium">السعر الكلي</th>
@@ -224,6 +228,18 @@ export function ImportWorkflow({ drivers, companies }: { drivers: Option[]; comp
                         value={r.toLocation}
                         onChange={(e) => updateRow(i, { toLocation: e.target.value })}
                         className="w-28 rounded border border-zinc-200 px-1.5 py-1 text-xs"
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        min={0}
+                        dir="ltr"
+                        value={r.branchesCount ?? 0}
+                        onChange={(e) =>
+                          updateRow(i, { branchesCount: Number(e.target.value) || 0 })
+                        }
+                        className="w-14 rounded border border-zinc-200 px-1.5 py-1 text-right text-xs"
                       />
                     </td>
                     <td className="px-3 py-2">

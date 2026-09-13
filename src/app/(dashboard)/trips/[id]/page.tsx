@@ -97,6 +97,7 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
           base_fare: trip.base_fare,
           labor_fare: trip.labor_fare,
           extra_location_fare: trip.extra_location_fare,
+          extra_loading_fare: trip.extra_loading_fare,
           overnight_fare: trip.overnight_fare,
           driver_base_payment: trip.driver_base_payment,
           driver_overnight_payment: trip.driver_overnight_payment,
