@@ -28,7 +28,14 @@ export default async function TripsPage({
 
   const supabase = await createClient();
 
-  let query = supabase.from("v_trips_full").select("*", { count: "exact" });
+  // أعمدة محدَّدة لا "*": الـ view فيها ربط بتجميعة مواقع لا يحتاجها هذا الجدول،
+  // وتحديد الأعمدة يتيح للمخطِّط إسقاط ما لا يُقرأ
+  let query = supabase
+    .from("v_trips_full")
+    .select(
+      "id, trip_number, trip_date, driver_name, company_name, from_location, to_location, trip_amount, driver_trip_payment, diesel_amount, trip_profit, status, settlement_id, settlement_number",
+      { count: "exact" }
+    );
 
   if (q) {
     query = query.or(
