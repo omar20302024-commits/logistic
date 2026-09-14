@@ -28,7 +28,14 @@ type PublicSummary = {
   worked_days: number;
   net_salary: number;
   custody_balance: number;
+  driver_paid_expenses: number;
   total_due_to_driver: number;
+};
+
+// بنود ما صرفه السائق على العمل خلال الفترة (غسيل، إطارات، ...)
+export type ExpenseCategoryRow = {
+  expense_category: string;
+  total: number;
 };
 
 export function DriverStatementView({
@@ -40,6 +47,7 @@ export function DriverStatementView({
   to,
   trips,
   summary,
+  expenses,
   currencySymbol,
 }: {
   orgName: string;
@@ -50,8 +58,15 @@ export function DriverStatementView({
   to: string;
   trips: PublicTripRow[];
   summary: PublicSummary;
+  expenses: ExpenseCategoryRow[];
   currencySymbol: string;
 }) {
+  // نفس منطق كشف الترب: رصيد العهدة صافي أربع حركات، فلا توضع عليه أسماء البنود.
+  // المصروف يُفرد بمبلغه الحقيقي وبنوده، والباقي يبقى سطراً مستقلاً.
+  // الإجمالي هنا يأتي جاهزاً من SQL (total_due_to_driver) فلا يتأثر بالعرض إطلاقاً.
+  const workExpenses = summary.driver_paid_expenses;
+  const otherCustody = summary.custody_balance + workExpenses;
+
   return (
     <div className="print-statement overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
       {/* رأس الكشف */}
@@ -161,10 +176,30 @@ export function DriverStatementView({
           )}
           <SummaryRow label="الخصومات" value={formatCurrency(summary.total_deductions, currencySymbol)} />
           <SummaryRow label="السلف" value={formatCurrency(summary.total_advances, currencySymbol)} />
-          {summary.custody_balance !== 0 && (
+          {workExpenses > 0 && (
+            <div className="py-2">
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-600">ما صرفه على العمل</span>
+                <span className="text-zinc-700" dir="ltr">
+                  {formatCurrency(workExpenses, currencySymbol)}
+                </span>
+              </div>
+              {expenses.length > 0 && (
+                <div className="mt-1.5 flex flex-col gap-0.5 border-r-2 border-zinc-200 pr-3">
+                  {expenses.map((e) => (
+                    <div key={e.expense_category} className="flex items-center justify-between text-xs text-zinc-500">
+                      <span>{e.expense_category}</span>
+                      <span dir="ltr">{formatCurrency(e.total, currencySymbol)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {otherCustody !== 0 && (
             <SummaryRow
-              label={summary.custody_balance > 0 ? "عهدة مستحقة عليك" : "عهدة مستحقة لك"}
-              value={formatCurrency(Math.abs(summary.custody_balance), currencySymbol)}
+              label={otherCustody > 0 ? "عهدة مستحقة عليك" : "عهدة مستحقة لك"}
+              value={formatCurrency(Math.abs(otherCustody), currencySymbol)}
             />
           )}
           <SummaryRow label="صافي الراتب" value={formatCurrency(summary.net_salary, currencySymbol)} bold />

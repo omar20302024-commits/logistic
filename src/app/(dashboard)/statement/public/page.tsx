@@ -58,14 +58,23 @@ export default async function PublicStatementPage({
     );
   }
 
-  const [{ data: driver }, { data: summary, error: summaryError }, { data: trips, error: tripsError }] =
-    await Promise.all([
-      supabase.from("drivers").select("id, name, phone").eq("id", driverId).single(),
-      supabase
-        .rpc("fn_driver_public_summary", { p_driver_id: driverId, p_from: from, p_to: to })
-        .single(),
-      supabase.rpc("fn_driver_public_trips", { p_driver_id: driverId, p_from: from, p_to: to }),
-    ]);
+  const [
+    { data: driver },
+    { data: summary, error: summaryError },
+    { data: trips, error: tripsError },
+    { data: expenses },
+  ] = await Promise.all([
+    supabase.from("drivers").select("id, name, phone").eq("id", driverId).single(),
+    supabase
+      .rpc("fn_driver_public_summary", { p_driver_id: driverId, p_from: from, p_to: to })
+      .single(),
+    supabase.rpc("fn_driver_public_trips", { p_driver_id: driverId, p_from: from, p_to: to }),
+    supabase.rpc("fn_driver_expenses_by_category", {
+      p_driver_id: driverId,
+      p_from: from,
+      p_to: to,
+    }),
+  ]);
 
   const emptySummary = {
     trips_count: 0,
@@ -79,6 +88,7 @@ export default async function PublicStatementPage({
     worked_days: 30,
     net_salary: 0,
     custody_balance: 0,
+    driver_paid_expenses: 0,
     total_due_to_driver: 0,
   };
 
@@ -110,6 +120,7 @@ export default async function PublicStatementPage({
         to={to}
         trips={trips ?? []}
         summary={(summary as typeof emptySummary | null) ?? emptySummary}
+        expenses={expenses ?? []}
         currencySymbol={currencySymbol}
       />
 

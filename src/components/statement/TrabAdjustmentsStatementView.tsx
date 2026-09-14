@@ -20,6 +20,13 @@ type Summary = {
   total_advances: number;
   total_deductions: number;
   custody_balance: number;
+  driver_paid_expenses: number;
+};
+
+// بنود ما صرفه السائق على العمل خلال الفترة (غسيل، إطارات، ...)
+export type ExpenseCategoryRow = {
+  expense_category: string;
+  total: number;
 };
 
 export function TrabAdjustmentsStatementView({
@@ -31,6 +38,7 @@ export function TrabAdjustmentsStatementView({
   to,
   trips,
   summary,
+  expenses,
   currencySymbol,
 }: {
   orgName: string;
@@ -41,10 +49,21 @@ export function TrabAdjustmentsStatementView({
   to: string;
   trips: TripRow[];
   summary: Summary;
+  expenses: ExpenseCategoryRow[];
   currencySymbol: string;
 }) {
   const totalDue =
     summary.total_driver_payment - summary.total_deductions - summary.total_advances - summary.custody_balance;
+
+  // رصيد العهدة رقم **صافي** يجمع أربع حركات مختلفة: استلام من الشركة، تحصيل من
+  // عميل، صرف على العمل، وإرجاع مبلغ. فلا يصح وضع أسماء البنود عليه — الوصف
+  // والرقم هيتناقضوا. بنفصل المصروف بمبلغه الحقيقي، والباقي يظل سطراً مستقلاً.
+  //
+  // ⚠️ ملاحظة زمنية: custody_balance تراكمي حتى نهاية الفترة (كل التاريخ)، بينما
+  // driver_paid_expenses للفترة وحدها. فمصروفات أقدم من الفترة تقع ضمن سطر
+  // «باقي حركات العهدة». الإجمالي صحيح في كل الحالات لأن السطرين معاً = −custody_balance.
+  const workExpenses = summary.driver_paid_expenses;
+  const otherCustody = summary.custody_balance + workExpenses;
 
   return (
     <div className="print-statement overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
@@ -130,11 +149,31 @@ export function TrabAdjustmentsStatementView({
           {summary.total_deductions > 0 && (
             <SummaryRow label="الخصومات" value={formatCurrency(summary.total_deductions, currencySymbol)} sign="minus" />
           )}
-          {summary.custody_balance !== 0 && (
+          {workExpenses > 0 && (
+            <div className="py-2">
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-600">+ ما صرفه على العمل</span>
+                <span className="text-zinc-700" dir="ltr">
+                  {formatCurrency(workExpenses, currencySymbol)}
+                </span>
+              </div>
+              {expenses.length > 0 && (
+                <div className="mt-1.5 flex flex-col gap-0.5 border-r-2 border-zinc-200 pr-3">
+                  {expenses.map((e) => (
+                    <div key={e.expense_category} className="flex items-center justify-between text-xs text-zinc-500">
+                      <span>{e.expense_category}</span>
+                      <span dir="ltr">{formatCurrency(e.total, currencySymbol)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {otherCustody !== 0 && (
             <SummaryRow
-              label={summary.custody_balance > 0 ? "عهدة مستحقة عليك" : "عهدة مستحقة لك"}
-              value={formatCurrency(Math.abs(summary.custody_balance), currencySymbol)}
-              sign={summary.custody_balance > 0 ? "minus" : "plus"}
+              label={otherCustody > 0 ? "عهدة مستحقة عليك" : "عهدة مستحقة لك"}
+              value={formatCurrency(Math.abs(otherCustody), currencySymbol)}
+              sign={otherCustody > 0 ? "minus" : "plus"}
             />
           )}
           <div className="mt-3 flex items-center justify-between rounded-xl bg-zinc-900 px-4 py-3.5 text-white">

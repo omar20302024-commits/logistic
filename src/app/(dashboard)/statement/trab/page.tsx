@@ -50,13 +50,22 @@ export default async function TrabStatementPage({
     );
   }
 
-  const [{ data: driver }, { data: summary, error: summaryError }, { data: trips, error: tripsError }] =
-    await Promise.all([
+  const [
+    { data: driver },
+    { data: summary, error: summaryError },
+    { data: trips, error: tripsError },
+    { data: expenses },
+  ] = await Promise.all([
       supabase.from("drivers").select("id, name, phone").eq("id", driverId).single(),
       supabase
         .rpc("fn_driver_public_summary", { p_driver_id: driverId, p_from: from, p_to: to })
         .single(),
       supabase.rpc("fn_driver_public_trips", { p_driver_id: driverId, p_from: from, p_to: to }),
+      supabase.rpc("fn_driver_expenses_by_category", {
+        p_driver_id: driverId,
+        p_from: from,
+        p_to: to,
+      }),
     ]);
 
   const emptySummary = {
@@ -65,6 +74,7 @@ export default async function TrabStatementPage({
     total_advances: 0,
     total_deductions: 0,
     custody_balance: 0,
+    driver_paid_expenses: 0,
   };
 
   return (
@@ -95,6 +105,7 @@ export default async function TrabStatementPage({
         to={to}
         trips={trips ?? []}
         summary={(summary as typeof emptySummary | null) ?? emptySummary}
+        expenses={expenses ?? []}
         currencySymbol={currencySymbol}
       />
 
