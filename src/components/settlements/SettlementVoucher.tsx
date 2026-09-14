@@ -54,7 +54,7 @@ export function SettlementVoucher({
   currencySymbol: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
+    <div className="print-statement overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
       <div className="bg-zinc-900 px-6 py-5 text-white">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -161,7 +161,7 @@ export function SettlementVoucher({
           />
         )}
 
-        <div className="mt-5 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+        <div className="print-keep mt-5 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
           <SummaryRow
             label="إجمالي التربات"
             value={settlement.total_trabs}
@@ -212,7 +212,7 @@ export function SettlementVoucher({
           </p>
         )}
 
-        <div className="mt-8 grid grid-cols-2 gap-8 text-center text-xs text-zinc-500">
+        <div className="print-keep mt-8 grid grid-cols-2 gap-8 text-center text-xs text-zinc-500">
           <div>
             <div className="mb-8">توقيع المستلِم</div>
             <div className="border-t border-zinc-300 pt-1">{driverName}</div>

@@ -52,7 +52,7 @@ export function InternalStatementView({
   const netProfitFromDriver = summary.operating_profit - summary.salary_basic;
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm print:rounded-none print:border-0 print:shadow-none">
+    <div className="print-statement rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm print:rounded-none print:border-0 print:shadow-none">
       {/* رأس الكشف */}
       <div className="mb-6 flex items-start justify-between border-b border-zinc-200 pb-4">
         <div>

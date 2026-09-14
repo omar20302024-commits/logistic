@@ -39,7 +39,7 @@ export function WaybillView({
 }) {
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
+    <div className="print-statement overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
       <div className="border-b-4 border-zinc-900 px-6 py-5">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -95,7 +95,7 @@ export function WaybillView({
         </div>
       )}
 
-      <div className="border-t border-zinc-200 px-6 py-6">
+      <div className="print-keep border-t border-zinc-200 px-6 py-6">
         <div className="grid grid-cols-3 gap-6 text-center text-xs text-zinc-500">
           <Signature label="توقيع المُرسِل" />
           <Signature label="توقيع السائق" name={driverName} />

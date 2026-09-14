@@ -37,7 +37,7 @@ export function TrabOnlyStatementView({
   const totalTrab = trips.reduce((sum, t) => sum + Number(t.driver_trip_payment), 0);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
+    <div className="print-statement overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
       <div className="bg-zinc-900 px-6 py-5 text-white">
         <div className="flex items-start justify-between">
           <div>
@@ -111,7 +111,7 @@ export function TrabOnlyStatementView({
           </table>
         </div>
 
-        <div className="my-6 flex flex-col divide-y divide-zinc-100 text-sm sm:mx-auto sm:w-80">
+        <div className="print-keep my-6 flex flex-col divide-y divide-zinc-100 rounded-xl border border-zinc-200 p-4 text-sm sm:mx-auto sm:w-[24rem]">
           <div className="flex items-center justify-between py-2">
             <span className="text-zinc-600">عدد الرحلات</span>
             <span className="text-zinc-700" dir="ltr">

@@ -47,7 +47,7 @@ export function TrabAdjustmentsStatementView({
     summary.total_driver_payment - summary.total_deductions - summary.total_advances - summary.custody_balance;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
+    <div className="print-statement overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
       <div className="bg-zinc-900 px-6 py-5 text-white">
         <div className="flex items-start justify-between">
           <div>
@@ -121,7 +121,7 @@ export function TrabAdjustmentsStatementView({
           </table>
         </div>
 
-        <div className="my-6 flex flex-col divide-y divide-zinc-100 text-sm sm:mx-auto sm:w-96">
+        <div className="print-keep my-6 flex flex-col divide-y divide-zinc-100 rounded-xl border border-zinc-200 p-4 text-sm sm:mx-auto sm:w-[26rem]">
           <SummaryRow label="عدد الرحلات" value={formatNumber(summary.trips_count)} />
           <SummaryRow label="إجمالي الترب" value={formatCurrency(summary.total_driver_payment, currencySymbol)} />
           {summary.total_advances > 0 && (

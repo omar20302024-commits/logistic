@@ -53,7 +53,7 @@ export function DriverStatementView({
   currencySymbol: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
+    <div className="print-statement overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
       {/* رأس الكشف */}
       <div className="bg-zinc-900 px-6 py-5 text-white">
         <div className="flex items-start justify-between">
@@ -140,8 +140,8 @@ export function DriverStatementView({
           </table>
         </div>
 
-        {/* الإجماليات */}
-        <div className="my-6 flex flex-col divide-y divide-zinc-100 text-sm sm:mx-auto sm:w-96">
+        {/* الإجماليات — print-keep يمنع انقسامها بين صفحتين */}
+        <div className="print-keep my-6 flex flex-col divide-y divide-zinc-100 rounded-xl border border-zinc-200 p-4 text-sm sm:mx-auto sm:w-[26rem]">
           <SummaryRow label="عدد الرحلات" value={formatNumber(summary.trips_count)} />
           <SummaryRow label="إجمالي الترب" value={formatCurrency(summary.total_driver_payment, currencySymbol)} />
           <SummaryRow label="الراتب الأساسي" value={formatCurrency(summary.salary_basic, currencySymbol)} />

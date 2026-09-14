@@ -200,7 +200,7 @@ export function TripsReportTable({
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="print-landscape flex flex-col gap-4">
       <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm print:hidden">
         <Field label="من تاريخ">
           <input

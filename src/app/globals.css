@@ -51,9 +51,21 @@ body {
    مفكّكة ومعكوسة. محرك المتصفح بيستخدم نظام النصوص بتاع الجهاز فالعربي يطلع سليم.
 --------------------------------------------------------------------------- */
 @media print {
+  /* الوضع الافتراضي: طولي — الكشوفات والسندات والبوليصة كلها أعمدتها قليلة */
   @page {
+    size: A4 portrait;
+    margin: 12mm 10mm;
+  }
+
+  /* صفحة عرضية مسمّاة، تُطلب بـ .print-landscape — للجداول العريضة وحدها
+     (تقرير الرحلات ستة عشر عموداً). القاعدة العامة كانت تفرض العرضي على كل
+     شيء فتطبع الكشوفات ضائعة في بياض الورقة ومقسومة على صفحتين. */
+  @page wide {
     size: A4 landscape;
-    margin: 10mm;
+    margin: 8mm;
+  }
+  .print-landscape {
+    page: wide;
   }
 
   body {
@@ -70,6 +82,25 @@ body {
   }
   thead {
     display: table-header-group; /* يعيد رأس الجدول في كل صفحة */
+  }
+
+  /* كتلة لا يجوز أن تنقسم بين صفحتين — الملخص والتوقيعات مثلاً */
+  .print-keep {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* الكشوفات: تصغير متناسق على الورق حتى تدخل صفحة واحدة بدل ما تنقسم */
+  .print-statement {
+    font-size: 11px;
+  }
+  .print-statement table {
+    font-size: 10px;
+  }
+  .print-statement th,
+  .print-statement td {
+    padding-top: 4px;
+    padding-bottom: 4px;
   }
 
   /* الألوان الخلفية تتطبع زي ما هي (الافتراضي إن المتصفح بيشيلها) */
