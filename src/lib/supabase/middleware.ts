@@ -36,7 +36,18 @@ export async function updateSession(request: NextRequest) {
   // بهذا أي صفحة جديدة (سائقين/شركات/رحلات/تقارير...) تُحمى تلقائياً دون تعديل هذا الملف.
   const isAuthRoute = request.nextUrl.pathname.startsWith("/login");
 
-  if (!user && !isAuthRoute) {
+  // ⚠️⚠️ استثناء أمني مقصود وضيّق جداً: رابط كشف السائق العام.
+  //
+  // /s/<token> هو المسار الوحيد في النظام كله الذي يُفتح بلا تسجيل دخول.
+  // آمن لأن الصفحة لا تقرأ أي جدول: تنادي ثلاث دوال security definer بالرمز
+  // فقط (راجع migration 0031)، ودور anon لا يملك صلاحية على أي جدول، والدوال
+  // stable فلا تكتب شيئاً. والرابط موقوف افتراضياً حتى تفعّله الإدارة.
+  //
+  // 🚫 لا توسّع هذا الشرط ولا تجعله نمطاً عاماً — هذا الملف هو ما يحمي النظام
+  //    كله، وأي تعميم هنا يكشف لوحة التحكم بالكامل.
+  const isPublicStatement = request.nextUrl.pathname.startsWith("/s/");
+
+  if (!user && !isAuthRoute && !isPublicStatement) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

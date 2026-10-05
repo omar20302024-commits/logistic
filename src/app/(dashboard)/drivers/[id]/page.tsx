@@ -9,6 +9,7 @@ import { CustodySection } from "@/components/drivers/CustodySection";
 import { RouteRatesSection } from "@/components/drivers/RouteRatesSection";
 import { SettlementsSection } from "@/components/drivers/SettlementsSection";
 import { LeavesSection } from "@/components/drivers/LeavesSection";
+import { PublicLinkSection } from "@/components/drivers/PublicLinkSection";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 export default async function DriverDetailPage({
@@ -242,6 +243,14 @@ export default async function DriverDetailPage({
       />
 
       <RouteRatesSection driverId={id} rates={routeRates ?? []} currencySymbol={currencySymbol} />
+
+      <PublicLinkSection
+        driverId={id}
+        token={driver.public_token}
+        enabled={driver.public_link_enabled}
+        statementYear={driver.statement_year}
+        statementMonth={driver.statement_month}
+      />
 
       {driver.notes && (
         <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600">
