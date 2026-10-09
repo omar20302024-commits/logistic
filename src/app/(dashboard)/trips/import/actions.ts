@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { parseTripsFile, type ParsedTripRow } from "@/lib/import/parseTripsFile";
 import { parseTripsXlsx } from "@/lib/import/parseTripsXlsx";
 import { normalizeArabic } from "@/lib/arabic";
-import { destinationCount } from "@/lib/trip-calc";
+import { destinationCount, resolveBasePayment, type RouteRate } from "@/lib/trip-calc";
 
 export type ParseFileResult =
   | { ok: true; companyNameGuess: string | null; rows: ParsedTripRow[]; driverNames: string[] }
@@ -111,9 +111,26 @@ export async function confirmImport(
     createdDrivers += 1;
   }
 
-  // الترب الافتراضي لكل سائق — يُستخدم للصفوف التي لا ترب فيها في الملف
+  // الترب الافتراضي لكل سائق — آخر احتياط حين لا ترب في الملف ولا خط سير مطابق
   const { data: allDrivers } = await supabase.from("drivers").select("id, default_trip_payment");
   const defaultTrab = new Map((allDrivers ?? []).map((d) => [d.id, Number(d.default_trip_payment) || 0]));
+
+  // خطوط السير المحفوظة — الأولوية الأولى للترب، تماماً كما في نموذج الرحلة.
+  // كان الاستيراد لا يسألها إطلاقاً فتدخل كل رحلة بالترب الافتراضي العام.
+  const { data: allRates } = await supabase
+    .from("driver_route_rates")
+    .select("driver_id, from_city, to_city, trab_amount");
+
+  const ratesByDriver = new Map<string, RouteRate[]>();
+  for (const r of allRates ?? []) {
+    const list = ratesByDriver.get(r.driver_id as string) ?? [];
+    list.push({
+      from_city: r.from_city as string,
+      to_city: r.to_city as string,
+      trab_amount: Number(r.trab_amount) || 0,
+    });
+    ratesByDriver.set(r.driver_id as string, list);
+  }
 
   // مطابقة أنواع السيارات بالاسم مع تجاهل الفروق الإملائية
   const { data: types } = await supabase.from("vehicle_types").select("slug, name_ar");
@@ -156,8 +173,17 @@ export async function confirmImport(
         branches_count: row.branchesCount > 0 ? row.branchesCount : destinationCount(row.toLocation),
         vehicle_type_slug: matchedType?.slug ?? null,
         vehicle_type_label: matchedType?.name ?? (row.vehicleTypeName || null),
-        // الملف لا يحمل ترب السائق، فنأخذ تربه الافتراضي بدل تركه صفراً
-        driver_base_payment: row.driverTripPayment || defaultTrab.get(driverId) || 0,
+        // أولوية الترب الأساسي: ما في الملف ← ترب خط السير المطابق ← الافتراضي
+        // العام. والمواقع الإضافية لا تُرسل من هنا — المشغّل في قاعدة البيانات
+        // يضيفها على driver_trip_payment بعد خصم موقع عن كل مدينة تنزيل.
+        driver_base_payment:
+          row.driverTripPayment ||
+          resolveBasePayment(
+            ratesByDriver.get(driverId) ?? [],
+            defaultTrab.get(driverId) ?? 0,
+            row.fromLocation,
+            row.toLocation
+          ),
         diesel_amount: 0,
         requester: row.requester || null,
         status: row.status,

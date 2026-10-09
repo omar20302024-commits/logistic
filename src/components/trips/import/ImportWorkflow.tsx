@@ -11,15 +11,35 @@ import {
   type ImportRowInput,
 } from "@/app/(dashboard)/trips/import/actions";
 import type { ParsedTripRow } from "@/lib/import/parseTripsFile";
+import {
+  driverExtraStops,
+  resolveBasePayment,
+  routeUnmatched,
+  type RouteRate,
+} from "@/lib/trip-calc";
 
 type Option = { id: string; name: string };
+
+type DriverOption = Option & {
+  default_trip_payment: number;
+  extra_stop_rate: number;
+  route_rates: RouteRate[];
+};
 
 type EditableRow = ParsedTripRow & {
   driverId: string; // "" يعني سيتم إنشاء سائق جديد باسم driverName
   include: boolean;
+  // الترب الأساسي بعد أن يلمسه المستخدم — فارغ يعني "احسبه من خط السير"
+  basePaymentOverride: number | null;
 };
 
-export function ImportWorkflow({ drivers, companies }: { drivers: Option[]; companies: Option[] }) {
+export function ImportWorkflow({
+  drivers,
+  companies,
+}: {
+  drivers: DriverOption[];
+  companies: Option[];
+}) {
   const router = useRouter();
 
   const [step, setStep] = useState<"upload" | "preview">("upload");
@@ -57,7 +77,13 @@ export function ImportWorkflow({ drivers, companies }: { drivers: Option[]; comp
         const existing = drivers.find(
           (d) => d.name.trim().toLowerCase() === r.driverName.trim().toLowerCase()
         );
-        return { ...r, driverId: existing?.id ?? "", include: true };
+        return {
+          ...r,
+          driverId: existing?.id ?? "",
+          include: true,
+          // الملف إن حمل ترباً فعلياً فهو يغلب خط السير — احترام الملف أولاً
+          basePaymentOverride: r.vendorCost > 0 ? r.vendorCost : null,
+        };
       });
       setRows(editable);
 
@@ -79,6 +105,38 @@ export function ImportWorkflow({ drivers, companies }: { drivers: Option[]; comp
   const updateRow = (index: number, patch: Partial<EditableRow>) => {
     setRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
   };
+
+  /**
+   * ترب الصف كما سيُحفظ بالضبط — نفس أولوية نموذج الرحلة ونفس معادلة المشغّل:
+   *   الأساسي = ما كتبه المستخدم أو الملف، وإلا ترب خط السير، وإلا الافتراضي العام
+   *   الإجمالي = الأساسي + (المواقع الإضافية × معدَّل السائق)
+   * والمواقع الإضافية تخصم موقعاً عن كل مدينة تنزيل — من driverExtraStops.
+   */
+  const calcRow = (r: EditableRow) => {
+    const driver = drivers.find((d) => d.id === r.driverId);
+    const rates = driver?.route_rates ?? [];
+
+    const base =
+      r.basePaymentOverride ??
+      (driver
+        ? resolveBasePayment(rates, driver.default_trip_payment, r.fromLocation, r.toLocation)
+        : 0);
+
+    const stops = driverExtraStops(r.branchesCount ?? 0, r.fromLocation, r.toLocation);
+    const extra = stops * (driver?.extra_stop_rate ?? 0);
+
+    return {
+      base,
+      stops,
+      extra,
+      total: base + extra,
+      // خطوط سير محفوظة لكن لا شيء طابق — الصمت هنا يخفي اختلاف إملاء
+      unmatched: driver ? routeUnmatched(rates, r.fromLocation, r.toLocation) : false,
+      isNewDriver: !driver,
+    };
+  };
+
+  const unmatchedCount = rows.filter((r) => r.include && calcRow(r).unmatched).length;
 
   const handleConfirm = async () => {
     const included = rows.filter((r) => r.include);
@@ -102,7 +160,9 @@ export function ImportWorkflow({ drivers, companies }: { drivers: Option[]; comp
       totalPrice: r.totalPrice,
       extraAmount: r.extraFee,
       overnightFare: r.returnFee,
-      driverTripPayment: r.vendorCost,
+      // الأساسي فقط؛ صفر يعني "حلّه من خط السير على الخادم". المواقع الإضافية
+      // يضيفها المشغّل في قاعدة البيانات فلا تُرسل من هنا.
+      driverTripPayment: r.basePaymentOverride ?? 0,
       branchesCount: r.branchesCount ?? 0,
       vehicleTypeName: r.vehicleTypeName ?? "",
       requester: r.requester ?? "",
@@ -185,13 +245,15 @@ export function ImportWorkflow({ drivers, companies }: { drivers: Option[]; comp
                 <th className="px-3 py-3 font-medium">إلى</th>
                 <th className="px-3 py-3 font-medium">الفروع</th>
                 <th className="px-3 py-3 font-medium">السائق</th>
-                <th className="px-3 py-3 font-medium">الترب</th>
+                <th className="px-3 py-3 font-medium">ترب الرحلة</th>
+                <th className="px-3 py-3 font-medium">إجمالي الترب</th>
                 <th className="px-3 py-3 font-medium">السعر الكلي</th>
                 <th className="px-3 py-3 font-medium">الحالة</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r, i) => {
+                const calc = calcRow(r);
                 return (
                   <tr
                     key={i}
@@ -258,10 +320,27 @@ export function ImportWorkflow({ drivers, companies }: { drivers: Option[]; comp
                         type="number"
                         step="0.01"
                         dir="ltr"
-                        value={r.vendorCost}
-                        onChange={(e) => updateRow(i, { vendorCost: Number(e.target.value) })}
-                        className="w-20 rounded border border-zinc-200 px-1.5 py-1 text-xs text-right"
+                        value={calc.base}
+                        onChange={(e) =>
+                          updateRow(i, { basePaymentOverride: Number(e.target.value) || 0 })
+                        }
+                        className={`w-20 rounded border px-1.5 py-1 text-xs text-right ${
+                          calc.unmatched ? "border-amber-400 bg-amber-50" : "border-zinc-200"
+                        }`}
+                        title={
+                          calc.unmatched
+                            ? "لم يتطابق أي خط سير محفوظ — هذا هو الترب الافتراضي العام"
+                            : undefined
+                        }
                       />
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap" dir="ltr">
+                      <span className="font-semibold text-zinc-900">{calc.total.toFixed(2)}</span>
+                      {calc.stops > 0 && (
+                        <span className="mr-1 text-[10px] text-zinc-400">
+                          (+{calc.stops} موقع)
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-2">
                       <input
@@ -293,6 +372,20 @@ export function ImportWorkflow({ drivers, companies }: { drivers: Option[]; comp
           </table>
         </div>
       </div>
+
+      {unmatchedCount > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          <strong>{unmatchedCount}</strong> صفاً للسائق فيه خطوط سير محفوظة لكن لم يتطابق أي
+          منها مع «من/إلى» المكتوبتين، فأُخذ الترب الافتراضي العام (الخانة بإطار برتقالي).
+          راجع إملاء المدن أو اكتب الترب يدوياً.
+        </div>
+      )}
+
+      <p className="text-xs text-zinc-400">
+        ترب الرحلة يُملأ من خط سير السائق المحفوظ، وإن لم يتطابق فمن تربه الافتراضي العام —
+        ولو كان الملف يحمل ترباً فهو يغلبهما. وإجمالي الترب يضيف المواقع الإضافية بمعدَّل
+        السائق، بعد خصم موقع عن كل مدينة تنزيل لأنه محسوب ضمن الرحلة الأساسية.
+      </p>
 
       <p className="text-xs text-zinc-400">
         السعر الكلي يُستورد كما هو في الملف ولا يُعاد حسابه من المواقع — فالعملاء الذين
