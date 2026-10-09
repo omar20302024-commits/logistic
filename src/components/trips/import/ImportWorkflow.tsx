@@ -23,6 +23,7 @@ type Option = { id: string; name: string };
 type DriverOption = Option & {
   default_trip_payment: number;
   extra_stop_rate: number;
+  employment_type: "internal" | "external";
   route_rates: RouteRate[];
 };
 
@@ -36,9 +37,12 @@ type EditableRow = ParsedTripRow & {
 export function ImportWorkflow({
   drivers,
   companies,
+  globalRouteRates = [],
 }: {
   drivers: DriverOption[];
   companies: Option[];
+  /** خطوط السير العامة (0035) — لسائقي الشركة فقط */
+  globalRouteRates?: RouteRate[];
 }) {
   const router = useRouter();
 
@@ -116,10 +120,20 @@ export function ImportWorkflow({
     const driver = drivers.find((d) => d.id === r.driverId);
     const rates = driver?.route_rates ?? [];
 
+    // الموردون لا يرثون خطوط السير العامة (0035)
+    const applicableGlobal = driver?.employment_type === "external" ? [] : globalRouteRates;
+
     const base =
       r.basePaymentOverride ??
       (driver
-        ? resolveBasePayment(rates, driver.default_trip_payment, r.fromLocation, r.toLocation)
+        ? resolveBasePayment(
+            rates,
+            applicableGlobal,
+            driver.default_trip_payment,
+            r.fromLocation,
+            r.toLocation,
+            driver.employment_type
+          )
         : 0);
 
     const stops = driverExtraStops(r.branchesCount ?? 0, r.fromLocation, r.toLocation);
@@ -131,7 +145,9 @@ export function ImportWorkflow({
       extra,
       total: base + extra,
       // خطوط سير محفوظة لكن لا شيء طابق — الصمت هنا يخفي اختلاف إملاء
-      unmatched: driver ? routeUnmatched(rates, r.fromLocation, r.toLocation) : false,
+      unmatched: driver
+        ? routeUnmatched(rates, applicableGlobal, r.fromLocation, r.toLocation)
+        : false,
       isNewDriver: !driver,
     };
   };

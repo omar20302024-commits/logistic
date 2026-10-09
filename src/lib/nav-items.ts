@@ -15,6 +15,7 @@ import {
   Home,
   UserCog,
   Upload,
+  Route,
 } from "lucide-react";
 
 export type NavItem = {
@@ -37,6 +38,7 @@ export const navGroups: NavGroup[] = [
     title: "الإدارة",
     items: [
       { label: "السائقون", href: "/drivers", icon: Users },
+      { label: "خطوط السير العامة", href: "/route-rates", icon: Route },
       { label: "الشركات", href: "/companies", icon: Building2 },
       { label: "الرحلات", href: "/trips", icon: Truck },
       { label: "استيراد رحلات (Excel)", href: "/trips/import", icon: Upload },

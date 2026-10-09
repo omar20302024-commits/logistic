@@ -41,11 +41,12 @@ export function extraLoadingPoints(fromLocation: string): number {
 }
 
 /**
- * مواقع السائق الإضافية — نسخة الواجهة من fn_driver_extra_stops في SQL:
+ * مواقع السائق الإضافية — نسخة الواجهة من fn_driver_extra_stops في SQL.
  *
- *   fn_driver_extra_stops = fn_chargeable_stops + fn_extra_loading_points
- *
- * السائق يتقاضى عن فروع التنزيل الإضافية ونقاط التحميل الإضافية معاً.
+ * **التنزيل وحده.** مدن التحميل لا تُحسب للسائق ترب موقع إضافي (0036):
+ *   التحميل من «الكتشن الجديد + القديم» موقعان، والسائق لا يُحاسَب عليهما،
+ *   بينما العميل يُحاسَب على الموقع الزائد كما هو (extraLoadingPoints باقية
+ *   لحساب جانب العميل).
  *
  * ⚠️ هذه الدالة والمشغّل sync_driver_trip_payment_on_base_change يحسبان نفس
  *    الرقم — أي تعديل في أحدهما يجب أن يطال الآخر، وإلا عرضت الواجهة رقماً
@@ -53,10 +54,11 @@ export function extraLoadingPoints(fromLocation: string): number {
  */
 export function driverExtraStops(
   branchesCount: number,
-  fromLocation: string,
+  _fromLocation: string,
   toLocation: string
 ): number {
-  return chargeableStops(branchesCount, toLocation) + extraLoadingPoints(fromLocation);
+  // fromLocation يبقى في التوقيع ليطابق دالة SQL وإن لم يُستخدم
+  return chargeableStops(branchesCount, toLocation);
 }
 
 /**
@@ -103,17 +105,34 @@ export function matchRouteRate(
 }
 
 /**
- * الترب الأساسي للسائق في رحلة: ترب خط السير إن تطابق، وإلا تربه الافتراضي العام.
- * نفس أولوية نموذج الرحلة بالضبط — فالاستيراد يعطي ما يعطيه الإدخال اليدوي.
+ * الترب الأساسي للسائق في رحلة — ثلاث درجات بالترتيب (0035):
+ *
+ *   1) خط سير خاص بهذا السائق   ← الاستثناء لمن اتُّفق معه على غير المعتاد
+ *   2) خط سير عام               ← لسائقي الشركة فقط، يرثه الجديد تلقائياً
+ *   3) تربه الافتراضي العام     ← آخر احتياط
+ *
+ * ⚠️ الموردون (external) لا يرثون العام إطلاقاً — تربهم باتفاق خاص. لكن من له
+ *    خط سير خاص مسجَّل يبقى يعمل، فأحدهم أدخله عن قصد.
+ *
+ * نفس الأولوية في نموذج الرحلة والاستيراد — فالاستيراد يعطي ما يعطيه الإدخال اليدوي.
  */
 export function resolveBasePayment(
-  rates: RouteRate[],
+  driverRates: RouteRate[],
+  globalRates: RouteRate[],
   defaultTripPayment: number,
   fromLocation: string,
-  toLocation: string
+  toLocation: string,
+  employmentType: "internal" | "external" = "internal"
 ): number {
-  const route = matchRouteRate(rates, fromLocation, toLocation);
-  return route ? Number(route.trab_amount) || 0 : Number(defaultTripPayment) || 0;
+  const own = matchRouteRate(driverRates, fromLocation, toLocation);
+  if (own) return Number(own.trab_amount) || 0;
+
+  if (employmentType === "internal") {
+    const global = matchRouteRate(globalRates, fromLocation, toLocation);
+    if (global) return Number(global.trab_amount) || 0;
+  }
+
+  return Number(defaultTripPayment) || 0;
 }
 
 /**
@@ -122,11 +141,15 @@ export function resolveBasePayment(
  * و«يوجد لكن الإملاء مختلف» — وكلاهما يعطي الترب الافتراضي بصمت.
  */
 export function routeUnmatched(
-  rates: RouteRate[],
+  driverRates: RouteRate[],
+  globalRates: RouteRate[],
   fromLocation: string,
   toLocation: string
 ): boolean {
-  if (rates.length === 0) return false;
+  if (driverRates.length === 0 && globalRates.length === 0) return false;
   if (!normalizeArabic(fromLocation ?? "") || !normalizeArabic(toLocation ?? "")) return false;
-  return !matchRouteRate(rates, fromLocation, toLocation);
+  return (
+    !matchRouteRate(driverRates, fromLocation, toLocation) &&
+    !matchRouteRate(globalRates, fromLocation, toLocation)
+  );
 }

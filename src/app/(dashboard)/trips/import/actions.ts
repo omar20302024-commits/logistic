@@ -112,8 +112,25 @@ export async function confirmImport(
   }
 
   // الترب الافتراضي لكل سائق — آخر احتياط حين لا ترب في الملف ولا خط سير مطابق
-  const { data: allDrivers } = await supabase.from("drivers").select("id, default_trip_payment");
+  const { data: allDrivers } = await supabase
+    .from("drivers")
+    .select("id, default_trip_payment, employment_type");
   const defaultTrab = new Map((allDrivers ?? []).map((d) => [d.id, Number(d.default_trip_payment) || 0]));
+
+  // الموردون لا يرثون خطوط السير العامة — تربهم باتفاق خاص (0035)
+  const employmentById = new Map(
+    (allDrivers ?? []).map((d) => [d.id as string, d.employment_type as "internal" | "external"])
+  );
+
+  // خطوط السير العامة — تُكتب مرة وتسري على كل سائقي الشركة (0035)
+  const { data: globalRatesRaw } = await supabase
+    .from("route_rates")
+    .select("from_city, to_city, trab_amount");
+  const globalRates: RouteRate[] = (globalRatesRaw ?? []).map((r) => ({
+    from_city: r.from_city as string,
+    to_city: r.to_city as string,
+    trab_amount: Number(r.trab_amount) || 0,
+  }));
 
   // خطوط السير المحفوظة — الأولوية الأولى للترب، تماماً كما في نموذج الرحلة.
   // كان الاستيراد لا يسألها إطلاقاً فتدخل كل رحلة بالترب الافتراضي العام.
@@ -180,9 +197,11 @@ export async function confirmImport(
           row.driverTripPayment ||
           resolveBasePayment(
             ratesByDriver.get(driverId) ?? [],
+            globalRates,
             defaultTrab.get(driverId) ?? 0,
             row.fromLocation,
-            row.toLocation
+            row.toLocation,
+            employmentById.get(driverId) ?? "internal"
           ),
         diesel_amount: 0,
         requester: row.requester || null,

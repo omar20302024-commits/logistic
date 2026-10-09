@@ -9,13 +9,13 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: trip, error }, { data: driversRaw }, { data: companies }, { data: vehicleTypes }, { data: settings }] =
+  const [{ data: trip, error }, { data: driversRaw }, { data: companies }, { data: vehicleTypes }, { data: settings }, { data: globalRouteRates }] =
     await Promise.all([
       supabase.from("trips").select("*").eq("id", id).single(),
       supabase
         .from("drivers")
         .select(
-          "id, name, default_trip_payment, extra_stop_rate, driver_route_rates(from_city, to_city, trab_amount)"
+          "id, name, default_trip_payment, extra_stop_rate, employment_type, driver_route_rates(from_city, to_city, trab_amount)"
         )
         .order("name"),
       supabase.from("companies").select("id, name, extra_location_rate").order("name"),
@@ -25,6 +25,7 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
         .eq("is_active", true)
         .order("sort_order"),
       supabase.from("settings").select("currency_symbol").single(),
+      supabase.from("route_rates").select("from_city, to_city, trab_amount"),
     ]);
 
   if (error || !trip) notFound();
@@ -34,6 +35,7 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
     name: d.name,
     default_trip_payment: d.default_trip_payment,
     extra_stop_rate: d.extra_stop_rate,
+    employment_type: d.employment_type,
     route_rates: d.driver_route_rates ?? [],
   }));
 
@@ -83,6 +85,7 @@ export default async function EditTripPage({ params }: { params: Promise<{ id: s
         drivers={drivers}
         companies={companies ?? []}
         vehicleTypes={vehicleTypes ?? []}
+        globalRouteRates={globalRouteRates ?? []}
         currencySymbol={settings?.currency_symbol ?? "ر.س"}
         initialData={{
           id: trip.id,

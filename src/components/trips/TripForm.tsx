@@ -14,7 +14,15 @@ import {
 import { createTrip, updateTrip } from "@/app/(dashboard)/trips/actions";
 import { formatCurrency } from "@/lib/format";
 import { normalizeArabic } from "@/lib/arabic";
-import { chargeableStops, destinationCount, extraLoadingPoints } from "@/lib/trip-calc";
+import {
+  chargeableStops,
+  destinationCount,
+  driverExtraStops,
+  extraLoadingPoints,
+  matchRouteRate,
+  resolveBasePayment,
+  routeUnmatched as isRouteUnmatched,
+} from "@/lib/trip-calc";
 
 type RouteRate = { from_city: string; to_city: string; trab_amount: number };
 type DriverOption = {
@@ -22,6 +30,7 @@ type DriverOption = {
   name: string;
   default_trip_payment: number;
   extra_stop_rate: number;
+  employment_type: "internal" | "external";
   route_rates: RouteRate[];
 };
 type CompanyOption = { id: string; name: string; extra_location_rate: number };
@@ -80,12 +89,15 @@ export function TripForm({
   drivers,
   companies,
   vehicleTypes,
+  globalRouteRates = [],
   initialData,
   currencySymbol,
 }: {
   drivers: DriverOption[];
   companies: CompanyOption[];
   vehicleTypes: VehicleTypeOption[];
+  /** خطوط السير العامة (0035) — لسائقي الشركة فقط */
+  globalRouteRates?: RouteRate[];
   initialData?: TripInitialData;
   currencySymbol: string;
 }) {
@@ -149,27 +161,35 @@ export function TripForm({
   const stops = chargeableStops(Number(watchedBranchesCount) || 0, watchedToLocation ?? "");
   const loadingExtras = extraLoadingPoints(watchedFromLocation ?? "");
   const extraStopRate = selectedDriver?.extra_stop_rate ?? 0;
-  // السائق يتقاضى عن فروع التنزيل الإضافية ونقاط التحميل الإضافية معاً
-  const driverStops = stops + loadingExtras;
+  // ⚠️ التنزيل وحده: مدن التحميل تُحاسَب على العميل لا على السائق (0036).
+  // loadingExtras ما زالت تُستخدم أدناه لاقتراح أجرة التحميل الإضافي للعميل.
+  const driverStops = driverExtraStops(
+    Number(watchedBranchesCount) || 0,
+    watchedFromLocation ?? "",
+    watchedToLocation ?? ""
+  );
   const extraStopsPayment = driverStops * extraStopRate;
 
+  // خطوط السير العامة لا تنطبق على الموردين — تربهم باتفاق خاص (0035)
+  const applicableGlobalRates =
+    selectedDriver?.employment_type === "external" ? [] : globalRouteRates;
+
   const matchedRoute = selectedDriver
-    ? selectedDriver.route_rates.find(
-        (r) =>
-          norm(r.from_city) === norm(watchedFromLocation ?? "") &&
-          norm(r.to_city) === norm(watchedToLocation ?? "")
-      )
+    ? matchRouteRate(selectedDriver.route_rates, watchedFromLocation ?? "", watchedToLocation ?? "") ??
+      matchRouteRate(applicableGlobalRates, watchedFromLocation ?? "", watchedToLocation ?? "")
     : undefined;
 
-  // السائق له خطوط سير محفوظة، و"من/إلى" مكتوبتان، ومع ذلك لم يتطابق أي خط سير.
+  // توجد خطوط سير (خاصة أو عامة)، و"من/إلى" مكتوبتان، ومع ذلك لم يتطابق شيء.
   // بدون هذا التنبيه تكون الواجهة صامتة فلا يفرّق المستخدم بين "لا يوجد خط سير
   // لهذه الوجهة" و"يوجد لكن الإملاء مختلف" — وكلاهما يعطي الترب الافتراضي.
-  const routeRatesExist = (selectedDriver?.route_rates.length ?? 0) > 0;
-  const routeUnmatched =
-    routeRatesExist &&
-    !matchedRoute &&
-    norm(watchedFromLocation ?? "") !== "" &&
-    norm(watchedToLocation ?? "") !== "";
+  const routeUnmatched = selectedDriver
+    ? isRouteUnmatched(
+        selectedDriver.route_rates,
+        applicableGlobalRates,
+        watchedFromLocation ?? "",
+        watchedToLocation ?? ""
+      )
+    : false;
 
   const totalTripAmount =
     (Number(watchedBaseFare) || 0) +
@@ -208,16 +228,17 @@ export function TripForm({
   useEffect(() => {
     if (initialData || userTouchedPayment.current || !selectedDriver) return;
 
-    const from = norm(watchedFromLocation ?? "");
-    const to = norm(watchedToLocation ?? "");
-    const route =
-      from && to
-        ? selectedDriver.route_rates.find(
-            (r) => norm(r.from_city) === from && norm(r.to_city) === to
-          )
-        : undefined;
-
-    setValue("driver_base_payment", route ? route.trab_amount : selectedDriver.default_trip_payment);
+    setValue(
+      "driver_base_payment",
+      resolveBasePayment(
+        selectedDriver.route_rates,
+        globalRouteRates,
+        selectedDriver.default_trip_payment,
+        watchedFromLocation ?? "",
+        watchedToLocation ?? "",
+        selectedDriver.employment_type
+      )
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchedDriverId, watchedFromLocation, watchedToLocation]);
 

@@ -6,14 +6,17 @@ export default async function TripsImportPage() {
 
   // نجلب معدَّلات السائقين وخطوط سيرهم حتى تعرض المعاينة الترب الحقيقي قبل
   // التأكيد، بدل أن يُملأ على الخادم وقت الحفظ فلا يراه المستخدم.
-  const [{ data: drivers }, { data: companies }, { data: routeRates }] = await Promise.all([
-    supabase
-      .from("drivers")
-      .select("id, name, default_trip_payment, extra_stop_rate")
-      .order("name"),
-    supabase.from("companies").select("id, name").order("name"),
-    supabase.from("driver_route_rates").select("driver_id, from_city, to_city, trab_amount"),
-  ]);
+  const [{ data: drivers }, { data: companies }, { data: routeRates }, { data: globalRouteRates }] =
+    await Promise.all([
+      supabase
+        .from("drivers")
+        .select("id, name, default_trip_payment, extra_stop_rate, employment_type")
+        .order("name"),
+      supabase.from("companies").select("id, name").order("name"),
+      supabase.from("driver_route_rates").select("driver_id, from_city, to_city, trab_amount"),
+      // خطوط السير العامة (0035) — لسائقي الشركة فقط
+      supabase.from("route_rates").select("from_city, to_city, trab_amount"),
+    ]);
 
   const ratesByDriver = new Map<string, { from_city: string; to_city: string; trab_amount: number }[]>();
   for (const r of routeRates ?? []) {
@@ -31,7 +34,14 @@ export default async function TripsImportPage() {
     name: d.name as string,
     default_trip_payment: Number(d.default_trip_payment) || 0,
     extra_stop_rate: Number(d.extra_stop_rate) || 0,
+    employment_type: d.employment_type as "internal" | "external",
     route_rates: ratesByDriver.get(d.id as string) ?? [],
+  }));
+
+  const globalRates = (globalRouteRates ?? []).map((r) => ({
+    from_city: r.from_city as string,
+    to_city: r.to_city as string,
+    trab_amount: Number(r.trab_amount) || 0,
   }));
 
   return (
@@ -43,7 +53,11 @@ export default async function TripsImportPage() {
         </p>
       </div>
 
-      <ImportWorkflow drivers={driverOptions} companies={companies ?? []} />
+      <ImportWorkflow
+        drivers={driverOptions}
+        companies={companies ?? []}
+        globalRouteRates={globalRates}
+      />
     </div>
   );
 }
