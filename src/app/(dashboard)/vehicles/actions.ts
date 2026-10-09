@@ -14,14 +14,12 @@ function revalidateVehicles() {
 
 function toRow(data: {
   vehicle_no: string;
-  plate_no?: string;
   type_slug?: string;
   status: "active" | "inactive" | "maintenance";
   notes?: string;
 }) {
   return {
     vehicle_no: data.vehicle_no,
-    plate_no: data.plate_no || null,
     type_slug: data.type_slug || null,
     status: data.status,
     notes: data.notes || null,

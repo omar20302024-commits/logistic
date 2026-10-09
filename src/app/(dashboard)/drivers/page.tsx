@@ -17,11 +17,20 @@ export default async function DriversPage({
 
   const supabase = await createClient();
 
-  const { data: vehicles } = await supabase
-    .from("vehicles")
-    .select("id, vehicle_no, plate_no")
+  // من v_vehicle_current_driver لا من vehicles: نحتاج أن نعرف من يحمل كل سيارة
+  // الآن، حتى يظهر ذلك في القائمة ويُطلَب تحويل عند اختيار سيارة مشغولة (0034).
+  const { data: vehicleRows } = await supabase
+    .from("v_vehicle_current_driver")
+    .select("vehicle_id, vehicle_no, driver_id, driver_name")
     .eq("status", "active")
     .order("vehicle_no");
+
+  const vehicles = (vehicleRows ?? []).map((v) => ({
+    id: v.vehicle_id as string,
+    vehicle_no: v.vehicle_no as string,
+    holder_id: (v.driver_id as string | null) ?? null,
+    holder_name: (v.driver_name as string | null) ?? null,
+  }));
 
   let query = supabase.from("drivers").select("*", { count: "exact" });
 

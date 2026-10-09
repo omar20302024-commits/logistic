@@ -29,7 +29,7 @@ export function DriversTable({
   initialQuery: string;
   initialStatus: string;
   initialType: string;
-  vehicles: { id: string; vehicle_no: string; plate_no: string | null }[];
+  vehicles: { id: string; vehicle_no: string; holder_id: string | null; holder_name: string | null }[];
 }) {
   const router = useRouter();
   const pathname = usePathname();

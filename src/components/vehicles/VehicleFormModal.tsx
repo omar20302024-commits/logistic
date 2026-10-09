@@ -11,14 +11,14 @@ import {
   type VehicleFormInput,
   type VehicleFormValues,
   type VehicleRecord,
+  DEFAULT_VEHICLE_TYPE,
   type VehicleTypeRecord,
 } from "@/lib/validation/vehicle";
 import { createVehicle, updateVehicle } from "@/app/(dashboard)/vehicles/actions";
 
 const emptyValues: VehicleFormInput = {
   vehicle_no: "",
-  plate_no: "",
-  type_slug: "",
+  type_slug: DEFAULT_VEHICLE_TYPE, // دينا افتراضياً، ويغيّرها المستخدم وقتما شاء
   status: "active",
   notes: "",
 };
@@ -52,7 +52,6 @@ export function VehicleFormModal({
       vehicle
         ? {
             vehicle_no: vehicle.vehicle_no,
-            plate_no: vehicle.plate_no ?? "",
             type_slug: vehicle.type_slug ?? "",
             status: vehicle.status,
             notes: vehicle.notes ?? "",
@@ -83,8 +82,8 @@ export function VehicleFormModal({
     >
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-zinc-700">رقم السيارة *</label>
+          <div className="col-span-2 flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-zinc-700">رقم السيارة / اللوحة *</label>
             <input
               {...register("vehicle_no")}
               dir="ltr"
@@ -93,14 +92,6 @@ export function VehicleFormModal({
             {errors.vehicle_no && (
               <p className="text-xs text-red-600">{errors.vehicle_no.message}</p>
             )}
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-zinc-700">رقم اللوحة</label>
-            <input
-              {...register("plate_no")}
-              dir="ltr"
-              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-right outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
-            />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-zinc-700">النوع</label>

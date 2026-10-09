@@ -23,9 +23,11 @@ const statusColors: Record<string, string> = {
 export function VehiclesTable({
   vehicles,
   types,
+  holderByVehicle,
 }: {
   vehicles: VehicleRecord[];
   types: VehicleTypeRecord[];
+  holderByVehicle: Record<string, string | null>;
 }) {
   const router = useRouter();
   const [formOpen, setFormOpen] = useState(false);
@@ -72,7 +74,7 @@ export function VehiclesTable({
             <thead>
               <tr className="border-b border-zinc-100 text-right text-xs text-zinc-500">
                 <th className="px-4 py-3 font-medium">رقم السيارة</th>
-                <th className="px-4 py-3 font-medium">اللوحة</th>
+                <th className="px-4 py-3 font-medium">السائق الحالي</th>
                 <th className="px-4 py-3 font-medium">النوع</th>
                 <th className="px-4 py-3 font-medium">الحالة</th>
                 <th className="px-4 py-3 font-medium">ملاحظات</th>
@@ -85,8 +87,12 @@ export function VehiclesTable({
                   <td className="px-4 py-3 font-medium text-zinc-900" dir="ltr">
                     {v.vehicle_no}
                   </td>
-                  <td className="px-4 py-3 text-zinc-600" dir="ltr">
-                    {v.plate_no ?? "—"}
+                  <td className="px-4 py-3">
+                    {holderByVehicle[v.id] ? (
+                      <span className="text-zinc-700">{holderByVehicle[v.id]}</span>
+                    ) : (
+                      <span className="text-zinc-400">غير مرتبطة</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-zinc-600">{typeName(v.type_slug)}</td>
                   <td className="px-4 py-3">

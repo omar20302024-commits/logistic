@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -45,18 +45,28 @@ export function DriverFormModal({
   open: boolean;
   onClose: () => void;
   driver?: DriverRecord | null;
-  vehicles: { id: string; vehicle_no: string; plate_no: string | null }[];
+  vehicles: { id: string; vehicle_no: string; holder_id: string | null; holder_name: string | null }[];
   onSaved: () => void;
 }) {
   const {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<DriverFormInput, unknown, DriverFormValues>({
     resolver: zodResolver(driverSchema),
     defaultValues: emptyValues,
   });
+
+  // تحويل مطلوب فقط حين تكون السيارة المختارة عند سائق آخر
+  const [transferDate, setTransferDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [transferReason, setTransferReason] = useState("");
+
+  const selectedVehicleId = watch("vehicle_id");
+  const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId);
+  const needsTransfer =
+    !!selectedVehicle?.holder_id && selectedVehicle.holder_id !== driver?.id;
 
   useEffect(() => {
     if (!open) return;
@@ -79,9 +89,18 @@ export function DriverFormModal({
   }, [open, driver, reset]);
 
   const onSubmit = async (values: DriverFormValues) => {
+    if (needsTransfer && !transferReason.trim()) {
+      toast.error("سبب التحويل مطلوب — السيارة مرتبطة بسائق آخر");
+      return;
+    }
+
+    const transfer = needsTransfer
+      ? { date: transferDate, reason: transferReason.trim() }
+      : undefined;
+
     const result = driver
-      ? await updateDriver(driver.id, values)
-      : await createDriver(values);
+      ? await updateDriver(driver.id, values, transfer)
+      : await createDriver(values, transfer);
 
     if (result.error) {
       toast.error(result.error);
@@ -174,12 +193,45 @@ export function DriverFormModal({
               {vehicles.map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.vehicle_no}
-                  {v.plate_no ? ` ()` : ""}
+                  {v.holder_id && v.holder_id !== driver?.id ? ` — مع ${v.holder_name}` : ""}
                 </option>
               ))}
             </select>
-            <p className="text-[11px] text-zinc-400">تُقترَح تلقائياً عند اختياره في رحلة</p>
+            <p className="text-[11px] text-zinc-400">السيارة ترتبط بسائق واحد فقط</p>
           </div>
+
+          {/* يظهر فقط حين تكون السيارة عند سائق آخر — عندها التحويل إجباري */}
+          {needsTransfer && (
+            <div className="col-span-2 flex flex-col gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3">
+              <p className="text-xs text-amber-900">
+                السيارة <strong>{selectedVehicle?.vehicle_no}</strong> مرتبطة حالياً بالسائق{" "}
+                <strong>{selectedVehicle?.holder_name}</strong>. الحفظ سيحوّلها إليه ويفكّها عن
+                السائق السابق، ويُسجَّل ذلك في سجل تحويلات السيارة.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-amber-900">تاريخ التحويل *</label>
+                  <input
+                    type="date"
+                    dir="ltr"
+                    value={transferDate}
+                    onChange={(e) => setTransferDate(e.target.value)}
+                    className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm text-right outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-amber-900">سبب التحويل *</label>
+                  <input
+                    value={transferReason}
+                    onChange={(e) => setTransferReason(e.target.value)}
+                    placeholder="مثال: السائق السابق في إجازة"
+                    className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-zinc-700">تاريخ التعيين</label>
             <input

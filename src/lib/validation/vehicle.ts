@@ -1,12 +1,16 @@
 import { z } from "zod";
 
+// رقم السيارة هو نفسه رقم اللوحة، فخانة واحدة تكفي. عمود plate_no باقٍ في
+// قاعدة البيانات ومعه بياناته القديمة — لم يعد يُكتب إليه ولا يُعرض فقط.
 export const vehicleSchema = z.object({
   vehicle_no: z.string().trim().min(1, "رقم السيارة مطلوب"),
-  plate_no: z.string().trim().optional().or(z.literal("")),
   type_slug: z.string().trim().optional().or(z.literal("")),
   status: z.enum(["active", "inactive", "maintenance"]),
   notes: z.string().trim().optional().or(z.literal("")),
 });
+
+/** النوع الافتراضي لأي سيارة جديدة */
+export const DEFAULT_VEHICLE_TYPE = "diana";
 
 export type VehicleFormInput = z.input<typeof vehicleSchema>;
 export type VehicleFormValues = z.output<typeof vehicleSchema>;
