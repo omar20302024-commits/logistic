@@ -105,6 +105,9 @@ export async function fetchSheetPreview(url: string): Promise<SyncPreviewResult>
 
 export type SyncApplyRow = {
   sourceKey: string;
+  /** عميل موجود في النظام، أو "" لإنشاء عميل جديد باسم clientName */
+  companyId: string;
+  /** الاسم كما في الشيت — يُستعمل للإنشاء فقط حين يكون companyId فارغاً */
   clientName: string;
   date: string;
   fromLocation: string;
@@ -145,7 +148,11 @@ export async function applySheetSync(rows: SyncApplyRow[]): Promise<SyncApplyRes
   );
   let createdCompanies = 0;
 
+  // لا يُنشأ عميل إلا للصفوف التي لم يُربط فيها عميل موجود: تسميات الشيت تختلف
+  // عن تسميات النظام، فالمستخدم يطابقها في المعاينة ولا نكرّر من اختلف اسمه.
   for (const row of rows) {
+    if (row.companyId) continue;
+
     const key = normalizeArabic(row.clientName);
     if (!key || companyByName.has(key)) continue;
 
@@ -243,7 +250,8 @@ export async function applySheetSync(rows: SyncApplyRow[]): Promise<SyncApplyRes
   let createdTrips = 0;
 
   for (const row of rows) {
-    const companyId = companyByName.get(normalizeArabic(row.clientName));
+    // العميل المختار في المعاينة أولاً، وإلا المُنشأ حديثاً باسم الشيت
+    const companyId = row.companyId || companyByName.get(normalizeArabic(row.clientName));
     // السائق المختار في المعاينة أولاً، وإلا المُنشأ حديثاً باسم الشيت
     const driverId = row.driverId || driverByName.get(normalizeArabic(row.driverName));
     if (!companyId || !driverId) {

@@ -9,16 +9,22 @@ export default async function TripsSyncPage() {
   // نفس ما تجلبه شاشة استيراد Excel: المعاينة تحتاج معدَّلات السائقين وخطوط
   // سيرهم لتعرض الترب الحقيقي قبل الاستيراد، وقائمة السواقين لمطابقة الأسماء
   // المختلفة بين الشيت والنظام.
-  const [{ data: settings }, { data: drivers }, { data: routeRates }, { data: globalRouteRates }] =
-    await Promise.all([
-      supabase.from("settings").select("trips_sheet_url").single(),
-      supabase
-        .from("drivers")
-        .select("id, name, default_trip_payment, extra_stop_rate, employment_type")
-        .order("name"),
-      supabase.from("driver_route_rates").select("driver_id, from_city, to_city, trab_amount"),
-      supabase.from("route_rates").select("from_city, to_city, trab_amount"),
-    ]);
+  const [
+    { data: settings },
+    { data: drivers },
+    { data: companies },
+    { data: routeRates },
+    { data: globalRouteRates },
+  ] = await Promise.all([
+    supabase.from("settings").select("trips_sheet_url").single(),
+    supabase
+      .from("drivers")
+      .select("id, name, default_trip_payment, extra_stop_rate, employment_type")
+      .order("name"),
+    supabase.from("companies").select("id, name").order("name"),
+    supabase.from("driver_route_rates").select("driver_id, from_city, to_city, trab_amount"),
+    supabase.from("route_rates").select("from_city, to_city, trab_amount"),
+  ]);
 
   const ratesByDriver = new Map<string, { from_city: string; to_city: string; trab_amount: number }[]>();
   for (const r of routeRates ?? []) {
@@ -59,6 +65,7 @@ export default async function TripsSyncPage() {
       <SheetSyncWorkflow
         initialUrl={(settings?.trips_sheet_url as string | null) ?? ""}
         drivers={driverOptions}
+        companies={(companies ?? []).map((c) => ({ id: c.id as string, name: c.name as string }))}
         globalRouteRates={globalRates}
       />
     </div>

@@ -135,16 +135,16 @@ function parseDate(raw: string): string {
 }
 
 /**
- * حالات الشيت أربع، وحالات النظام أربع — لكنها ليست نفسها.
- * «تم التنزيل» وحدها اكتمال؛ وما عداها الرحلة ما زالت جارية.
+ * الحالة «مكتملة» دائماً بقرار المستخدم — يغيّرها بنفسه في المعاينة عند الحاجة.
+ *
+ * كانت تُشتق من عمود الحالة في الشيت («تم التنزيل» ← مكتملة وما عداها جارية)،
+ * لكن الرحلات تُستورد بعد انتهائها عملياً، فالاشتقاق كان يُدخل أغلبها «قيد
+ * التنفيذ» بلا داعٍ.
+ *
+ * ⚠️ نص الحالة الأصلي يبقى في statusRaw ويُعرض تحت القائمة في المعاينة — فلو
+ *    كتب الشيت يوماً «ملغاة» يراها المستخدم ويغيّرها، لأنها لن تُشتق تلقائياً.
  */
-function mapStatus(raw: string): SheetTripRow["statusMapped"] {
-  const t = normalizeArabic(raw);
-  if (!t) return "in_progress";
-  if (t.startsWith(normalizeArabic("ملغ"))) return "cancelled";
-  if (t === normalizeArabic("تم التنزيل")) return "completed";
-  return "in_progress";
-}
+const DEFAULT_STATUS: SheetTripRow["statusMapped"] = "completed";
 
 // رؤوس الصف السادس كما ترسلها الشركة، ولكلٍّ مرادفات لأن الصياغة تتغيّر
 const HEADERS = {
@@ -251,7 +251,7 @@ export function parseSheetCsv(csv: string): SheetParseResult {
       returnFee: parseMoney(cell(r, col.returnFee)),
       totalPrice: parseMoney(cell(r, col.total)),
       statusRaw,
-      statusMapped: mapStatus(statusRaw),
+      statusMapped: DEFAULT_STATUS,
       requester: cell(r, col.requester),
       notes,
       looksExternal: normalizeArabic(notes).includes(normalizeArabic("خارجي")),

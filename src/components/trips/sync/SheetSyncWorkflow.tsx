@@ -24,11 +24,15 @@ type DriverOption = {
   route_rates: RouteRate[];
 };
 
+type CompanyOption = { id: string; name: string };
+
 type EditableRow = SyncPreviewRow & {
   include: boolean;
   employmentType: "internal" | "external";
   /** سائق موجود في النظام، أو "" لإنشاء جديد باسم الشيت */
   driverId: string;
+  /** عميل موجود في النظام، أو "" لإنشاء جديد باسم الشيت */
+  companyId: string;
   /** الترب الأساسي بعد أن يلمسه المستخدم — null يعني «احسبه من خط السير» */
   basePaymentOverride: number | null;
 };
@@ -36,10 +40,12 @@ type EditableRow = SyncPreviewRow & {
 export function SheetSyncWorkflow({
   initialUrl,
   drivers,
+  companies,
   globalRouteRates = [],
 }: {
   initialUrl: string;
   drivers: DriverOption[];
+  companies: CompanyOption[];
   globalRouteRates?: RouteRate[];
 }) {
   const router = useRouter();
@@ -64,14 +70,18 @@ export function SheetSyncWorkflow({
     // ونطابق اسم الشيت بسائق موجود بالتطبيع العربي، والمستخدم يصحّح ما أخطأ.
     setRows(
       result.rows.map((r) => {
-        const matched = drivers.find(
+        const matchedDriver = drivers.find(
           (d) => normalizeArabic(d.name) === normalizeArabic(r.driverName)
+        );
+        const matchedCompany = companies.find(
+          (c) => normalizeArabic(c.name) === normalizeArabic(r.clientName)
         );
         return {
           ...r,
           include: !r.alreadyImported && !r.needsReview,
           employmentType: r.looksExternal ? "external" : "internal",
-          driverId: matched?.id ?? "",
+          driverId: matchedDriver?.id ?? "",
+          companyId: matchedCompany?.id ?? "",
           basePaymentOverride: null,
         };
       })
@@ -146,6 +156,7 @@ export function SheetSyncWorkflow({
 
     const payload: SyncApplyRow[] = selected.map((r) => ({
       sourceKey: r.sourceKey,
+      companyId: r.companyId,
       clientName: r.clientName,
       date: r.date,
       fromLocation: r.fromLocation,
@@ -290,7 +301,26 @@ export function SheetSyncWorkflow({
                       <td className="px-3 py-2 whitespace-nowrap" dir="ltr">
                         {r.date || <span className="text-red-600">—</span>}
                       </td>
-                      <td className="px-3 py-2">{r.clientName}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-col gap-1">
+                          <select
+                            value={r.companyId}
+                            disabled={r.alreadyImported}
+                            onChange={(e) => updateRow(i, { companyId: e.target.value })}
+                            className="min-w-[130px] rounded border border-zinc-200 px-1.5 py-1 text-xs"
+                          >
+                            <option value="">جديد: {r.clientName}</option>
+                            {companies.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.name}
+                              </option>
+                            ))}
+                          </select>
+                          <span className="text-[10px] text-zinc-400">
+                            في الشيت: {r.clientName || "—"}
+                          </span>
+                        </div>
+                      </td>
                       <td className="px-3 py-2">{r.fromLocation}</td>
                       <td className="px-3 py-2">{r.toLocation}</td>
                       <td className="px-3 py-2">
@@ -411,9 +441,11 @@ export function SheetSyncWorkflow({
           </div>
 
           <p className="text-xs text-zinc-400">
-            اسم السائق في الشيت يُطابَق تلقائياً بسائق في النظام، وتقدر تغيّره — ولن يُنشأ
-            سائق جديد إلا لو تركت الخيار على «جديد». و«نوع السائق» يُقترَح من عمود الملاحظات
-            ويُطبَّق عند الإنشاء فقط؛ السائق الموجود يبقى على نوعه.
+            اسم العميل واسم السائق في الشيت يُطابَقان تلقائياً بما في النظام، وتقدر تغيّر
+            أيّهما — ولن يُنشأ عميل أو سائق جديد إلا لو تركت الخيار على «جديد». و«نوع
+            السائق» يُقترَح من عمود الملاحظات ويُطبَّق عند الإنشاء فقط؛ الموجود يبقى على نوعه.
+            والحالة «مكتملة» تلقائياً — غيّرها من القائمة متى شئت، ونص الحالة في الشيت
+            معروض تحتها.
           </p>
           <p className="text-xs text-zinc-400">
             ترب الرحلة يُملأ من خط سير السائق (الخاص ثم العام) وإلا من تربه الافتراضي، وتقدر
