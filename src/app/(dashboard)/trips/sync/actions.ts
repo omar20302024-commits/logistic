@@ -109,6 +109,9 @@ export type SyncApplyRow = {
   date: string;
   fromLocation: string;
   toLocation: string;
+  /** سائق موجود في النظام، أو "" لإنشاء سائق جديد باسم driverName */
+  driverId: string;
+  /** الاسم كما في الشيت — يُستعمل للإنشاء فقط حين يكون driverId فارغاً */
   driverName: string;
   plateNo: string;
   vehicleTypeName: string;
@@ -122,6 +125,8 @@ export type SyncApplyRow = {
   notes: string;
   /** السائق الجديد يُنشأ بهذا النوع — مقترح من الملاحظات وقابل للتغيير */
   employmentType: "internal" | "external";
+  /** الترب الأساسي كما كتبه المستخدم — صفر يعني «حلّه من خط السير» */
+  basePayment: number;
 };
 
 export type SyncApplyResult =
@@ -173,7 +178,11 @@ export async function applySheetSync(rows: SyncApplyRow[]): Promise<SyncApplyRes
   );
   let createdDrivers = 0;
 
+  // لا يُنشأ سائق إلا للصفوف التي لم يُربط فيها سائق موجود: أسماء الشيت تختلف
+  // عن أسماء النظام، فالمستخدم يطابقها في المعاينة ولا نكرّر من اختلف إملاؤه.
   for (const row of rows) {
+    if (row.driverId) continue;
+
     const key = normalizeArabic(row.driverName);
     if (!key || driverByName.has(key)) continue;
 
@@ -235,7 +244,8 @@ export async function applySheetSync(rows: SyncApplyRow[]): Promise<SyncApplyRes
 
   for (const row of rows) {
     const companyId = companyByName.get(normalizeArabic(row.clientName));
-    const driverId = driverByName.get(normalizeArabic(row.driverName));
+    // السائق المختار في المعاينة أولاً، وإلا المُنشأ حديثاً باسم الشيت
+    const driverId = row.driverId || driverByName.get(normalizeArabic(row.driverName));
     if (!companyId || !driverId) {
       return { ok: false, error: "تعذّر تحديد العميل أو السائق لأحد الصفوف" };
     }
@@ -266,14 +276,18 @@ export async function applySheetSync(rows: SyncApplyRow[]): Promise<SyncApplyRes
         row.branchesCount > 0 ? row.branchesCount : destinationCount(row.toLocation),
       vehicle_type_slug: matchedType?.slug ?? null,
       vehicle_type_label: matchedType?.name ?? (row.vehicleTypeName || null),
-      driver_base_payment: resolveBasePayment(
-        ratesByDriver.get(driverId) ?? [],
-        globalRates,
-        defaultTrab.get(driverId) ?? 0,
-        row.fromLocation,
-        row.toLocation,
-        employmentById.get(driverId) ?? "internal"
-      ),
+      // ما كتبه المستخدم في المعاينة أولاً، وإلا خط السير (خاص ثم عام) ثم
+      // الافتراضي. والمواقع الإضافية يضيفها المشغّل في قاعدة البيانات.
+      driver_base_payment:
+        row.basePayment ||
+        resolveBasePayment(
+          ratesByDriver.get(driverId) ?? [],
+          globalRates,
+          defaultTrab.get(driverId) ?? 0,
+          row.fromLocation,
+          row.toLocation,
+          employmentById.get(driverId) ?? "internal"
+        ),
       diesel_amount: 0,
       requester: row.requester || null,
       status: row.statusMapped,

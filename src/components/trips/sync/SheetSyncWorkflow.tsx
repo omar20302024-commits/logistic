@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { RefreshCw, Loader2, Save, CheckCircle2 } from "lucide-react";
 import { statusLabels } from "@/lib/validation/trip";
+import { normalizeArabic } from "@/lib/arabic";
+import { driverExtraStops, resolveBasePayment, routeUnmatched, type RouteRate } from "@/lib/trip-calc";
 import {
   fetchSheetPreview,
   applySheetSync,
@@ -13,12 +15,33 @@ import {
   type SyncApplyRow,
 } from "@/app/(dashboard)/trips/sync/actions";
 
+type DriverOption = {
+  id: string;
+  name: string;
+  default_trip_payment: number;
+  extra_stop_rate: number;
+  employment_type: "internal" | "external";
+  route_rates: RouteRate[];
+};
+
 type EditableRow = SyncPreviewRow & {
   include: boolean;
   employmentType: "internal" | "external";
+  /** سائق موجود في النظام، أو "" لإنشاء جديد باسم الشيت */
+  driverId: string;
+  /** الترب الأساسي بعد أن يلمسه المستخدم — null يعني «احسبه من خط السير» */
+  basePaymentOverride: number | null;
 };
 
-export function SheetSyncWorkflow({ initialUrl }: { initialUrl: string }) {
+export function SheetSyncWorkflow({
+  initialUrl,
+  drivers,
+  globalRouteRates = [],
+}: {
+  initialUrl: string;
+  drivers: DriverOption[];
+  globalRouteRates?: RouteRate[];
+}) {
   const router = useRouter();
 
   const [url, setUrl] = useState(initialUrl);
@@ -37,13 +60,21 @@ export function SheetSyncWorkflow({ initialUrl }: { initialUrl: string }) {
       return;
     }
 
-    // المستورد سابقاً لا يُحدَّد — المزامنة تُدخل الجديد فقط
+    // المستورد سابقاً لا يُحدَّد — المزامنة تُدخل الجديد فقط.
+    // ونطابق اسم الشيت بسائق موجود بالتطبيع العربي، والمستخدم يصحّح ما أخطأ.
     setRows(
-      result.rows.map((r) => ({
-        ...r,
-        include: !r.alreadyImported && !r.needsReview,
-        employmentType: r.looksExternal ? "external" : "internal",
-      }))
+      result.rows.map((r) => {
+        const matched = drivers.find(
+          (d) => normalizeArabic(d.name) === normalizeArabic(r.driverName)
+        );
+        return {
+          ...r,
+          include: !r.alreadyImported && !r.needsReview,
+          employmentType: r.looksExternal ? "external" : "internal",
+          driverId: matched?.id ?? "",
+          basePaymentOverride: null,
+        };
+      })
     );
     setExistingCount(result.existingCount);
 
@@ -68,6 +99,43 @@ export function SheetSyncWorkflow({ initialUrl }: { initialUrl: string }) {
     setRows((prev) => (prev ? prev.map((r, i) => (i === index ? { ...r, ...patch } : r)) : prev));
   };
 
+  /**
+   * ترب الصف كما سيُحفظ — نفس حساب شاشة استيراد Excel:
+   *   الأساسي  = ما كتبه المستخدم، وإلا خط السير (خاص ثم عام)، وإلا الافتراضي
+   *   الإجمالي = الأساسي + (المواقع الإضافية × معدَّل السائق)
+   * والمواقع تخصم موقعاً عن كل مدينة تنزيل، ومدن التحميل لا تُحسب للسائق.
+   */
+  const calcRow = (r: EditableRow) => {
+    const driver = drivers.find((d) => d.id === r.driverId);
+    const rates = driver?.route_rates ?? [];
+    const applicableGlobal = driver?.employment_type === "external" ? [] : globalRouteRates;
+
+    const base =
+      r.basePaymentOverride ??
+      (driver
+        ? resolveBasePayment(
+            rates,
+            applicableGlobal,
+            driver.default_trip_payment,
+            r.fromLocation,
+            r.toLocation,
+            driver.employment_type
+          )
+        : 0);
+
+    const stops = driverExtraStops(r.branchesCount ?? 0, r.fromLocation, r.toLocation);
+    const extra = stops * (driver?.extra_stop_rate ?? 0);
+
+    return {
+      base,
+      stops,
+      total: base + extra,
+      unmatched: driver
+        ? routeUnmatched(rates, applicableGlobal, r.fromLocation, r.toLocation)
+        : false,
+    };
+  };
+
   const handleApply = async () => {
     if (!rows) return;
     const selected = rows.filter((r) => r.include);
@@ -82,7 +150,10 @@ export function SheetSyncWorkflow({ initialUrl }: { initialUrl: string }) {
       date: r.date,
       fromLocation: r.fromLocation,
       toLocation: r.toLocation,
+      driverId: r.driverId,
       driverName: r.driverName,
+      // صفر يعني «حلّه من خط السير على الخادم»
+      basePayment: r.basePaymentOverride ?? 0,
       plateNo: r.plateNo,
       vehicleTypeName: r.vehicleTypeName,
       baseFare: r.baseFare,
@@ -188,13 +259,16 @@ export function SheetSyncWorkflow({ initialUrl }: { initialUrl: string }) {
                     <th className="px-3 py-3 font-medium">إلى</th>
                     <th className="px-3 py-3 font-medium">الفروع</th>
                     <th className="px-3 py-3 font-medium">السائق</th>
-                    <th className="px-3 py-3 font-medium">النوع</th>
-                    <th className="px-3 py-3 font-medium">الإجمالي</th>
+                    <th className="px-3 py-3 font-medium">ترب الرحلة</th>
+                    <th className="px-3 py-3 font-medium">إجمالي الترب</th>
+                    <th className="px-3 py-3 font-medium">سعر الرحلة</th>
                     <th className="px-3 py-3 font-medium">الحالة</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r, i) => (
+                  {rows.map((r, i) => {
+                    const calc = calcRow(r);
+                    return (
                     <tr
                       key={r.sourceKey}
                       className={`border-b border-zinc-50 ${
@@ -219,35 +293,92 @@ export function SheetSyncWorkflow({ initialUrl }: { initialUrl: string }) {
                       <td className="px-3 py-2">{r.clientName}</td>
                       <td className="px-3 py-2">{r.fromLocation}</td>
                       <td className="px-3 py-2">{r.toLocation}</td>
-                      <td className="px-3 py-2 text-center" dir="ltr">
-                        {r.branchesCount || "—"}
+                      <td className="px-3 py-2">
+                        <input
+                          type="number"
+                          min={0}
+                          dir="ltr"
+                          value={r.branchesCount}
+                          disabled={r.alreadyImported}
+                          onChange={(e) =>
+                            updateRow(i, { branchesCount: Number(e.target.value) || 0 })
+                          }
+                          className="w-14 rounded border border-zinc-200 px-1.5 py-1 text-right text-xs"
+                        />
                       </td>
                       <td className="px-3 py-2">
-                        <div className="flex flex-col">
-                          <span>{r.driverName}</span>
-                          {r.looksExternal && (
-                            <span className="text-[10px] text-amber-700">
-                              الملاحظات تذكر «خارجي»
-                            </span>
+                        <div className="flex flex-col gap-1">
+                          <select
+                            value={r.driverId}
+                            disabled={r.alreadyImported}
+                            onChange={(e) => updateRow(i, { driverId: e.target.value })}
+                            className="min-w-[140px] rounded border border-zinc-200 px-1.5 py-1 text-xs"
+                          >
+                            <option value="">جديد: {r.driverName}</option>
+                            {drivers.map((d) => (
+                              <option key={d.id} value={d.id}>
+                                {d.name}
+                              </option>
+                            ))}
+                          </select>
+
+                          <span className="text-[10px] text-zinc-400">
+                            في الشيت: {r.driverName || "—"}
+                          </span>
+
+                          {/* نوع السائق يُسأل فقط عند الإنشاء — الموجود يبقى على نوعه */}
+                          {!r.driverId && (
+                            <select
+                              value={r.employmentType}
+                              disabled={r.alreadyImported}
+                              onChange={(e) =>
+                                updateRow(i, {
+                                  employmentType: e.target.value as "internal" | "external",
+                                })
+                              }
+                              className={`rounded border px-1.5 py-1 text-[10px] ${
+                                r.looksExternal
+                                  ? "border-amber-300 bg-amber-50"
+                                  : "border-zinc-200"
+                              }`}
+                            >
+                              <option value="internal">يُنشأ: سائق شركة</option>
+                              <option value="external">يُنشأ: مورّد</option>
+                            </select>
                           )}
                         </div>
                       </td>
                       <td className="px-3 py-2">
-                        <select
-                          value={r.employmentType}
+                        <input
+                          type="number"
+                          step="0.01"
+                          dir="ltr"
+                          value={calc.base}
                           disabled={r.alreadyImported}
                           onChange={(e) =>
-                            updateRow(i, {
-                              employmentType: e.target.value as "internal" | "external",
-                            })
+                            updateRow(i, { basePaymentOverride: Number(e.target.value) || 0 })
                           }
-                          className="rounded border border-zinc-200 px-1.5 py-1 text-xs"
-                        >
-                          <option value="internal">سائق شركة</option>
-                          <option value="external">مورّد</option>
-                        </select>
+                          className={`w-20 rounded border px-1.5 py-1 text-right text-xs ${
+                            calc.unmatched ? "border-amber-400 bg-amber-50" : "border-zinc-200"
+                          }`}
+                          title={
+                            calc.unmatched
+                              ? "لم يتطابق أي خط سير — هذا هو الترب الافتراضي"
+                              : undefined
+                          }
+                        />
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap" dir="ltr">
+                        <span className="font-semibold text-zinc-900">
+                          {calc.total.toFixed(2)}
+                        </span>
+                        {calc.stops > 0 && (
+                          <span className="mr-1 text-[10px] text-zinc-400">
+                            (+{calc.stops} موقع)
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-zinc-500" dir="ltr">
                         {r.totalPrice.toFixed(2)}
                       </td>
                       <td className="px-3 py-2">
@@ -272,17 +403,24 @@ export function SheetSyncWorkflow({ initialUrl }: { initialUrl: string }) {
                         )}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </div>
 
           <p className="text-xs text-zinc-400">
-            «نوع السائق» يُقترَح من عمود الملاحظات ويُطبَّق فقط عند إنشاء سائق جديد — السائق
-            الموجود يبقى على نوعه. ورقم اللوحة يُحفظ في ملاحظات الرحلة ولا يُربط بسيارة، لأن
-            ربط السيارة حصري لسائق واحد وربطه تلقائياً قد ينزعها من غيره. الصفوف الملوّنة
-            تحتاج مراجعة.
+            اسم السائق في الشيت يُطابَق تلقائياً بسائق في النظام، وتقدر تغيّره — ولن يُنشأ
+            سائق جديد إلا لو تركت الخيار على «جديد». و«نوع السائق» يُقترَح من عمود الملاحظات
+            ويُطبَّق عند الإنشاء فقط؛ السائق الموجود يبقى على نوعه.
+          </p>
+          <p className="text-xs text-zinc-400">
+            ترب الرحلة يُملأ من خط سير السائق (الخاص ثم العام) وإلا من تربه الافتراضي، وتقدر
+            تكتبه يدوياً. وإجمالي الترب يضيف المواقع الإضافية بمعدَّل السائق بعد خصم موقع عن
+            كل مدينة تنزيل — ومدن التحميل لا تُحسب للسائق. ورقم اللوحة يُحفظ في ملاحظات
+            الرحلة ولا يُربط بسيارة، لأن ربط السيارة حصري لسائق واحد وربطه تلقائياً قد ينزعها
+            من غيره. الصفوف الملوّنة تحتاج مراجعة.
           </p>
         </>
       )}
