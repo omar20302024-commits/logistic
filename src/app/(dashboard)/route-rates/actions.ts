@@ -18,7 +18,9 @@ export type RouteSuggestion = {
   from_city: string;
   to_city: string;
   suggested_trab: number;
-  drivers_count: number;
+  /** عدد الرحلات المسجَّلة على هذا الخط (0038) */
+  trips_count: number;
+  /** كم رحلة منها بترب مخالف للمقترح */
   differing: number;
   already_global: boolean;
 };
@@ -130,7 +132,7 @@ export async function suggestRouteRates(): Promise<
   const { data, error } = await supabase.rpc("fn_suggest_route_rates");
 
   if (error) {
-    return { ok: false, error: "تعذّر قراءة الاقتراحات — تأكد من تشغيل ملف SQL رقم 0035" };
+    return { ok: false, error: "تعذّر قراءة الاقتراحات — تأكد من تشغيل ملف SQL رقم 0038" };
   }
 
   return {
@@ -139,31 +141,63 @@ export async function suggestRouteRates(): Promise<
       from_city: r.from_city as string,
       to_city: r.to_city as string,
       suggested_trab: Number(r.suggested_trab) || 0,
-      drivers_count: Number(r.drivers_count) || 0,
+      trips_count: Number(r.trips_count) || 0,
       differing: Number(r.differing) || 0,
       already_global: Boolean(r.already_global),
     })),
   };
 }
 
-/** اعتماد الاقتراحات المختارة — لا تلمس ما هو مسجَّل عاماً بالفعل */
+/**
+ * اعتماد الاقتراحات المختارة.
+ *
+ * ⚠️ الاقتراحات تأتي من مواقع الرحلات وهي نص حر، فاحتمال اختلاف الإملاء عالٍ
+ *    («جدة» و«جده»). والفريد في قاعدة البيانات على النص الحرفي، فالاثنان يمرّان
+ *    كصفّين ويفوز أحدهما عشوائياً وقت المطابقة. نستبعد المكرر مطبَّعاً هنا —
+ *    مسار الإضافة الفردية يفحصه أصلاً، وهذا المسار كان يتخطّاه.
+ */
 export async function applyRouteSuggestions(
   rows: { from_city: string; to_city: string; trab_amount: number }[]
-): Promise<ActionResult> {
+): Promise<ActionResult & { inserted?: number; skipped?: number }> {
   if (rows.length === 0) return { error: "لم تختر أي خط سير" };
 
   const supabase = await createClient();
-  const { error } = await supabase.from("route_rates").upsert(
-    rows.map((r) => ({
-      from_city: r.from_city,
-      to_city: r.to_city,
+
+  const { data: existing } = await supabase.from("route_rates").select("from_city, to_city");
+  const seen = new Set(
+    (existing ?? []).map(
+      (r) => `${normalizeArabic(r.from_city as string)}|${normalizeArabic(r.to_city as string)}`
+    )
+  );
+
+  const toInsert: typeof rows = [];
+  let skipped = 0;
+
+  for (const r of rows) {
+    const key = `${normalizeArabic(r.from_city)}|${normalizeArabic(r.to_city)}`;
+    // المسجَّل عاماً لا يُدهَس، والمكرر داخل الاختيار نفسه يُؤخذ أوّله فقط
+    if (seen.has(key)) {
+      skipped += 1;
+      continue;
+    }
+    seen.add(key);
+    toInsert.push(r);
+  }
+
+  if (toInsert.length === 0) {
+    return { error: "كل ما اخترته مسجَّل بالفعل (أو مكرر بإملاء مختلف)" };
+  }
+
+  const { error } = await supabase.from("route_rates").insert(
+    toInsert.map((r) => ({
+      from_city: r.from_city.trim(),
+      to_city: r.to_city.trim(),
       trab_amount: Number(r.trab_amount) || 0,
-    })),
-    { onConflict: "from_city,to_city" }
+    }))
   );
 
   if (error) return { error: "تعذّر اعتماد الاقتراحات" };
 
   revalidatePath("/route-rates");
-  return { error: null };
+  return { error: null, inserted: toInsert.length, skipped };
 }

@@ -128,7 +128,10 @@ export function RouteRatesManager({
       toast.error(result.error);
       return;
     }
-    toast.success(`تم اعتماد ${rows.length} خط سير`);
+    toast.success(
+      `تم اعتماد ${result.inserted ?? rows.length} خط سير` +
+        (result.skipped ? ` — وتُخطّي ${result.skipped} مسجَّل أو مكرر بإملاء مختلف` : "")
+    );
     setSuggestOpen(false);
     router.refresh();
   };
@@ -146,7 +149,7 @@ export function RouteRatesManager({
             onClick={openSuggestions}
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
           >
-            <Wand2 size={15} /> اقترح من خطوط سير السواقين
+            <Wand2 size={15} /> اقترح من الرحلات
           </button>
           <button
             type="button"
@@ -163,7 +166,7 @@ export function RouteRatesManager({
           <EmptyState
             icon={Route}
             title="لا توجد خطوط سير عامة"
-            description="أضف خط سير واحداً يسري على كل السواقين، أو اضغط «اقترح من خطوط سير السواقين» لبنائها من المسجَّل فعلاً"
+            description="أضف خط سير واحداً يسري على كل السواقين، أو اضغط «اقترح من الرحلات» لبنائها من خطوط الرحلات المسجَّلة فعلاً"
           />
         ) : (
           <div className="overflow-x-auto">
@@ -296,8 +299,9 @@ export function RouteRatesManager({
         ) : (
           <div className="flex flex-col gap-3">
             <p className="text-xs text-zinc-500">
-              السعر المقترح هو الأكثر تكراراً بين سائقي الشركة لكل خط سير. راجعه وعدّله بعد
-              الاعتماد إن لزم. خطوط السير الخاصة بالسواقين تبقى كما هي وتظل تغلب العام.
+              الخطوط مأخوذة من الرحلات المسجَّلة فعلاً (التحميل ← التنزيل) لسائقي الشركة،
+              والترب المقترح هو الأكثر تكراراً على كل خط. راجعه وعدّله بعد الاعتماد إن لزم.
+              خطوط السير الخاصة بالسواقين تبقى كما هي وتظل تغلب العام.
             </p>
 
             <div className="max-h-80 overflow-y-auto rounded-xl border border-zinc-200">
@@ -308,7 +312,7 @@ export function RouteRatesManager({
                     <th className="px-3 py-2 font-medium">من</th>
                     <th className="px-3 py-2 font-medium">إلى</th>
                     <th className="px-3 py-2 font-medium">المقترح</th>
-                    <th className="px-3 py-2 font-medium">سواقين</th>
+                    <th className="px-3 py-2 font-medium">رحلات</th>
                     <th className="px-3 py-2 font-medium">يختلفون</th>
                   </tr>
                 </thead>
@@ -331,12 +335,12 @@ export function RouteRatesManager({
                           {formatCurrency(s.suggested_trab, currencySymbol)}
                         </td>
                         <td className="px-3 py-2 text-zinc-500" dir="ltr">
-                          {formatNumber(s.drivers_count)}
+                          {formatNumber(s.trips_count)}
                         </td>
                         <td className="px-3 py-2">
                           {s.differing > 0 ? (
                             <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] text-amber-700">
-                              {formatNumber(s.differing)} بسعر آخر
+                              {formatNumber(s.differing)} بترب آخر
                             </span>
                           ) : (
                             <span className="text-zinc-300">—</span>
