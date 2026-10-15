@@ -16,6 +16,7 @@ import {
   UserCog,
   Upload,
   Route,
+  RefreshCw,
 } from "lucide-react";
 
 export type NavItem = {
@@ -42,6 +43,7 @@ export const navGroups: NavGroup[] = [
       { label: "الشركات", href: "/companies", icon: Building2 },
       { label: "الرحلات", href: "/trips", icon: Truck },
       { label: "استيراد رحلات (Excel)", href: "/trips/import", icon: Upload },
+      { label: "مزامنة جوجل شيت", href: "/trips/sync", icon: RefreshCw },
       { label: "الرواتب", href: "/salaries", icon: Wallet },
       { label: "عقود الإيجار الشهري", href: "/rentals", icon: Home },
       { label: "وحدات السكن", href: "/rentals/housing", icon: Home },
