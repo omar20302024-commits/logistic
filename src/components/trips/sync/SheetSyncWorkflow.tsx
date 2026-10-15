@@ -202,6 +202,42 @@ export function SheetSyncWorkflow({
   const selectedCount = rows?.filter((r) => r.include).length ?? 0;
   const newRows = rows?.filter((r) => !r.alreadyImported).length ?? 0;
 
+  /** صف قابل للتحديد: لم يُستورد سابقاً */
+  const selectable = (r: EditableRow) => !r.alreadyImported;
+  const selectableCount = rows?.filter(selectable).length ?? 0;
+  const allSelected = selectableCount > 0 && selectedCount === selectableCount;
+
+  const toggleAll = () => {
+    setRows((prev) =>
+      prev ? prev.map((r) => (selectable(r) ? { ...r, include: !allSelected } : r)) : prev
+    );
+  };
+
+  /** تحديد كل صفوف عميل بعينه كما كُتب في الشيت — «عنوان القهوة» وحدها 22 صفاً */
+  const selectByClient = (clientName: string) => {
+    setRows((prev) =>
+      prev
+        ? prev.map((r) =>
+            selectable(r) ? { ...r, include: r.clientName === clientName } : r
+          )
+        : prev
+    );
+  };
+
+  /** تطبيق عميل واحد على كل الصفوف المحدَّدة دفعة واحدة */
+  const applyCompanyToSelected = (companyId: string) => {
+    setRows((prev) =>
+      prev ? prev.map((r) => (r.include && selectable(r) ? { ...r, companyId } : r)) : prev
+    );
+    const name = companies.find((c) => c.id === companyId)?.name;
+    toast.success(`تم تعيين «${name ?? "عميل جديد"}» لـ ${selectedCount} صفاً`);
+  };
+
+  // أسماء العملاء كما وردت في الشيت، لاختصار التحديد
+  const clientNames = Array.from(
+    new Set((rows ?? []).filter(selectable).map((r) => r.clientName).filter(Boolean))
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
@@ -257,12 +293,76 @@ export function SheetSyncWorkflow({
             </button>
           </div>
 
+          {/* تعيين جماعي: تسمية الشيت تختلف عن تسمية النظام، وعميل واحد قد
+              يتكرّر في عشرات الصفوف — فتغييره صفاً صفاً إرهاق بلا داعٍ */}
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm">
+            <span className="font-medium text-zinc-700">تعيين جماعي</span>
+
+            {clientNames.length > 1 && (
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs text-zinc-500">حدّد فقط صفوف</label>
+                <select
+                  defaultValue=""
+                  onChange={(e) => {
+                    if (e.target.value) selectByClient(e.target.value);
+                    e.target.value = "";
+                  }}
+                  className="rounded-lg border border-zinc-300 px-2.5 py-1.5 text-xs outline-none focus:border-zinc-900"
+                >
+                  <option value="">— عميل الشيت —</option>
+                  {clientNames.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="flex items-center gap-1.5">
+              <label className="text-xs text-zinc-500">اجعل عميلهم</label>
+              <select
+                defaultValue=""
+                disabled={selectedCount === 0}
+                onChange={(e) => {
+                  if (e.target.value) applyCompanyToSelected(e.target.value);
+                  e.target.value = "";
+                }}
+                className="min-w-[150px] rounded-lg border border-zinc-300 px-2.5 py-1.5 text-xs outline-none focus:border-zinc-900 disabled:opacity-50"
+              >
+                <option value="">— اختر العميل —</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <span className="text-xs text-zinc-500">
+              يُطبَّق على <strong>{selectedCount}</strong> صفاً محدَّداً
+            </span>
+
+            <span className="mr-auto text-[11px] text-zinc-400">
+              «حدّد فقط» تُلغي تحديد الباقي — وما فاتك يظهر كجديد في المزامنة القادمة
+            </span>
+          </div>
+
           <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-zinc-100 text-right text-xs text-zinc-500">
-                    <th className="px-3 py-3 font-medium"></th>
+                    <th className="px-3 py-3 font-medium">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        disabled={selectableCount === 0}
+                        onChange={toggleAll}
+                        title={allSelected ? "إلغاء تحديد الكل" : "تحديد الكل"}
+                        className="h-4 w-4 rounded border-zinc-300"
+                      />
+                    </th>
                     <th className="px-3 py-3 font-medium">#</th>
                     <th className="px-3 py-3 font-medium">التاريخ</th>
                     <th className="px-3 py-3 font-medium">العميل</th>
