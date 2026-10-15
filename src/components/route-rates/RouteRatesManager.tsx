@@ -94,12 +94,9 @@ export function RouteRatesManager({
       return;
     }
     setSuggestions(result.rows);
-    // المسجَّل عاماً بالفعل لا يُحدَّد — لا نريد الكتابة فوق قرار سابق بلا طلب
-    setPicked(
-      new Set(
-        result.rows.filter((r) => !r.already_global).map((r) => `${r.from_city}|${r.to_city}`)
-      )
-    );
+    // لا شيء محدَّد ابتداءً: الاقتراحات قد تبلغ المئات، وتحديدها كلها سلفاً يجعل
+    // ضغطة واحدة تضيفها جميعاً بلا مراجعة. المستخدم يختار ما يريد.
+    setPicked(new Set());
   };
 
   const toggle = (key: string) => {
@@ -109,6 +106,19 @@ export function RouteRatesManager({
       else next.add(key);
       return next;
     });
+  };
+
+  // المسجَّل عاماً لا يُحدَّد — موجود أصلاً ولن يُكتب فوقه
+  const selectableSuggestions = suggestions.filter((s) => !s.already_global);
+  const allSuggestionsPicked =
+    selectableSuggestions.length > 0 && picked.size === selectableSuggestions.length;
+
+  const toggleAllSuggestions = () => {
+    setPicked(
+      allSuggestionsPicked
+        ? new Set()
+        : new Set(selectableSuggestions.map((s) => `${s.from_city}|${s.to_city}`))
+    );
   };
 
   const handleApply = async () => {
@@ -304,11 +314,26 @@ export function RouteRatesManager({
               خطوط السير الخاصة بالسواقين تبقى كما هي وتظل تغلب العام.
             </p>
 
+            <p className="text-xs text-zinc-500">
+              <strong>{formatNumber(selectableSuggestions.length)}</strong> خط سير قابل
+              للإضافة من <strong>{formatNumber(suggestions.length)}</strong> — والمسجَّل عاماً
+              يظهر باهتاً ولا يُحدَّد. استعمل مربّع الرأس لتحديد الكل أو إلغائه.
+            </p>
+
             <div className="max-h-80 overflow-y-auto rounded-xl border border-zinc-200">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-zinc-50">
                   <tr className="border-b border-zinc-200 text-right text-xs text-zinc-500">
-                    <th className="px-3 py-2 font-medium"></th>
+                    <th className="px-3 py-2 font-medium">
+                      <input
+                        type="checkbox"
+                        checked={allSuggestionsPicked}
+                        disabled={selectableSuggestions.length === 0}
+                        onChange={toggleAllSuggestions}
+                        title={allSuggestionsPicked ? "إلغاء تحديد الكل" : "تحديد الكل"}
+                        className="h-4 w-4 rounded border-zinc-300"
+                      />
+                    </th>
                     <th className="px-3 py-2 font-medium">من</th>
                     <th className="px-3 py-2 font-medium">إلى</th>
                     <th className="px-3 py-2 font-medium">المقترح</th>
@@ -320,11 +345,17 @@ export function RouteRatesManager({
                   {suggestions.map((s) => {
                     const key = `${s.from_city}|${s.to_city}`;
                     return (
-                      <tr key={key} className="border-b border-zinc-50">
+                      <tr
+                        key={key}
+                        className={`border-b border-zinc-50 ${
+                          s.already_global ? "opacity-40" : ""
+                        }`}
+                      >
                         <td className="px-3 py-2">
                           <input
                             type="checkbox"
                             checked={picked.has(key)}
+                            disabled={s.already_global}
                             onChange={() => toggle(key)}
                             className="h-4 w-4 rounded border-zinc-300"
                           />
