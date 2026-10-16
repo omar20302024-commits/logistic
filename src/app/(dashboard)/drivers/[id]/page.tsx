@@ -6,6 +6,7 @@ import { formatCurrency, formatNumber } from "@/lib/format";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LedgerSection } from "@/components/drivers/LedgerSection";
 import { CustodySection } from "@/components/drivers/CustodySection";
+import { DieselSection } from "@/components/drivers/DieselSection";
 import { RouteRatesSection } from "@/components/drivers/RouteRatesSection";
 import { SettlementsSection } from "@/components/drivers/SettlementsSection";
 import { LeavesSection } from "@/components/drivers/LeavesSection";
@@ -62,8 +63,13 @@ export default async function DriverDetailPage({
     total_due_to_driver: 0,
   };
 
-  const [{ data: advances }, { data: deductions }, { data: custodyEntries }, { data: routeRates }] =
-    await Promise.all([
+  const [
+    { data: advances },
+    { data: deductions },
+    { data: custodyEntries },
+    { data: routeRates },
+    { data: dieselEntries },
+  ] = await Promise.all([
       supabase
         .from("driver_advances")
         .select("*")
@@ -84,6 +90,13 @@ export default async function DriverDetailPage({
         .select("*")
         .eq("driver_id", id)
         .order("from_city"),
+      // تفويلات الديزل (0039) — آخر 100 تكفي للمراجعة بلا إثقال الصفحة
+      supabase
+        .from("driver_diesel_entries")
+        .select("id, date, amount, reference, notes")
+        .eq("driver_id", id)
+        .order("date", { ascending: false })
+        .limit(100),
     ]);
 
   // رحلات السائق: لربط مصروفاته برحلة، ولاختيار ما يُصفّى
@@ -239,6 +252,12 @@ export default async function DriverDetailPage({
         driverId={id}
         driverName={driver.name}
         settlements={settlements ?? []}
+        currencySymbol={currencySymbol}
+      />
+
+      <DieselSection
+        driverId={id}
+        entries={dieselEntries ?? []}
         currencySymbol={currencySymbol}
       />
 
