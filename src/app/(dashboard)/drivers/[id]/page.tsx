@@ -7,6 +7,8 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { LedgerSection } from "@/components/drivers/LedgerSection";
 import { CustodySection } from "@/components/drivers/CustodySection";
 import { DieselSection } from "@/components/drivers/DieselSection";
+import { OilChangeSection } from "@/components/drivers/OilChangeSection";
+import { OIL_CATEGORY } from "@/lib/validation/expense";
 import { RouteRatesSection } from "@/components/drivers/RouteRatesSection";
 import { SettlementsSection } from "@/components/drivers/SettlementsSection";
 import { LeavesSection } from "@/components/drivers/LeavesSection";
@@ -69,6 +71,7 @@ export default async function DriverDetailPage({
     { data: custodyEntries },
     { data: routeRates },
     { data: dieselEntries },
+    { data: oilChanges },
   ] = await Promise.all([
       supabase
         .from("driver_advances")
@@ -95,6 +98,14 @@ export default async function DriverDetailPage({
         .from("driver_diesel_entries")
         .select("id, date, amount, reference, notes")
         .eq("driver_id", id)
+        .order("date", { ascending: false })
+        .limit(100),
+      // تغيير الزيت (0040) — مصروفات الشركة المربوطة بهذا السائق
+      supabase
+        .from("expenses")
+        .select("id, date, amount, notes")
+        .eq("driver_id", id)
+        .eq("category", OIL_CATEGORY)
         .order("date", { ascending: false })
         .limit(100),
     ]);
@@ -258,6 +269,12 @@ export default async function DriverDetailPage({
       <DieselSection
         driverId={id}
         entries={dieselEntries ?? []}
+        currencySymbol={currencySymbol}
+      />
+
+      <OilChangeSection
+        driverId={id}
+        entries={oilChanges ?? []}
         currencySymbol={currencySymbol}
       />
 

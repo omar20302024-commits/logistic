@@ -10,3 +10,11 @@ export const expenseSchema = z.object({
 
 export type ExpenseFormInput = z.input<typeof expenseSchema>;
 export type ExpenseFormValues = z.output<typeof expenseSchema>;
+
+/**
+ * بند مصروف تغيير الزيت (0040).
+ *
+ * خارج ملف الإجراءات عن قصد: ملف "use server" لا يصدّر إلا دوال async، فتصدير
+ * ثابت منه يكسر البناء.
+ */
+export const OIL_CATEGORY = "تغيير زيت";
