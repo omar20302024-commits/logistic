@@ -9,6 +9,7 @@ import { CustodySection } from "@/components/drivers/CustodySection";
 import { DieselSection } from "@/components/drivers/DieselSection";
 import { OilChangeSection } from "@/components/drivers/OilChangeSection";
 import { OIL_CATEGORY } from "@/lib/validation/expense";
+import type { DieselOverlap } from "@/app/(dashboard)/drivers/diesel-actions";
 import { RouteRatesSection } from "@/components/drivers/RouteRatesSection";
 import { SettlementsSection } from "@/components/drivers/SettlementsSection";
 import { LeavesSection } from "@/components/drivers/LeavesSection";
@@ -73,6 +74,7 @@ export default async function DriverDetailPage({
     { data: dieselEntries },
     { data: oilChanges },
     { data: monthlyDiesel },
+    { data: dieselOverlapsRaw },
   ] = await Promise.all([
       supabase
         .from("driver_advances")
@@ -97,7 +99,7 @@ export default async function DriverDetailPage({
       // تفويلات الديزل (0039) — آخر 100 تكفي للمراجعة بلا إثقال الصفحة
       supabase
         .from("driver_diesel_entries")
-        .select("id, date, amount, reference, notes")
+        .select("id, date, to_date, amount, reference, notes")
         .eq("driver_id", id)
         .order("date", { ascending: false })
         .limit(100),
@@ -111,6 +113,8 @@ export default async function DriverDetailPage({
         .limit(100),
       // الديزل الشهري: المصدر الذي يُخصم من الربح، وتغذّيه تفويلات 0039
       supabase.from("driver_monthly_diesel").select("amount").eq("driver_id", id),
+      // ازدواج الديزل: شهور فيها ديزل رحلات وديزل شهري معاً (0041)
+      supabase.rpc("fn_driver_diesel_overlap", { p_driver_id: id }),
     ]);
 
   // كرت «إجمالي الديزل» كان يقرأ trips.diesel_amount وحده — أي الديزل القديم
@@ -282,7 +286,7 @@ export default async function DriverDetailPage({
       <DieselSection
         driverId={id}
         entries={dieselEntries ?? []}
-        legacyTripDiesel={Number(s.total_diesel) || 0}
+        overlaps={(dieselOverlapsRaw ?? []) as DieselOverlap[]}
         currencySymbol={currencySymbol}
       />
 

@@ -11,25 +11,32 @@ import {
   createDieselEntry,
   updateDieselEntry,
   deleteDieselEntry,
+  zeroTripDieselForMonth,
   type DieselEntryRecord,
+  type DieselOverlap,
 } from "@/app/(dashboard)/drivers/diesel-actions";
+
+const MONTHS = [
+  "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+  "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+];
 
 export function DieselSection({
   driverId,
   entries,
-  legacyTripDiesel = 0,
+  overlaps,
   currencySymbol,
 }: {
   driverId: string;
   entries: DieselEntryRecord[];
   /**
-   * ديزل قديم مسجَّل على رحلات هذا السائق (trips.diesel_amount).
+   * شهور اجتمع فيها ديزل رحلات قديم وديزل شهري — ازدواج حقيقي يُخصم مرتين.
    *
-   * الحقل لم يعد يُدخل من نموذج الرحلة، لكن الرحلات القديمة قد تحمله —
-   * والربح يخصمه **بالإضافة** للديزل هنا. فإن وُجد، يُعرض تنبيه: كان حارس
-   * الازدواج في صفحة الديزل الشهري قبل حذفها، ومكانه الآن حيث يُراجَع فعلاً.
+   * قياسٌ شهرٌ بشهر لا على الإجمالي: النسخة الأولى كانت تنذر لأي سائق عليه
+   * رقم قديم حتى بلا ازدواج، وكانت تطلب تصفيره من نموذج الرحلة — وهو لا يحوي
+   * حقل ديزل أصلاً، فكانت نصيحة لا تُنفَّذ. الزر هنا هو السبيل الوحيد.
    */
-  legacyTripDiesel?: number;
+  overlaps: DieselOverlap[];
   currencySymbol: string;
 }) {
   const router = useRouter();
@@ -40,14 +47,29 @@ export function DieselSection({
   const [saving, setSaving] = useState(false);
 
   const [date, setDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [amount, setAmount] = useState("");
   const [reference, setReference] = useState("");
+  const [zeroing, setZeroing] = useState<DieselOverlap | null>(null);
+
+  const handleZero = async () => {
+    if (!zeroing) return;
+    const result = await zeroTripDieselForMonth(driverId, zeroing.year, zeroing.month);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("تم تصفير ديزل الرحلات لذلك الشهر");
+    setZeroing(null);
+    router.refresh();
+  };
 
   const total = entries.reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
   const openForm = (entry: DieselEntryRecord | null) => {
     setEditing(entry);
     setDate(entry?.date ?? new Date().toISOString().slice(0, 10));
+    setToDate(entry?.to_date ?? "");
     setAmount(entry ? String(entry.amount) : "");
     setReference(entry?.reference ?? "");
     setFormOpen(true);
@@ -55,7 +77,7 @@ export function DieselSection({
 
   const handleSave = async () => {
     setSaving(true);
-    const payload = { date, amount: Number(amount) || 0, reference };
+    const payload = { date, toDate: toDate || null, amount: Number(amount) || 0, reference };
     const result = editing
       ? await updateDieselEntry(driverId, editing.id, payload)
       : await createDieselEntry(driverId, payload);
@@ -103,12 +125,36 @@ export function DieselSection({
         </button>
       </div>
 
-      {legacyTripDiesel > 0 && (
-        <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-          <strong>تنبيه ازدواج:</strong> هذا السائق عليه ديزل قديم مسجَّل على رحلاته بقيمة{" "}
-          <strong dir="ltr">{formatCurrency(legacyTripDiesel, currencySymbol)}</strong> — والربح
-          يخصمه <strong>بالإضافة</strong> لما تسجّله هنا. فلو كانت التفويلات أدناه تغطي نفس
-          الوقود، صفّر ديزل تلك الرحلات من صفحة الرحلة حتى لا يُخصم مرتين.
+      {overlaps.length > 0 && (
+        <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+          <p className="mb-2">
+            <strong>ازدواج ديزل:</strong> الشهور التالية فيها ديزل مسجَّل على الرحلات
+            <strong> و</strong> ديزل شهري معاً — والربح يخصم الاثنين. لو كانا لنفس الوقود،
+            صفّر ديزل الرحلات القديمة.
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {overlaps.map((o) => (
+              <div
+                key={`${o.year}-${o.month}`}
+                className="flex flex-wrap items-center gap-2 rounded bg-white/70 px-2.5 py-1.5"
+              >
+                <span className="font-medium">
+                  {MONTHS[o.month - 1]} {o.year}
+                </span>
+                <span dir="ltr">
+                  الرحلات {formatCurrency(o.trips_diesel, currencySymbol)} · الشهري{" "}
+                  {formatCurrency(o.monthly_diesel, currencySymbol)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setZeroing(o)}
+                  className="mr-auto rounded border border-amber-400 px-2 py-1 text-[11px] font-medium hover:bg-amber-100"
+                >
+                  صفّر ديزل الرحلات
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -131,7 +177,7 @@ export function DieselSection({
               {entries.map((e) => (
                 <tr key={e.id}>
                   <td className="py-2 whitespace-nowrap text-zinc-700" dir="ltr">
-                    {e.date}
+                    {e.to_date ? `${e.date} ← ${e.to_date}` : e.date}
                   </td>
                   <td className="py-2 whitespace-nowrap font-medium text-zinc-900" dir="ltr">
                     {formatCurrency(e.amount, currencySymbol)}
@@ -203,6 +249,21 @@ export function DieselSection({
           </div>
 
           <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-zinc-700">إلى تاريخ (اختياري)</label>
+            <input
+              type="date"
+              dir="ltr"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-right outline-none focus:border-zinc-900"
+            />
+            <p className="text-[11px] text-zinc-400">
+              اتركه فارغاً لتفويلة بتاريخ واحد، أو املأه لاستهلاك فترة — مثل 1‏/10 إلى
+              15‏/10 بمبلغ واحد. ويجب أن تكون الفترة داخل شهر واحد.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-zinc-700">المرجع</label>
             <input
               value={reference}
@@ -243,6 +304,19 @@ export function DieselSection({
         onConfirm={handleDelete}
         title="حذف التفويلة"
         description={`ستُحذف تفويلة ${deleting?.date ?? ""} ويُعاد حساب مجموع الشهر تلقائياً.`}
+      />
+
+      <ConfirmDialog
+        open={!!zeroing}
+        onClose={() => setZeroing(null)}
+        onConfirm={handleZero}
+        title="تصفير ديزل الرحلات"
+        description={
+          zeroing
+            ? `سيُصفَّر حقل الديزل على كل رحلات هذا السائق في ${MONTHS[zeroing.month - 1]} ${zeroing.year} — ${formatCurrency(zeroing.trips_diesel, currencySymbol)}. يبقى الديزل الشهري كما هو، ولا تتأثر أي بيانات أخرى في الرحلة.`
+            : ""
+        }
+        confirmLabel="تصفير"
       />
     </div>
   );
