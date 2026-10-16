@@ -17,10 +17,19 @@ import {
 export function DieselSection({
   driverId,
   entries,
+  legacyTripDiesel = 0,
   currencySymbol,
 }: {
   driverId: string;
   entries: DieselEntryRecord[];
+  /**
+   * ديزل قديم مسجَّل على رحلات هذا السائق (trips.diesel_amount).
+   *
+   * الحقل لم يعد يُدخل من نموذج الرحلة، لكن الرحلات القديمة قد تحمله —
+   * والربح يخصمه **بالإضافة** للديزل هنا. فإن وُجد، يُعرض تنبيه: كان حارس
+   * الازدواج في صفحة الديزل الشهري قبل حذفها، ومكانه الآن حيث يُراجَع فعلاً.
+   */
+  legacyTripDiesel?: number;
   currencySymbol: string;
 }) {
   const router = useRouter();
@@ -93,6 +102,15 @@ export function DieselSection({
           <Plus size={15} /> تفويلة
         </button>
       </div>
+
+      {legacyTripDiesel > 0 && (
+        <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          <strong>تنبيه ازدواج:</strong> هذا السائق عليه ديزل قديم مسجَّل على رحلاته بقيمة{" "}
+          <strong dir="ltr">{formatCurrency(legacyTripDiesel, currencySymbol)}</strong> — والربح
+          يخصمه <strong>بالإضافة</strong> لما تسجّله هنا. فلو كانت التفويلات أدناه تغطي نفس
+          الوقود، صفّر ديزل تلك الرحلات من صفحة الرحلة حتى لا يُخصم مرتين.
+        </div>
+      )}
 
       {entries.length === 0 ? (
         <p className="rounded-lg bg-zinc-50 px-3 py-2.5 text-xs text-zinc-500">

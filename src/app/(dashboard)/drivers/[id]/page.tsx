@@ -282,6 +282,7 @@ export default async function DriverDetailPage({
       <DieselSection
         driverId={id}
         entries={dieselEntries ?? []}
+        legacyTripDiesel={Number(s.total_diesel) || 0}
         currencySymbol={currencySymbol}
       />
 
