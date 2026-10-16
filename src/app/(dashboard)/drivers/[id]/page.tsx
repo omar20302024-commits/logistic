@@ -72,6 +72,7 @@ export default async function DriverDetailPage({
     { data: routeRates },
     { data: dieselEntries },
     { data: oilChanges },
+    { data: monthlyDiesel },
   ] = await Promise.all([
       supabase
         .from("driver_advances")
@@ -108,7 +109,19 @@ export default async function DriverDetailPage({
         .eq("category", OIL_CATEGORY)
         .order("date", { ascending: false })
         .limit(100),
+      // الديزل الشهري: المصدر الذي يُخصم من الربح، وتغذّيه تفويلات 0039
+      supabase.from("driver_monthly_diesel").select("amount").eq("driver_id", id),
     ]);
+
+  // كرت «إجمالي الديزل» كان يقرأ trips.diesel_amount وحده — أي الديزل القديم
+  // المسجَّل على الرحلة — فلا يرى قسم الديزل إطلاقاً. والربح يخصم الاثنين معاً
+  // (ديزل الرحلة داخل trip_profit، والشهري عبر fn_monthly_diesel_total)،
+  // فالكرت يجمعهما ليطابق ما يُخصم فعلاً.
+  const monthlyDieselTotal = (monthlyDiesel ?? []).reduce(
+    (sum, r) => sum + (Number(r.amount) || 0),
+    0
+  );
+  const companyDieselTotal = Number(s.total_diesel || 0) + monthlyDieselTotal;
 
   // رحلات السائق: لربط مصروفاته برحلة، ولاختيار ما يُصفّى
   const { data: driverTrips } = await supabase
@@ -204,7 +217,7 @@ export default async function DriverDetailPage({
           />
           <StatCard
             label="إجمالي الديزل"
-            value={formatCurrency(s.total_diesel, currencySymbol)}
+            value={formatCurrency(companyDieselTotal, currencySymbol)}
             icon={Fuel}
             tone="warning"
           />
