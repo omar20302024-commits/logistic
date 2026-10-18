@@ -11,6 +11,8 @@ import {
   fetchSheetPreview,
   applySheetSync,
   saveSheetUrl,
+  dismissSheetRows,
+  undismissSheetRows,
   type SyncPreviewRow,
   type SyncApplyRow,
 } from "@/app/(dashboard)/trips/sync/actions";
@@ -56,6 +58,13 @@ export function SheetSyncWorkflow({
   const [rows, setRows] = useState<EditableRow[] | null>(null);
   const [existingCount, setExistingCount] = useState(0);
 
+  // الشيت يُقرأ كاملاً في كل مرة — ولا بديل، فتصدير CSV لا يقبل نطاقاً. لكن
+  // عرض كل الرحلات منذ البداية يجعل الصفحة لا تنتهي، فالفلترة هنا على العرض.
+  const [showImported, setShowImported] = useState(false);
+  const [showDismissed, setShowDismissed] = useState(false);
+  const [fromFilter, setFromFilter] = useState("");
+  const [toFilter, setToFilter] = useState("");
+
   const handleFetch = async () => {
     setLoading(true);
     const result = await fetchSheetPreview(url);
@@ -78,7 +87,7 @@ export function SheetSyncWorkflow({
         );
         return {
           ...r,
-          include: !r.alreadyImported && !r.needsReview,
+          include: !r.alreadyImported && !r.dismissed && !r.needsReview,
           employmentType: r.looksExternal ? "external" : "internal",
           driverId: matchedDriver?.id ?? "",
           companyId: matchedCompany?.id ?? "",
@@ -89,7 +98,7 @@ export function SheetSyncWorkflow({
     setExistingCount(result.existingCount);
 
     if (result.newCount === 0) {
-      toast.info("لا توجد رحلات جديدة — كل ما في الشيت مستورد بالفعل");
+      toast.info("لا توجد رحلات جديدة — كل ما في الشيت مستورد أو متجاهَل");
     } else {
       toast.success(`${result.newCount} رحلة جديدة جاهزة للمراجعة`);
     }
@@ -105,8 +114,12 @@ export function SheetSyncWorkflow({
     router.refresh();
   };
 
-  const updateRow = (index: number, patch: Partial<EditableRow>) => {
-    setRows((prev) => (prev ? prev.map((r, i) => (i === index ? { ...r, ...patch } : r)) : prev));
+  // التحديث بالمفتاح لا بالترتيب: الجدول يعرض صفوفاً مفلترة، فترتيبها لا يطابق
+  // ترتيب القائمة الكاملة ويُحدَّث الصف الخطأ.
+  const updateRow = (sourceKey: string, patch: Partial<EditableRow>) => {
+    setRows((prev) =>
+      prev ? prev.map((r) => (r.sourceKey === sourceKey ? { ...r, ...patch } : r)) : prev
+    );
   };
 
   /**
@@ -200,10 +213,48 @@ export function SheetSyncWorkflow({
   };
 
   const selectedCount = rows?.filter((r) => r.include).length ?? 0;
-  const newRows = rows?.filter((r) => !r.alreadyImported).length ?? 0;
+  const newRows = rows?.filter((r) => !r.alreadyImported && !r.dismissed).length ?? 0;
 
-  /** صف قابل للتحديد: لم يُستورد سابقاً */
-  const selectable = (r: EditableRow) => !r.alreadyImported;
+  /** صف قابل للتحديد: لم يُستورد سابقاً ولم يُوضع جانباً */
+  const selectable = (r: EditableRow) => !r.alreadyImported && !r.dismissed;
+
+  // ما يُعرض فعلاً بعد الفلترة — التحديد والتعيين الجماعي يعملان على المعروض
+  const visibleRows = (rows ?? []).filter((r) => {
+    if (r.alreadyImported && !showImported) return false;
+    if (r.dismissed && !showDismissed) return false;
+    if (fromFilter && r.date && r.date < fromFilter) return false;
+    if (toFilter && r.date && r.date > toFilter) return false;
+    return true;
+  });
+
+  const handleDismiss = async () => {
+    const keys = (rows ?? []).filter((r) => r.include && selectable(r)).map((r) => r.sourceKey);
+    if (keys.length === 0) {
+      toast.error("اختر صفاً واحداً على الأقل");
+      return;
+    }
+
+    setApplying(true);
+    const result = await dismissSheetRows(keys);
+    setApplying(false);
+
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success(`تم تجاهل ${keys.length} صفاً — لن تظهر في المزامنات القادمة`);
+    await handleFetch();
+  };
+
+  const handleUndismiss = async (sourceKey: string) => {
+    const result = await undismissSheetRows([sourceKey]);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("عاد الصف — سيظهر جديداً");
+    await handleFetch();
+  };
   const selectableCount = rows?.filter(selectable).length ?? 0;
   const allSelected = selectableCount > 0 && selectedCount === selectableCount;
 
@@ -283,14 +334,91 @@ export function SheetSyncWorkflow({
                 {existingCount} مستوردة سابقاً — لن تتكرّر
               </span>
             )}
-            <button
-              type="button"
-              onClick={handleApply}
-              disabled={applying || selectedCount === 0}
-              className="mr-auto rounded-lg bg-zinc-900 px-5 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
-            >
-              {applying ? "جارٍ الاستيراد..." : `استيراد ${selectedCount} رحلة`}
-            </button>
+            {(rows?.filter((r) => r.dismissed).length ?? 0) > 0 && (
+              <span className="text-zinc-500">
+                {rows?.filter((r) => r.dismissed).length} متجاهَلة — لن تُقترح ثانيةً
+              </span>
+            )}
+            <div className="mr-auto flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleDismiss}
+                disabled={applying || selectedCount === 0}
+                title="للرحلات التي لا تُستورد أبداً — بلا سائق أو ملغاة"
+                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+              >
+                تجاهل المحدَّد
+              </button>
+              <button
+                type="button"
+                onClick={handleApply}
+                disabled={applying || selectedCount === 0}
+                className="rounded-lg bg-zinc-900 px-5 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+              >
+                {applying ? "جارٍ الاستيراد..." : `استيراد ${selectedCount} رحلة`}
+              </button>
+            </div>
+          </div>
+
+          {/* فلترة العرض — الشيت يكبر كل شهر والصفحة لا تنتهي بدونها */}
+          <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-zinc-500">من تاريخ</label>
+              <input
+                type="date"
+                dir="ltr"
+                value={fromFilter}
+                onChange={(e) => setFromFilter(e.target.value)}
+                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs outline-none focus:border-zinc-900"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-zinc-500">إلى تاريخ</label>
+              <input
+                type="date"
+                dir="ltr"
+                value={toFilter}
+                onChange={(e) => setToFilter(e.target.value)}
+                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs outline-none focus:border-zinc-900"
+              />
+            </div>
+
+            {(fromFilter || toFilter) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFromFilter("");
+                  setToFilter("");
+                }}
+                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs text-zinc-600 hover:bg-zinc-50"
+              >
+                مسح التاريخ
+              </button>
+            )}
+
+            <label className="flex items-center gap-1.5 text-xs text-zinc-600">
+              <input
+                type="checkbox"
+                checked={showImported}
+                onChange={(e) => setShowImported(e.target.checked)}
+                className="h-4 w-4 rounded border-zinc-300"
+              />
+              إظهار المستورد سابقاً
+            </label>
+
+            <label className="flex items-center gap-1.5 text-xs text-zinc-600">
+              <input
+                type="checkbox"
+                checked={showDismissed}
+                onChange={(e) => setShowDismissed(e.target.checked)}
+                className="h-4 w-4 rounded border-zinc-300"
+              />
+              إظهار المتجاهَل
+            </label>
+
+            <span className="mr-auto text-xs text-zinc-500">
+              معروض <strong>{visibleRows.length}</strong> من {rows.length}
+            </span>
           </div>
 
           {/* تعيين جماعي: تسمية الشيت تختلف عن تسمية النظام، وعميل واحد قد
@@ -377,23 +505,34 @@ export function SheetSyncWorkflow({
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r, i) => {
+                  {visibleRows.map((r) => {
                     const calc = calcRow(r);
                     return (
                     <tr
                       key={r.sourceKey}
                       className={`border-b border-zinc-50 ${
-                        r.alreadyImported ? "opacity-40" : ""
-                      } ${r.needsReview ? "bg-amber-50" : ""}`}
+                        r.alreadyImported || r.dismissed ? "opacity-40" : ""
+                      } ${r.needsReview && !r.dismissed ? "bg-amber-50" : ""}`}
                     >
                       <td className="px-3 py-2">
-                        <input
-                          type="checkbox"
-                          checked={r.include}
-                          disabled={r.alreadyImported}
-                          onChange={(e) => updateRow(i, { include: e.target.checked })}
-                          className="h-4 w-4 rounded border-zinc-300"
-                        />
+                        {r.dismissed ? (
+                          <button
+                            type="button"
+                            onClick={() => handleUndismiss(r.sourceKey)}
+                            title="إعادة الصف — سيظهر جديداً في المزامنة التالية"
+                            className="rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] text-zinc-600 hover:bg-zinc-100"
+                          >
+                            إرجاع
+                          </button>
+                        ) : (
+                          <input
+                            type="checkbox"
+                            checked={r.include}
+                            disabled={r.alreadyImported}
+                            onChange={(e) => updateRow(r.sourceKey, { include: e.target.checked })}
+                            className="h-4 w-4 rounded border-zinc-300"
+                          />
+                        )}
                       </td>
                       <td className="px-3 py-2 text-zinc-400" dir="ltr">
                         {r.serial}
@@ -406,7 +545,7 @@ export function SheetSyncWorkflow({
                           <select
                             value={r.companyId}
                             disabled={r.alreadyImported}
-                            onChange={(e) => updateRow(i, { companyId: e.target.value })}
+                            onChange={(e) => updateRow(r.sourceKey, { companyId: e.target.value })}
                             className="min-w-[130px] rounded border border-zinc-200 px-1.5 py-1 text-xs"
                           >
                             <option value="">جديد: {r.clientName}</option>
@@ -431,7 +570,7 @@ export function SheetSyncWorkflow({
                           value={r.branchesCount}
                           disabled={r.alreadyImported}
                           onChange={(e) =>
-                            updateRow(i, { branchesCount: Number(e.target.value) || 0 })
+                            updateRow(r.sourceKey, { branchesCount: Number(e.target.value) || 0 })
                           }
                           className="w-14 rounded border border-zinc-200 px-1.5 py-1 text-right text-xs"
                         />
@@ -441,7 +580,7 @@ export function SheetSyncWorkflow({
                           <select
                             value={r.driverId}
                             disabled={r.alreadyImported}
-                            onChange={(e) => updateRow(i, { driverId: e.target.value })}
+                            onChange={(e) => updateRow(r.sourceKey, { driverId: e.target.value })}
                             className="min-w-[140px] rounded border border-zinc-200 px-1.5 py-1 text-xs"
                           >
                             <option value="">جديد: {r.driverName}</option>
@@ -462,7 +601,7 @@ export function SheetSyncWorkflow({
                               value={r.employmentType}
                               disabled={r.alreadyImported}
                               onChange={(e) =>
-                                updateRow(i, {
+                                updateRow(r.sourceKey, {
                                   employmentType: e.target.value as "internal" | "external",
                                 })
                               }
@@ -486,7 +625,7 @@ export function SheetSyncWorkflow({
                           value={calc.base}
                           disabled={r.alreadyImported}
                           onChange={(e) =>
-                            updateRow(i, { basePaymentOverride: Number(e.target.value) || 0 })
+                            updateRow(r.sourceKey, { basePaymentOverride: Number(e.target.value) || 0 })
                           }
                           className={`w-20 rounded border px-1.5 py-1 text-right text-xs ${
                             calc.unmatched ? "border-amber-400 bg-amber-50" : "border-zinc-200"
@@ -516,7 +655,7 @@ export function SheetSyncWorkflow({
                           value={r.statusMapped}
                           disabled={r.alreadyImported}
                           onChange={(e) =>
-                            updateRow(i, {
+                            updateRow(r.sourceKey, {
                               statusMapped: e.target.value as EditableRow["statusMapped"],
                             })
                           }

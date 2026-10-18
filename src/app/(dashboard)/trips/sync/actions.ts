@@ -24,6 +24,8 @@ export type ActionResult = { error: string | null };
 export type SyncPreviewRow = SheetTripRow & {
   sourceKey: string;
   alreadyImported: boolean;
+  /** صف وُضع جانباً عمداً — رحلة بلا سائق أو ملغاة (0042) */
+  dismissed: boolean;
 };
 
 export type SyncPreviewResult =
@@ -32,6 +34,7 @@ export type SyncPreviewResult =
       rows: SyncPreviewRow[];
       newCount: number;
       existingCount: number;
+      dismissedCount: number;
       sheetId: string;
       gid: string;
     }
@@ -81,23 +84,30 @@ export async function fetchSheetPreview(url: string): Promise<SyncPreviewResult>
   const keys = parsed.rows.map((r) => `${prefix}${r.serial}`);
 
   const supabase = await createClient();
-  const { data: existing } = await supabase
-    .from("trips")
-    .select("source_key")
-    .in("source_key", keys);
+  const [{ data: existing }, { data: dismissed }] = await Promise.all([
+    supabase.from("trips").select("source_key").in("source_key", keys),
+    supabase.from("sheet_sync_dismissed").select("source_key").in("source_key", keys),
+  ]);
 
   const existingKeys = new Set((existing ?? []).map((t) => t.source_key as string));
+  const dismissedKeys = new Set((dismissed ?? []).map((d) => d.source_key as string));
 
   const rows: SyncPreviewRow[] = parsed.rows.map((r) => {
     const sourceKey = `${prefix}${r.serial}`;
-    return { ...r, sourceKey, alreadyImported: existingKeys.has(sourceKey) };
+    return {
+      ...r,
+      sourceKey,
+      alreadyImported: existingKeys.has(sourceKey),
+      dismissed: dismissedKeys.has(sourceKey),
+    };
   });
 
   return {
     ok: true,
     rows,
-    newCount: rows.filter((r) => !r.alreadyImported).length,
+    newCount: rows.filter((r) => !r.alreadyImported && !r.dismissed).length,
     existingCount: rows.filter((r) => r.alreadyImported).length,
+    dismissedCount: rows.filter((r) => r.dismissed).length,
     sheetId: parsedUrl.id,
     gid: parsedUrl.gid,
   };
@@ -329,6 +339,49 @@ export async function saveSheetUrl(url: string): Promise<ActionResult> {
     .eq("id", true);
 
   if (error) return { error: "تعذّر حفظ الرابط" };
+
+  revalidatePath("/trips/sync");
+  return { error: null };
+}
+
+/**
+ * وضع صفوف جانباً فلا تُقترح في المزامنات القادمة.
+ *
+ * للرحلات التي لا تُستورد أبداً: رحلة بلا سائق حُوِّلت بضاعتها لغيره لكن كشف
+ * العميل يذكرها، أو رحلة ملغاة. تبقى في الشيت — لا سلطان لنا عليه — لكن
+ * المزامنة تعرفها وتضعها جانباً.
+ *
+ * ⚠️ لا رحلة تُنشأ ولا تُحذف — يُحفظ المفتاح وحده، فلا أثر في أي حساب.
+ */
+export async function dismissSheetRows(
+  sourceKeys: string[],
+  reason?: string
+): Promise<ActionResult> {
+  if (sourceKeys.length === 0) return { error: "لم تختر أي صف" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("sheet_sync_dismissed").upsert(
+    sourceKeys.map((k) => ({ source_key: k, reason: reason?.trim() || null })),
+    { onConflict: "source_key" }
+  );
+
+  if (error) return { error: "تعذّر تجاهل الصفوف" };
+
+  revalidatePath("/trips/sync");
+  return { error: null };
+}
+
+/** التراجع عن التجاهل — يعود الصف «جديداً» في المزامنة التالية */
+export async function undismissSheetRows(sourceKeys: string[]): Promise<ActionResult> {
+  if (sourceKeys.length === 0) return { error: "لم تختر أي صف" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("sheet_sync_dismissed")
+    .delete()
+    .in("source_key", sourceKeys);
+
+  if (error) return { error: "تعذّر التراجع عن التجاهل" };
 
   revalidatePath("/trips/sync");
   return { error: null };
