@@ -19,6 +19,13 @@ export default async function DriversPage({
 
   // من v_vehicle_current_driver لا من vehicles: نحتاج أن نعرف من يحمل كل سيارة
   // الآن، حتى يظهر ذلك في القائمة ويُطلَب تحويل عند اختيار سيارة مشغولة (0034).
+  // الموردون (0043) — لربط السائق الخارجي بمورّده من نموذج السائق
+  const { data: vendorRows } = await supabase
+    .from("vendors")
+    .select("id, name")
+    .eq("status", "active")
+    .order("name");
+
   const { data: vehicleRows } = await supabase
     .from("v_vehicle_current_driver")
     .select("vehicle_id, vehicle_no, driver_id, driver_name")
@@ -69,6 +76,7 @@ export default async function DriversPage({
         initialStatus={status}
         initialType={type}
         vehicles={vehicles ?? []}
+        vendors={(vendorRows ?? []).map((v) => ({ id: v.id as string, name: v.name as string }))}
       />
     </div>
   );

@@ -21,6 +21,7 @@ export function DriversTable({
   initialStatus,
   initialType,
   vehicles,
+  vendors,
 }: {
   drivers: DriverRecord[];
   total: number;
@@ -30,6 +31,7 @@ export function DriversTable({
   initialStatus: string;
   initialType: string;
   vehicles: { id: string; vehicle_no: string; holder_id: string | null; holder_name: string | null }[];
+  vendors: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -244,6 +246,7 @@ export function DriversTable({
         onClose={() => setFormOpen(false)}
         driver={editingDriver}
         vehicles={vehicles}
+        vendors={vendors}
         onSaved={() => router.refresh()}
       />
 

@@ -19,6 +19,7 @@ export type DriverRecord = {
   vehicle_id: string | null;
   status: "active" | "inactive";
   employment_type: "internal" | "external";
+  vendor_id: string | null;
   notes: string | null;
 };
 
@@ -32,6 +33,7 @@ const emptyValues: DriverFormInput = {
   vehicle_id: "",
   status: "active",
   employment_type: "internal",
+  vendor_id: "",
   notes: "",
 };
 
@@ -40,12 +42,14 @@ export function DriverFormModal({
   onClose,
   driver,
   vehicles,
+  vendors,
   onSaved,
 }: {
   open: boolean;
   onClose: () => void;
   driver?: DriverRecord | null;
   vehicles: { id: string; vehicle_no: string; holder_id: string | null; holder_name: string | null }[];
+  vendors: { id: string; name: string }[];
   onSaved: () => void;
 }) {
   const {
@@ -63,6 +67,7 @@ export function DriverFormModal({
   const [transferDate, setTransferDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [transferReason, setTransferReason] = useState("");
 
+  const watchedEmployment = watch("employment_type");
   const selectedVehicleId = watch("vehicle_id");
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId);
   const needsTransfer =
@@ -82,6 +87,7 @@ export function DriverFormModal({
             vehicle_id: driver.vehicle_id ?? "",
             status: driver.status,
             employment_type: driver.employment_type,
+            vendor_id: driver.vendor_id ?? "",
             notes: driver.notes ?? "",
           }
         : emptyValues
@@ -263,6 +269,28 @@ export function DriverFormModal({
             <option value="external">مورد خارجي (بدون راتب، بالرحلة)</option>
           </select>
         </div>
+
+        {/* المورّد يظهر للخارجيين وحدهم — الداخلي موظف الشركة لا تابع لمورّد */}
+        {watchedEmployment === "external" && (
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-zinc-700">المورّد</label>
+            <select
+              {...register("vendor_id")}
+              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
+            >
+              <option value="">— بدون مورّد —</option>
+              {vendors.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-zinc-400">
+              المورّد الواحد قد يشغّل عدّة سائقين، فتُجمع رحلاتهم في كشفه. واتركه فارغاً
+              للسائق الخارجي الذي استعنتَ به لرحلة واحدة بلا مورّد.
+            </p>
+          </div>
+        )}
 
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-zinc-700">ملاحظات</label>

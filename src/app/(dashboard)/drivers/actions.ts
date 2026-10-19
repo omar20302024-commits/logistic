@@ -30,6 +30,7 @@ export async function createDriver(
       hire_date: parsed.data.hire_date || null,
       status: parsed.data.status,
       employment_type: parsed.data.employment_type,
+      vendor_id: parsed.data.vendor_id || null,
       notes: parsed.data.notes || null,
     })
     .select("id")
@@ -83,6 +84,7 @@ export async function updateDriver(
       hire_date: parsed.data.hire_date || null,
       status: parsed.data.status,
       employment_type: parsed.data.employment_type,
+      vendor_id: parsed.data.vendor_id || null,
       notes: parsed.data.notes || null,
     })
     .eq("id", id);

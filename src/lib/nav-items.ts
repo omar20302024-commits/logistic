@@ -17,6 +17,7 @@ import {
   Upload,
   Route,
   RefreshCw,
+  Handshake,
 } from "lucide-react";
 
 export type NavItem = {
@@ -54,6 +55,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { label: "كشف حساب السائق", href: "/statement", icon: FileText },
       { label: "كشف حساب الموردين", href: "/reports/external-drivers", icon: UserCog },
+      { label: "الموردون وحساباتهم", href: "/vendors", icon: Handshake },
     ],
   },
   {

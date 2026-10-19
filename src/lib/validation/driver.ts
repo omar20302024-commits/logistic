@@ -10,6 +10,9 @@ export const driverSchema = z.object({
   vehicle_id: z.string().trim().optional().or(z.literal("")),
   status: z.enum(["active", "inactive"]),
   employment_type: z.enum(["internal", "external"]),
+  // المورّد (0043) — يعني شيئاً للخارجيين وحدهم، وفارغ مقبول: يُستعان أحياناً
+  // بسائق خارجي لرحلة واحدة بلا مورّد
+  vendor_id: z.string().trim().optional().or(z.literal("")),
   notes: z.string().trim().optional().or(z.literal("")),
 });
 
