@@ -12,6 +12,9 @@ import {
   createVendorAdvance,
   deleteVendorAdvance,
   settleVendor,
+  createVendorRouteRate,
+  deleteVendorRouteRate,
+  type VendorRouteRate,
 } from "@/app/(dashboard)/vendors/actions";
 import type {
   VendorTripRow,
@@ -40,6 +43,7 @@ export function VendorDetailTabs({
   advances,
   settlements,
   drivers,
+  routeRates,
   openingBalance = 0,
   openingReason = null,
   orgName,
@@ -59,6 +63,7 @@ export function VendorDetailTabs({
   advances: VendorAdvanceRecord[];
   settlements: VendorSettlementRecord[];
   drivers: { id: string; name: string; status: string }[];
+  routeRates: VendorRouteRate[];
   orgName: string;
   orgPhone: string | null;
   currencySymbol: string;
@@ -77,6 +82,37 @@ export function VendorDetailTabs({
   const [advAmount, setAdvAmount] = useState("");
   const [advDesc, setAdvDesc] = useState("");
   const [settledOn, setSettledOn] = useState(new Date().toISOString().slice(0, 10));
+
+  const [rateFrom, setRateFrom] = useState("");
+  const [rateTo, setRateTo] = useState("");
+  const [rateAmount, setRateAmount] = useState("");
+
+  const handleAddRate = async () => {
+    const result = await createVendorRouteRate(vendorId, {
+      from_city: rateFrom,
+      to_city: rateTo,
+      trab_amount: Number(rateAmount) || 0,
+    });
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("تمت إضافة خط السير");
+    setRateFrom("");
+    setRateTo("");
+    setRateAmount("");
+    router.refresh();
+  };
+
+  const handleDeleteRate = async (id: string) => {
+    const result = await deleteVendorRouteRate(vendorId, id);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("تم حذف خط السير");
+    router.refresh();
+  };
 
   const setParam = (updates: Record<string, string>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -346,6 +382,68 @@ export function VendorDetailTabs({
                       <button
                         type="button"
                         onClick={() => setDeleting(a)}
+                        className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
+
+            <Panel title={`تسعيرة المورّد (${formatNumber(routeRates.length)})`}>
+              <p className="mb-2 text-[11px] text-zinc-400">
+                سعر خط السير له — يسري على <strong>كل سائقيه</strong>، ويغلبه خط سير خاص
+                بسائق بعينه إن وُجد.
+              </p>
+              <div className="mb-2 grid grid-cols-3 gap-1.5">
+                <input
+                  value={rateFrom}
+                  onChange={(e) => setRateFrom(e.target.value)}
+                  placeholder="من"
+                  className="rounded border border-zinc-200 px-2 py-1 text-xs"
+                />
+                <input
+                  value={rateTo}
+                  onChange={(e) => setRateTo(e.target.value)}
+                  placeholder="إلى"
+                  className="rounded border border-zinc-200 px-2 py-1 text-xs"
+                />
+                <div className="flex gap-1">
+                  <input
+                    type="number"
+                    step="0.01"
+                    dir="ltr"
+                    value={rateAmount}
+                    onChange={(e) => setRateAmount(e.target.value)}
+                    placeholder="السعر"
+                    className="min-w-0 flex-1 rounded border border-zinc-200 px-2 py-1 text-right text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddRate}
+                    className="shrink-0 rounded bg-zinc-900 px-2 text-xs text-white hover:bg-zinc-800"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              {routeRates.length === 0 ? (
+                <Hint>لا تسعيرة — أضف خط سير أعلاه.</Hint>
+              ) : (
+                <ul className="flex flex-col gap-1 text-sm">
+                  {routeRates.map((r) => (
+                    <li key={r.id} className="flex items-center justify-between gap-2">
+                      <span className="text-zinc-700">
+                        {r.from_city} ← {r.to_city}
+                      </span>
+                      <span className="text-zinc-900" dir="ltr">
+                        {formatCurrency(r.trab_amount, currencySymbol)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteRate(r.id)}
                         className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600"
                       >
                         <Trash2 size={13} />

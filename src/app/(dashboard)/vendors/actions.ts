@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { vendorSchema } from "@/lib/validation/vendor";
+import { normalizeArabic } from "@/lib/arabic";
 
 // الموردون (0043/0044): جهة تجمع عدّة سائقين خارجيين.
 //
@@ -194,4 +195,72 @@ export async function settleVendor(
   revalidatePath("/vendors");
   revalidatePath("/trips");
   return { error: null, settlementId: data as string };
+}
+
+// ----------------------------------------------------------------------------
+// تسعيرة المورّد (0047): سعر خط السير له هو ولكل سائقيه
+// ----------------------------------------------------------------------------
+
+export type VendorRouteRate = {
+  id: string;
+  from_city: string;
+  to_city: string;
+  trab_amount: number;
+};
+
+export async function createVendorRouteRate(
+  vendorId: string,
+  input: { from_city: string; to_city: string; trab_amount: number }
+): Promise<ActionResult> {
+  if (!input.from_city.trim()) return { error: "مدينة التحميل مطلوبة" };
+  if (!input.to_city.trim()) return { error: "مدينة التنزيل مطلوبة" };
+  if (!Number.isFinite(Number(input.trab_amount)) || Number(input.trab_amount) < 0) {
+    return { error: "السعر يجب أن يكون رقماً موجباً" };
+  }
+
+  const supabase = await createClient();
+
+  // منع التكرار المطبَّع: الفريد في قاعدة البيانات على النص الحرفي، فـ«جده»
+  // و«جدة» يمرّان كصفّين ويفوز أحدهما عشوائياً وقت المطابقة
+  const { data: existing } = await supabase
+    .from("vendor_route_rates")
+    .select("id, from_city, to_city")
+    .eq("vendor_id", vendorId);
+
+  const from = normalizeArabic(input.from_city);
+  const to = normalizeArabic(input.to_city);
+  const clash = (existing ?? []).find(
+    (r) =>
+      normalizeArabic(r.from_city as string) === from &&
+      normalizeArabic(r.to_city as string) === to
+  );
+  if (clash) {
+    return {
+      error: `يوجد خط سير بنفس المدينتين بإملاء مختلف: «${clash.from_city} ← ${clash.to_city}»`,
+    };
+  }
+
+  const { error } = await supabase.from("vendor_route_rates").insert({
+    vendor_id: vendorId,
+    from_city: input.from_city.trim(),
+    to_city: input.to_city.trim(),
+    trab_amount: Number(input.trab_amount),
+  });
+
+  if (error) return { error: "تعذّر إضافة خط السير" };
+
+  revalidatePath(`/vendors/${vendorId}`);
+  return { error: null };
+}
+
+export async function deleteVendorRouteRate(
+  vendorId: string,
+  id: string
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("vendor_route_rates").delete().eq("id", id);
+  if (error) return { error: "تعذّر حذف خط السير" };
+
+  revalidatePath(`/vendors/${vendorId}`);
+  return { error: null };
 }

@@ -13,7 +13,7 @@ export default async function TripsImportPage() {
         .select("id, name, default_trip_payment, extra_stop_rate, employment_type")
         .order("name"),
       supabase.from("companies").select("id, name").order("name"),
-      supabase.from("driver_route_rates").select("driver_id, from_city, to_city, trab_amount"),
+      supabase.from("v_driver_effective_rates").select("driver_id, from_city, to_city, trab_amount"),
       // خطوط السير العامة (0035) — لسائقي الشركة فقط
       supabase.from("route_rates").select("from_city, to_city, trab_amount"),
     ]);

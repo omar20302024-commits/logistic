@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { VendorDetailTabs } from "@/components/vendors/VendorDetailTabs";
+import type { VendorRouteRate } from "@/app/(dashboard)/vendors/actions";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import type {
   VendorSummary,
@@ -53,6 +54,7 @@ export default async function VendorDetailPage({
     { data: advances },
     { data: settlements },
     { data: drivers },
+    { data: vendorRates },
     { data: settings },
   ] = await Promise.all([
     supabase.rpc("fn_vendor_period_summary", { p_vendor_id: id, p_from: from, p_to: to }).single(),
@@ -70,6 +72,12 @@ export default async function VendorDetailPage({
       .eq("vendor_id", id)
       .order("to_date", { ascending: false }),
     supabase.from("drivers").select("id, name, status").eq("vendor_id", id).order("name"),
+    // تسعيرة المورّد (0047) — تسري على كل سائقيه
+    supabase
+      .from("vendor_route_rates")
+      .select("id, from_city, to_city, trab_amount")
+      .eq("vendor_id", id)
+      .order("from_city"),
     supabase.from("settings").select("currency_symbol, org_name, org_phone, reviewed_by").single(),
   ]);
 
@@ -156,6 +164,7 @@ export default async function VendorDetailPage({
         advances={(advances ?? []) as VendorAdvanceRecord[]}
         settlements={(settlements ?? []) as VendorSettlementRecord[]}
         drivers={(drivers ?? []) as { id: string; name: string; status: string }[]}
+        routeRates={(vendorRates ?? []) as VendorRouteRate[]}
         openingBalance={
           vendor.opening_settlement_id ? 0 : Number(vendor.opening_balance) || 0
         }

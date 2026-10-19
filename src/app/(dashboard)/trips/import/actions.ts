@@ -135,7 +135,7 @@ export async function confirmImport(
   // خطوط السير المحفوظة — الأولوية الأولى للترب، تماماً كما في نموذج الرحلة.
   // كان الاستيراد لا يسألها إطلاقاً فتدخل كل رحلة بالترب الافتراضي العام.
   const { data: allRates } = await supabase
-    .from("driver_route_rates")
+    .from("v_driver_effective_rates")
     .select("driver_id, from_city, to_city, trab_amount");
 
   const ratesByDriver = new Map<string, RouteRate[]>();
