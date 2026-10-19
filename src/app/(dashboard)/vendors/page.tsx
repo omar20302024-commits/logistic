@@ -26,7 +26,13 @@ export default async function VendorsPage({
 
   const supabase = await createClient();
 
-  const [{ data: rows, error }, { data: vendors }, { data: settings }] = await Promise.all([
+  // خطأ قائمة الموردين كان مُهمَلاً: الجدول يُرسم من التقرير فتبدو الصفحة
+  // سليمة، بينما التعديل والحذف وصفحة المورّد معطّلة بصمت.
+  const [
+    { data: rows, error },
+    { data: vendors, error: vendorsError },
+    { data: settings },
+  ] = await Promise.all([
     supabase.rpc("fn_vendors_report", { p_from: from, p_to: to }),
     supabase
       .from("vendors")
@@ -49,6 +55,11 @@ export default async function VendorsPage({
       <ErrorBanner
         error={error}
         hint="تأكد من تشغيل ملفَّي SQL رقم 0043 و 0044 (الموردون وكشوفاتهم)."
+      />
+
+      <ErrorBanner
+        error={vendorsError}
+        hint="تأكد من تشغيل ملفَّي SQL رقم 0046 (الرصيد الافتتاحي للمورّد) و 0047 (تسعيرة المورّد)."
       />
 
       <VendorsTable

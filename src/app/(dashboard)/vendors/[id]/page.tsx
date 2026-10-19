@@ -37,13 +37,34 @@ export default async function VendorDetailPage({
 
   const supabase = await createClient();
 
-  const { data: vendor } = await supabase
+  // maybeSingle لا single: الصف المفقود يرجع data=null بلا خطأ، فنفرّق بين
+  // «مورّد غير موجود» (404 صحيح) و«خطأ في قاعدة البيانات» — عمود ناقص لأن
+  // ملف SQL لم يُشغَّل مثلاً. الثاني كان يظهر 404 فيُضلّل تماماً.
+  const { data: vendor, error: vendorError } = await supabase
     .from("vendors")
     .select(
       "id, name, phone, notes, status, opening_balance, opening_reason, opening_date, opening_settlement_id"
     )
     .eq("id", id)
-    .single();
+    .maybeSingle();
+
+  if (vendorError) {
+    return (
+      <div className="flex flex-col gap-4">
+        <Link
+          href="/vendors"
+          className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900"
+        >
+          <ArrowRight size={15} />
+          العودة للموردين
+        </Link>
+        <ErrorBanner
+          error={vendorError}
+          hint="تأكد من تشغيل ملفَّي SQL رقم 0046 (الرصيد الافتتاحي للمورّد) و 0047 (تسعيرة المورّد)."
+        />
+      </div>
+    );
+  }
 
   if (!vendor) notFound();
 
@@ -54,7 +75,7 @@ export default async function VendorDetailPage({
     { data: advances },
     { data: settlements },
     { data: drivers },
-    { data: vendorRates },
+    { data: vendorRates, error: ratesError },
     { data: settings },
   ] = await Promise.all([
     supabase.rpc("fn_vendor_period_summary", { p_vendor_id: id, p_from: from, p_to: to }).single(),
@@ -125,6 +146,11 @@ export default async function VendorDetailPage({
       <ErrorBanner
         error={summaryError}
         hint="تأكد من تشغيل ملفَّي SQL رقم 0043 و 0044 (الموردون وكشوفاتهم)."
+      />
+
+      <ErrorBanner
+        error={ratesError}
+        hint="تأكد من تشغيل ملف SQL رقم 0047 (تسعيرة المورّد)."
       />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 print:hidden">
