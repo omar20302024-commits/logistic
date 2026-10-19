@@ -5,6 +5,7 @@ import { formatCurrency, formatNumber } from "@/lib/format";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { VendorDetailTabs } from "@/components/vendors/VendorDetailTabs";
 import type { VendorRouteRate } from "@/app/(dashboard)/vendors/actions";
+import type { TripPaymentRow } from "@/app/(dashboard)/drivers/pricing-actions";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import type {
   VendorSummary,
@@ -103,6 +104,7 @@ export default async function VendorDetailPage({
     { data: drivers },
     { data: vendorRates, error: ratesError },
     { data: settings },
+    { data: pricingRaw, error: pricingError },
   ] = await Promise.all([
     supabase.rpc("fn_vendor_period_summary", { p_vendor_id: id, p_from: from, p_to: to }).single(),
     supabase.rpc("fn_vendor_trips", { p_vendor_id: id, p_from: from, p_to: to }),
@@ -126,7 +128,35 @@ export default async function VendorDetailPage({
       .eq("vendor_id", id)
       .order("from_city"),
     supabase.from("settings").select("currency_symbol, org_name, org_phone, reviewed_by").single(),
+    // تحرير سعر المورّد لكل رحلة: نقرأ الجدول مباشرةً لأن fn_vendor_trips
+    // تُرجع الإجمالي المحسوب فقط، والمحرَّر هو الأساس قبل الإضافات.
+    // drivers!inner مع eq على عمود الجدول المضمَّن = رحلات سائقي هذا المورّد.
+    supabase
+      .from("trips")
+      .select(
+        "id, trip_number, trip_date, from_location, to_location, trip_amount, driver_base_payment, driver_trip_payment, settlement_id, vendor_settlement_id, companies(name), drivers!inner(name, vendor_id)"
+      )
+      .eq("drivers.vendor_id", id)
+      .gte("trip_date", from)
+      .lte("trip_date", to)
+      .neq("status", "cancelled")
+      .order("trip_date", { ascending: false })
+      .limit(300),
   ]);
+
+  const pricingTrips: TripPaymentRow[] = (pricingRaw ?? []).map((t) => ({
+    id: t.id as string,
+    trip_number: (t.trip_number as string) ?? "",
+    trip_date: t.trip_date as string,
+    driver_name: (t.drivers as { name?: string } | null)?.name ?? "—",
+    company_name: (t.companies as { name?: string } | null)?.name ?? "—",
+    from_location: (t.from_location as string) ?? "",
+    to_location: (t.to_location as string) ?? "",
+    trip_amount: Number(t.trip_amount) || 0,
+    driver_base_payment: Number(t.driver_base_payment) || 0,
+    driver_trip_payment: Number(t.driver_trip_payment) || 0,
+    settled: t.settlement_id !== null || t.vendor_settlement_id !== null,
+  }));
 
   const s = (summaryRaw as VendorSummary | null) ?? {
     trips_count: 0,
@@ -179,6 +209,8 @@ export default async function VendorDetailPage({
         hint="تأكد من تشغيل ملف SQL رقم 0047 (تسعيرة المورّد)."
       />
 
+      <ErrorBanner error={pricingError} />
+
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 print:hidden">
         <StatCard label="الرحلات" value={formatNumber(s.trips_count)} icon={Truck} />
         <StatCard
@@ -213,6 +245,7 @@ export default async function VendorDetailPage({
         to={to}
         trips={(trips ?? []) as VendorTripRow[]}
         payableTrips={(payableTrips ?? []) as VendorPayableTripRow[]}
+        pricingTrips={pricingTrips}
         advances={(advances ?? []) as VendorAdvanceRecord[]}
         settlements={(settlements ?? []) as VendorSettlementRecord[]}
         drivers={(drivers ?? []) as { id: string; name: string; status: string }[]}

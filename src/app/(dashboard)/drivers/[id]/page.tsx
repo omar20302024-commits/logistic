@@ -11,8 +11,8 @@ import { OilChangeSection } from "@/components/drivers/OilChangeSection";
 import { OIL_CATEGORY } from "@/lib/validation/expense";
 import type { DieselOverlap } from "@/app/(dashboard)/drivers/diesel-actions";
 import { RouteRatesSection } from "@/components/drivers/RouteRatesSection";
-import { TripPricingSection } from "@/components/drivers/TripPricingSection";
-import type { UnpricedTrip } from "@/app/(dashboard)/drivers/pricing-actions";
+import { TripPaymentsEditor } from "@/components/trips/TripPaymentsEditor";
+import type { TripPaymentRow } from "@/app/(dashboard)/drivers/pricing-actions";
 import { SettlementsSection } from "@/components/drivers/SettlementsSection";
 import { LeavesSection } from "@/components/drivers/LeavesSection";
 import { PublicLinkSection } from "@/components/drivers/PublicLinkSection";
@@ -129,33 +129,28 @@ export default async function DriverDetailPage({
   );
   const companyDieselTotal = Number(s.total_diesel || 0) + monthlyDieselTotal;
 
-  // رحلات بلا سعر: دخلت قبل ضبط التسعيرة فبقيت بترب صفر، فلا تظهر في مستحقه
-  // ولا تُصفّى. المصفّاة مستبعَدة — أرقامها مجمّدة في سند مصروف.
-  const { data: unpricedRaw } = await supabase
+  // تسعير رحلاته: المصفّاة تُعرض مقفلة لا مخفيّة، ليُفهم لماذا لا تُعدَّل.
+  const { data: pricingRaw, error: pricingError } = await supabase
     .from("trips")
     .select(
-      "id, trip_number, trip_date, from_location, to_location, branches_count, trip_amount, driver_base_payment, companies(name)"
+      "id, trip_number, trip_date, from_location, to_location, trip_amount, driver_base_payment, driver_trip_payment, settlement_id, vendor_settlement_id, companies(name)"
     )
     .eq("driver_id", id)
-    .eq("driver_base_payment", 0)
-    .is("settlement_id", null)
-    .is("vendor_settlement_id", null)
     .neq("status", "cancelled")
     .order("trip_date", { ascending: false })
     .limit(200);
 
-  const unpricedTrips: UnpricedTrip[] = (unpricedRaw ?? []).map((t) => ({
+  const pricingTrips: TripPaymentRow[] = (pricingRaw ?? []).map((t) => ({
     id: t.id as string,
     trip_number: (t.trip_number as string) ?? "",
     trip_date: t.trip_date as string,
-    company_name:
-      ((t.companies as { name?: string } | null)?.name as string | undefined) ?? "—",
+    company_name: (t.companies as { name?: string } | null)?.name ?? "—",
     from_location: (t.from_location as string) ?? "",
     to_location: (t.to_location as string) ?? "",
-    branches_count: Number(t.branches_count) || 0,
     trip_amount: Number(t.trip_amount) || 0,
     driver_base_payment: Number(t.driver_base_payment) || 0,
-    settled: false,
+    driver_trip_payment: Number(t.driver_trip_payment) || 0,
+    settled: t.settlement_id !== null || t.vendor_settlement_id !== null,
   }));
 
   // رحلات السائق: لربط مصروفاته برحلة، ولاختيار ما يُصفّى
@@ -327,11 +322,24 @@ export default async function DriverDetailPage({
         currencySymbol={currencySymbol}
       />
 
-      <TripPricingSection
-        driverId={id}
-        trips={unpricedTrips}
-        currencySymbol={currencySymbol}
-      />
+      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <div className="mb-3">
+          <h3 className="text-sm font-bold text-zinc-900">
+            {driver.employment_type === "external"
+              ? "سعر السائق/المورّد لكل رحلة"
+              : "ترب الرحلات"}
+          </h3>
+          <p className="text-xs text-zinc-500">
+            يُكتب وقت تسجيل الرحلة، ويُعدَّل من هنا بعدها. سعر الحملة على العميل لا يتغيّر.
+          </p>
+        </div>
+        <ErrorBanner error={pricingError} />
+        <TripPaymentsEditor
+          scope={{ kind: "driver", id }}
+          rows={pricingTrips}
+          currencySymbol={currencySymbol}
+        />
+      </div>
 
       <RouteRatesSection driverId={id} rates={routeRates ?? []} currencySymbol={currencySymbol} />
 

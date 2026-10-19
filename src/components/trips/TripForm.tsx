@@ -469,7 +469,14 @@ export function TripForm({
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="الترب الأساسي *" error={errors.driver_base_payment?.message}>
+          <Field
+            label={
+              selectedDriver?.employment_type === "external"
+                ? "سعر المورّد/السائق الخارجي *"
+                : "الترب الأساسي *"
+            }
+            error={errors.driver_base_payment?.message}
+          >
             <input
               {...register("driver_base_payment")}
               type="number"

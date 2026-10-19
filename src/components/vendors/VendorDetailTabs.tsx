@@ -22,6 +22,8 @@ import type {
   VendorAdvanceRecord,
   VendorSettlementRecord,
 } from "@/lib/validation/vendor";
+import { TripPaymentsEditor } from "@/components/trips/TripPaymentsEditor";
+import type { TripPaymentRow } from "@/app/(dashboard)/drivers/pricing-actions";
 
 /**
  * تبويبان مفصولان عمداً:
@@ -30,7 +32,7 @@ import type {
  *
  * والطباعة تطبع **التبويب المعروض وحده** — فلا يخرج الداخلي مع كشف المورّد.
  */
-type Tab = "internal" | "payable";
+type Tab = "internal" | "payable" | "pricing";
 
 export function VendorDetailTabs({
   vendorId,
@@ -40,6 +42,7 @@ export function VendorDetailTabs({
   to,
   trips,
   payableTrips,
+  pricingTrips,
   advances,
   settlements,
   drivers,
@@ -60,6 +63,8 @@ export function VendorDetailTabs({
   to: string;
   trips: VendorTripRow[];
   payableTrips: VendorPayableTripRow[];
+  /** رحلات الفترة لتحرير سعر المورّد لكل منها */
+  pricingTrips: TripPaymentRow[];
   advances: VendorAdvanceRecord[];
   settlements: VendorSettlementRecord[];
   drivers: { id: string; name: string; status: string }[];
@@ -218,6 +223,15 @@ export function VendorDetailTabs({
           >
             كشف المورّد
           </button>
+          <button
+            type="button"
+            onClick={() => setTab("pricing")}
+            className={`rounded px-3 py-1.5 text-xs font-medium ${
+              tab === "pricing" ? "bg-zinc-900 text-white" : "text-zinc-600"
+            }`}
+          >
+            الأسعار
+          </button>
         </div>
 
         <div className="mr-auto flex items-center gap-2">
@@ -263,6 +277,22 @@ export function VendorDetailTabs({
           openingReason={openingReason}
           currencySymbol={currencySymbol}
         />
+      ) : tab === "pricing" ? (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="mb-3">
+            <h3 className="text-sm font-bold text-zinc-900">سعر المورّد لكل رحلة</h3>
+            <p className="text-xs text-zinc-500">
+              يُكتب وقت تسجيل الرحلة في «الترب الأساسي»، ويُعدَّل من هنا بعدها — لكل سائقي
+              هذا المورّد. سعر الحملة على العميل لا يتغيّر.
+            </p>
+          </div>
+          <TripPaymentsEditor
+            scope={{ kind: "vendor", id: vendorId }}
+            rows={pricingTrips}
+            currencySymbol={currencySymbol}
+            showDriver
+          />
+        </div>
       ) : (
         <>
           <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
