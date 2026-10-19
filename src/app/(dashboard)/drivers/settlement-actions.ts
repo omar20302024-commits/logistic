@@ -113,7 +113,12 @@ export async function createSettlement(
   });
 
   // رسالة قاعدة البيانات هنا مفيدة للمستخدم (مثلاً: لا يوجد ما يُصفّى)، فنعرضها
-  if (error) return { error: error.message || "حدث خطأ أثناء إنشاء التصفية" };
+  if (error) {
+    if (error.code === "PGRST202") {
+      return { error: "شغّل ملف SQL رقم 0048 (السداد الجزئي) ثم أعد المحاولة" };
+    }
+    return { error: error.message || "حدث خطأ أثناء إنشاء التصفية" };
+  }
 
   revalidateSettlement(driverId);
   return { error: null, settlementId: data as string };

@@ -17,6 +17,7 @@ import {
   routeUnmatched,
   type RouteRate,
 } from "@/lib/trip-calc";
+import { NewDriverTypePicker } from "@/components/trips/NewDriverTypePicker";
 
 type Option = { id: string; name: string };
 
@@ -24,12 +25,18 @@ type DriverOption = Option & {
   default_trip_payment: number;
   extra_stop_rate: number;
   employment_type: "internal" | "external";
+  /** اسم مورّده إن كان خارجياً تحت مورّد — للتمييز في القائمة */
+  vendor_name?: string | null;
   route_rates: RouteRate[];
 };
 
 type EditableRow = ParsedTripRow & {
   driverId: string; // "" يعني سيتم إنشاء سائق جديد باسم driverName
   include: boolean;
+  /** نوع السائق الذي سيُنشأ حين لا يُربط الصف بسائق موجود */
+  employmentType: "internal" | "external";
+  /** مورّد السائق الجديد — "" = خارجي مستقل */
+  vendorId: string;
   // الترب الأساسي بعد أن يلمسه المستخدم — فارغ يعني "احسبه من خط السير"
   basePaymentOverride: number | null;
 };
@@ -37,10 +44,12 @@ type EditableRow = ParsedTripRow & {
 export function ImportWorkflow({
   drivers,
   companies,
+  vendors = [],
   globalRouteRates = [],
 }: {
   drivers: DriverOption[];
   companies: Option[];
+  vendors?: Option[];
   /** خطوط السير العامة (0035) — لسائقي الشركة فقط */
   globalRouteRates?: RouteRate[];
 }) {
@@ -85,6 +94,8 @@ export function ImportWorkflow({
           ...r,
           driverId: existing?.id ?? "",
           include: true,
+          employmentType: "internal",
+          vendorId: "",
           // الملف إن حمل ترباً فعلياً فهو يغلب خط السير — احترام الملف أولاً
           basePaymentOverride: r.vendorCost > 0 ? r.vendorCost : null,
         };
@@ -172,6 +183,8 @@ export function ImportWorkflow({
       toLocation: r.toLocation,
       driverId: r.driverId,
       newDriverName: r.driverId ? "" : r.driverName,
+      employmentType: r.employmentType,
+      vendorId: r.vendorId || null,
       baseFare: r.baseFare,
       totalPrice: r.totalPrice,
       extraAmount: r.extraFee,
@@ -320,16 +333,31 @@ export function ImportWorkflow({
                       />
                     </td>
                     <td className="px-3 py-2">
-                      <select
-                        value={r.driverId}
-                        onChange={(e) => updateRow(i, { driverId: e.target.value })}
-                        className="rounded border border-zinc-200 px-1.5 py-1 text-xs"
-                      >
-                        <option value="">جديد: {r.driverName}</option>
-                        {drivers.map((d) => (
-                          <option key={d.id} value={d.id}>{d.name}</option>
-                        ))}
-                      </select>
+                      <div className="flex flex-col gap-1">
+                        <select
+                          value={r.driverId}
+                          onChange={(e) => updateRow(i, { driverId: e.target.value })}
+                          className="rounded border border-zinc-200 px-1.5 py-1 text-xs"
+                        >
+                          <option value="">جديد: {r.driverName}</option>
+                          {drivers.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.name}
+                              {d.vendor_name ? ` — ${d.vendor_name}` : ""}
+                            </option>
+                          ))}
+                        </select>
+
+                        {/* النوع والمورّد يُسألان عند الإنشاء وحده */}
+                        {!r.driverId && (
+                          <NewDriverTypePicker
+                            employmentType={r.employmentType}
+                            vendorId={r.vendorId}
+                            vendors={vendors}
+                            onChange={(patch) => updateRow(i, patch)}
+                          />
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-2">
                       <input

@@ -16,6 +16,7 @@ import {
   type SyncPreviewRow,
   type SyncApplyRow,
 } from "@/app/(dashboard)/trips/sync/actions";
+import { NewDriverTypePicker } from "@/components/trips/NewDriverTypePicker";
 
 type DriverOption = {
   id: string;
@@ -23,10 +24,13 @@ type DriverOption = {
   default_trip_payment: number;
   extra_stop_rate: number;
   employment_type: "internal" | "external";
+  /** اسم مورّده إن كان خارجياً تحت مورّد — للتمييز في القائمة */
+  vendor_name?: string | null;
   route_rates: RouteRate[];
 };
 
 type CompanyOption = { id: string; name: string };
+type VendorOption = { id: string; name: string };
 
 type EditableRow = SyncPreviewRow & {
   include: boolean;
@@ -35,6 +39,8 @@ type EditableRow = SyncPreviewRow & {
   driverId: string;
   /** عميل موجود في النظام، أو "" لإنشاء جديد باسم الشيت */
   companyId: string;
+  /** مورّد السائق الجديد — "" = خارجي مستقل */
+  vendorId: string;
   /** الترب الأساسي بعد أن يلمسه المستخدم — null يعني «احسبه من خط السير» */
   basePaymentOverride: number | null;
 };
@@ -43,11 +49,13 @@ export function SheetSyncWorkflow({
   initialUrl,
   drivers,
   companies,
+  vendors = [],
   globalRouteRates = [],
 }: {
   initialUrl: string;
   drivers: DriverOption[];
   companies: CompanyOption[];
+  vendors?: VendorOption[];
   globalRouteRates?: RouteRate[];
 }) {
   const router = useRouter();
@@ -91,6 +99,7 @@ export function SheetSyncWorkflow({
           employmentType: r.looksExternal ? "external" : "internal",
           driverId: matchedDriver?.id ?? "",
           companyId: matchedCompany?.id ?? "",
+          vendorId: "",
           basePaymentOverride: null,
         };
       })
@@ -189,6 +198,7 @@ export function SheetSyncWorkflow({
       requester: r.requester,
       notes: r.notes,
       employmentType: r.employmentType,
+      vendorId: r.vendorId || null,
     }));
 
     setApplying(true);
@@ -587,6 +597,7 @@ export function SheetSyncWorkflow({
                             {drivers.map((d) => (
                               <option key={d.id} value={d.id}>
                                 {d.name}
+                                {d.vendor_name ? ` — ${d.vendor_name}` : ""}
                               </option>
                             ))}
                           </select>
@@ -597,23 +608,14 @@ export function SheetSyncWorkflow({
 
                           {/* نوع السائق يُسأل فقط عند الإنشاء — الموجود يبقى على نوعه */}
                           {!r.driverId && (
-                            <select
-                              value={r.employmentType}
+                            <NewDriverTypePicker
+                              employmentType={r.employmentType}
+                              vendorId={r.vendorId}
+                              vendors={vendors}
                               disabled={r.alreadyImported}
-                              onChange={(e) =>
-                                updateRow(r.sourceKey, {
-                                  employmentType: e.target.value as "internal" | "external",
-                                })
-                              }
-                              className={`rounded border px-1.5 py-1 text-[10px] ${
-                                r.looksExternal
-                                  ? "border-amber-300 bg-amber-50"
-                                  : "border-zinc-200"
-                              }`}
-                            >
-                              <option value="internal">يُنشأ: سائق شركة</option>
-                              <option value="external">يُنشأ: مورّد</option>
-                            </select>
+                              highlight={r.looksExternal}
+                              onChange={(patch) => updateRow(r.sourceKey, patch)}
+                            />
                           )}
                         </div>
                       </td>

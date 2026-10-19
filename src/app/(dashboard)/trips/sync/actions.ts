@@ -138,6 +138,8 @@ export type SyncApplyRow = {
   notes: string;
   /** السائق الجديد يُنشأ بهذا النوع — مقترح من الملاحظات وقابل للتغيير */
   employmentType: "internal" | "external";
+  /** المورّد الذي يتبعه السائق الجديد — "" أو null = خارجي مستقل */
+  vendorId?: string | null;
   /** الترب الأساسي كما كتبه المستخدم — صفر يعني «حلّه من خط السير» */
   basePayment: number;
 };
@@ -210,6 +212,8 @@ export async function applySheetSync(rows: SyncApplyRow[]): Promise<SyncApplyRes
         salary: 0,
         status: "active",
         employment_type: row.employmentType,
+        // المورّد للخارجيين وحدهم — سائق الشركة لا يتبع مورّداً
+        vendor_id: row.employmentType === "external" ? row.vendorId || null : null,
       })
       .select("id")
       .single();

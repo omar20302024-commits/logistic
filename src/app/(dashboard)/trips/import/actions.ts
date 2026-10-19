@@ -36,6 +36,10 @@ export type ImportRowInput = {
   toLocation: string;
   driverId: string; // إما id موجود، أو "" لو سيتم إنشاء سائق جديد
   newDriverName: string; // مطلوب لو driverId فاضي
+  /** نوع السائق الذي سيُنشأ — الافتراضي سائق شركة كما كان */
+  employmentType?: "internal" | "external";
+  /** المورّد الذي يتبعه السائق الجديد — "" أو null = خارجي مستقل */
+  vendorId?: string | null;
   // إجمالي الملف هو المرجع: الأجرة الأساسية تُشتق منه ناقص البنود الأخرى،
   // فيطابق سعر الرحلة المحفوظ ما في الملف بالضبط مهما كان تفصيله
   totalPrice: number;
@@ -100,7 +104,14 @@ export async function confirmImport(
 
     const { data: newDriver, error: driverError } = await supabase
       .from("drivers")
-      .insert({ name: row.newDriverName, salary: 0, status: "active", employment_type: "internal" })
+      .insert({
+        name: row.newDriverName,
+        salary: 0,
+        status: "active",
+        employment_type: row.employmentType ?? "internal",
+        // المورّد للخارجيين وحدهم — سائق الشركة لا يتبع مورّداً
+        vendor_id: row.employmentType === "external" ? row.vendorId || null : null,
+      })
       .select("id")
       .single();
 

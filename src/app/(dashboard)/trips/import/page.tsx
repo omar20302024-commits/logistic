@@ -6,13 +6,20 @@ export default async function TripsImportPage() {
 
   // نجلب معدَّلات السائقين وخطوط سيرهم حتى تعرض المعاينة الترب الحقيقي قبل
   // التأكيد، بدل أن يُملأ على الخادم وقت الحفظ فلا يراه المستخدم.
-  const [{ data: drivers }, { data: companies }, { data: routeRates }, { data: globalRouteRates }] =
+  const [
+    { data: drivers },
+    { data: companies },
+    { data: vendors },
+    { data: routeRates },
+    { data: globalRouteRates },
+  ] =
     await Promise.all([
       supabase
         .from("drivers")
-        .select("id, name, default_trip_payment, extra_stop_rate, employment_type")
+        .select("id, name, default_trip_payment, extra_stop_rate, employment_type, vendor_id")
         .order("name"),
       supabase.from("companies").select("id, name").order("name"),
+      supabase.from("vendors").select("id, name").eq("status", "active").order("name"),
       supabase.from("v_driver_effective_rates").select("driver_id, from_city, to_city, trab_amount"),
       // خطوط السير العامة (0035) — لسائقي الشركة فقط
       supabase.from("route_rates").select("from_city, to_city, trab_amount"),
@@ -29,12 +36,18 @@ export default async function TripsImportPage() {
     ratesByDriver.set(r.driver_id as string, list);
   }
 
+  // اسم المورّد بجانب السائق في القائمة — الأسماء الخارجية تتشابه
+  const vendorNameById = new Map(
+    (vendors ?? []).map((v) => [v.id as string, v.name as string])
+  );
+
   const driverOptions = (drivers ?? []).map((d) => ({
     id: d.id as string,
     name: d.name as string,
     default_trip_payment: Number(d.default_trip_payment) || 0,
     extra_stop_rate: Number(d.extra_stop_rate) || 0,
     employment_type: d.employment_type as "internal" | "external",
+    vendor_name: d.vendor_id ? (vendorNameById.get(d.vendor_id as string) ?? null) : null,
     route_rates: ratesByDriver.get(d.id as string) ?? [],
   }));
 
@@ -56,6 +69,7 @@ export default async function TripsImportPage() {
       <ImportWorkflow
         drivers={driverOptions}
         companies={companies ?? []}
+        vendors={vendors ?? []}
         globalRouteRates={globalRates}
       />
     </div>
