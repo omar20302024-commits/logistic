@@ -16,11 +16,14 @@ export function SettlementsSection({
   driverName,
   settlements,
   currencySymbol,
+  carriedBalance = 0,
 }: {
   driverId: string;
   driverName: string;
   settlements: SettlementRecord[];
   currencySymbol: string;
+  /** متبقٍّ من تصفية سابقة دُفعت ناقصةً (0048) */
+  carriedBalance?: number;
 }) {
   const router = useRouter();
   const [formOpen, setFormOpen] = useState(false);
@@ -112,6 +115,7 @@ export function SettlementsSection({
         onClose={() => setFormOpen(false)}
         driverId={driverId}
         currencySymbol={currencySymbol}
+        carriedBalance={carriedBalance}
       />
 
       <ConfirmDialog

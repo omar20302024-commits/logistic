@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
+import { PaymentAmountField } from "@/components/ui/PaymentAmountField";
 import { formatCurrency } from "@/lib/format";
 import {
   createSettlement,
@@ -27,13 +28,18 @@ export function SettlementFormModal({
   onClose,
   driverId,
   currencySymbol,
+  carriedBalance = 0,
 }: {
   open: boolean;
   onClose: () => void;
   driverId: string;
   currencySymbol: string;
+  /** متبقٍّ من تصفية سابقة دُفعت ناقصةً (0048) */
+  carriedBalance?: number;
 }) {
   const router = useRouter();
+  // فارغ = ادفع المستحق كاملاً
+  const [paidInput, setPaidInput] = useState("");
 
   const [fromDate, setFromDate] = useState(firstOfMonth);
   const [toDate, setToDate] = useState(today);
@@ -122,6 +128,7 @@ export function SettlementFormModal({
       advance_ids: pickedAdvances,
       deduction_ids: pickedDeductions,
       notes,
+      paid_amount: paidInput === "" ? undefined : Number(paidInput),
     });
     setSubmitting(false);
 
@@ -130,11 +137,20 @@ export function SettlementFormModal({
       return;
     }
 
-    toast.success("تمت التصفية بنجاح");
+    const paid = paidInput === "" ? totalDue : Number(paidInput);
+    toast.success(
+      paid < totalDue
+        ? `تمت التصفية — وبقي ${formatCurrency(totalDue - paid, currencySymbol)} ديناً للسائق`
+        : "تمت التصفية بنجاح"
+    );
+    setPaidInput("");
     onClose();
     router.refresh();
     if (result.settlementId) router.push(`/settlements/${result.settlementId}`);
   };
+
+  // ما ستصرفه الدالة فعلاً: صافي الفترة زائد المحمول من تصفية ناقصة سابقة
+  const totalDue = (preview?.net_amount ?? 0) + carriedBalance;
 
   const nothingToSettle =
     preview !== null &&
@@ -263,6 +279,14 @@ export function SettlementFormModal({
                   {formatCurrency(preview.net_amount, currencySymbol)}
                 </span>
               </div>
+              {carriedBalance > 0 && (
+                <div className="flex items-center justify-between pt-2 text-xs text-amber-800">
+                  <span>متبقٍّ من تصفية سابقة</span>
+                  <span className="font-bold" dir="ltr">
+                    +{formatCurrency(carriedBalance, currencySymbol)}
+                  </span>
+                </div>
+              )}
               {preview.net_amount < 0 && (
                 <p className="pt-2 text-[11px] text-red-600">
                   الصافي سالب — أي أن المستحق على السائق للشركة، وليس له.
@@ -275,6 +299,15 @@ export function SettlementFormModal({
             </p>
           )}
         </div>
+
+        {totalDue > 0 && (
+          <PaymentAmountField
+            due={totalDue}
+            value={paidInput}
+            onChange={setPaidInput}
+            currencySymbol={currencySymbol}
+          />
+        )}
 
         {nothingToSettle && (
           <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">

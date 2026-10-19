@@ -97,6 +97,10 @@ export type VendorSettlementRecord = {
   total_vendor_cost: number;
   total_advances: number;
   net_amount: number;
+  // السداد الجزئي (0048). السندات الأقدم: paid = net و carried = 0
+  carried_in?: number | null;
+  paid_amount?: number | null;
+  carried_amount?: number | null;
   notes: string | null;
 };
 

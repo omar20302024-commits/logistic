@@ -109,6 +109,7 @@ export async function createSettlement(
     p_advance_ids: parsed.data.advance_ids,
     p_deduction_ids: parsed.data.deduction_ids,
     p_notes: parsed.data.notes || null,
+    p_paid_amount: parsed.data.paid_amount ?? null,
   });
 
   // رسالة قاعدة البيانات هنا مفيدة للمستخدم (مثلاً: لا يوجد ما يُصفّى)، فنعرضها

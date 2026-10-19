@@ -192,12 +192,38 @@ export function SettlementVoucher({
             sign="minus"
           />
 
+          {Number(settlement.carried_in ?? 0) > 0 && (
+            <SummaryRow
+              label="متبقٍّ من تصفية سابقة"
+              value={Number(settlement.carried_in)}
+              currencySymbol={currencySymbol}
+            />
+          )}
+
           <div className="mt-2 flex items-center justify-between border-t border-zinc-300 pt-3">
-            <span className="text-sm font-bold text-zinc-900">الصافي المستلَم</span>
+            <span className="text-sm font-bold text-zinc-900">إجمالي المستحق</span>
             <span className="text-lg font-bold text-zinc-900" dir="ltr">
               {formatCurrency(settlement.net_amount, currencySymbol)}
             </span>
           </div>
+
+          {/* السداد الجزئي (0048): السندات القديمة paid = net فلا يتغيّر شكلها */}
+          {Number(settlement.carried_amount ?? 0) > 0 && (
+            <>
+              <div className="mt-1 flex items-center justify-between">
+                <span className="text-sm font-bold text-zinc-900">المدفوع فعلاً</span>
+                <span className="text-lg font-bold text-emerald-700" dir="ltr">
+                  {formatCurrency(Number(settlement.paid_amount ?? 0), currencySymbol)}
+                </span>
+              </div>
+              <div className="mt-1 flex items-center justify-between rounded-lg bg-amber-50 px-2.5 py-1.5">
+                <span className="text-sm font-bold text-amber-900">المتبقي</span>
+                <span className="text-base font-bold text-amber-900" dir="ltr">
+                  {formatCurrency(Number(settlement.carried_amount), currencySymbol)}
+                </span>
+              </div>
+            </>
+          )}
         </div>
 
         <p className="mt-3 text-[11px] text-zinc-400">

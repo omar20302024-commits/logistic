@@ -171,10 +171,22 @@ export async function deleteVendorAdvance(
  */
 export async function settleVendor(
   vendorId: string,
-  input: { from: string; to: string; settledOn: string; notes?: string }
+  input: {
+    from: string;
+    to: string;
+    settledOn: string;
+    notes?: string;
+    /** المدفوع فعلاً. undefined = المستحق كاملاً. الأقل يترك متبقياً محمولاً */
+    paidAmount?: number;
+  }
 ): Promise<{ error: string | null; settlementId?: string }> {
   if (!input.from || !input.to) return { error: "الفترة مطلوبة" };
   if (input.to < input.from) return { error: "تاريخ النهاية قبل البداية" };
+
+  const paid = input.paidAmount;
+  if (paid !== undefined && (!Number.isFinite(paid) || paid < 0)) {
+    return { error: "المبلغ المدفوع غير صحيح" };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("fn_settle_vendor", {
@@ -183,11 +195,17 @@ export async function settleVendor(
     p_to: input.to,
     p_settled_on: input.settledOn || new Date().toISOString().slice(0, 10),
     p_notes: input.notes?.trim() || null,
+    p_paid_amount: paid ?? null,
   });
 
   if (error) {
-    // رسالة الدالة عربية ومفهومة، فنمرّرها كما هي
-    if (error.message?.includes("لا توجد رحلات")) return { error: error.message };
+    // رسائل الدالة عربية ومفهومة، فنمرّرها كما هي
+    if (/لا توجد رحلات|المبلغ المدفوع/.test(error.message ?? "")) {
+      return { error: error.message };
+    }
+    if (error.code === "PGRST202") {
+      return { error: "شغّل ملف SQL رقم 0048 (السداد الجزئي) ثم أعد المحاولة" };
+    }
     return { error: "تعذّر تنفيذ التصفية" };
   }
 

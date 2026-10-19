@@ -24,6 +24,7 @@ import type {
 } from "@/lib/validation/vendor";
 import { TripPaymentsEditor } from "@/components/trips/TripPaymentsEditor";
 import type { TripPaymentRow } from "@/app/(dashboard)/drivers/pricing-actions";
+import { PaymentAmountField } from "@/components/ui/PaymentAmountField";
 
 /**
  * تبويبان مفصولان عمداً:
@@ -49,6 +50,7 @@ export function VendorDetailTabs({
   routeRates,
   openingBalance = 0,
   openingReason = null,
+  netDue,
   orgName,
   orgPhone,
   currencySymbol,
@@ -59,6 +61,8 @@ export function VendorDetailTabs({
   /** رصيد قديم غير مصفّى — يدخل مستحق المورّد مرة واحدة (0046) */
   openingBalance?: number;
   openingReason?: string | null;
+  /** المستحق الآن شاملاً الافتتاحي والمحمول من تصفية ناقصة سابقة */
+  netDue: number;
   from: string;
   to: string;
   trips: VendorTripRow[];
@@ -80,6 +84,8 @@ export function VendorDetailTabs({
   const [tab, setTab] = useState<Tab>("internal");
   const [advOpen, setAdvOpen] = useState(false);
   const [settleOpen, setSettleOpen] = useState(false);
+  // فارغ = المستحق كاملاً
+  const [paidInput, setPaidInput] = useState("");
   const [deleting, setDeleting] = useState<VendorAdvanceRecord | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -169,14 +175,25 @@ export function VendorDetailTabs({
 
   const handleSettle = async () => {
     setSaving(true);
-    const result = await settleVendor(vendorId, { from, to, settledOn });
+    const result = await settleVendor(vendorId, {
+      from,
+      to,
+      settledOn,
+      paidAmount: paidInput === "" ? undefined : Number(paidInput),
+    });
     setSaving(false);
     if (result.error) {
       toast.error(result.error);
       return;
     }
-    toast.success("تمت التصفية — وُسمت الرحلات والسلف بسند الصرف");
+    const paid = paidInput === "" ? netDue : Number(paidInput);
+    toast.success(
+      paid < netDue
+        ? `تمت التصفية — وبقي ${formatCurrency(netDue - paid, currencySymbol)} ديناً للمورّد`
+        : "تمت التصفية — وُسمت الرحلات والسلف بسند الصرف"
+    );
     setSettleOpen(false);
+    setPaidInput("");
     router.refresh();
   };
 
@@ -494,8 +511,18 @@ export function VendorDetailTabs({
                       <span className="text-zinc-600" dir="ltr">
                         {st.settlement_number}
                       </span>
-                      <span className="text-zinc-900" dir="ltr">
-                        {formatCurrency(st.net_amount, currencySymbol)}
+                      <span className="flex items-center gap-1.5">
+                        <span className="text-zinc-900" dir="ltr">
+                          {formatCurrency(
+                            Number(st.paid_amount ?? st.net_amount),
+                            currencySymbol
+                          )}
+                        </span>
+                        {Number(st.carried_amount ?? 0) > 0 && (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-800">
+                            متبقٍّ {formatCurrency(Number(st.carried_amount), currencySymbol)}
+                          </span>
+                        )}
                       </span>
                     </li>
                   ))}
@@ -591,6 +618,14 @@ export function VendorDetailTabs({
               className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-right outline-none focus:border-zinc-900"
             />
           </div>
+
+          <PaymentAmountField
+            due={netDue}
+            value={paidInput}
+            onChange={setPaidInput}
+            currencySymbol={currencySymbol}
+          />
+
           <p className="text-[11px] text-amber-700">
             الأرقام تُجمَّد في السند وقت الصرف — فلو عُدّلت رحلة بعده يبقى السند شاهداً على ما
             صُرف فعلاً. والرحلات المصروفة لا تدخل تصفية ثانية.

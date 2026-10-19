@@ -77,6 +77,7 @@ export default async function DriverDetailPage({
     { data: oilChanges },
     { data: monthlyDiesel },
     { data: dieselOverlapsRaw },
+    { data: carriedRaw },
   ] = await Promise.all([
       supabase
         .from("driver_advances")
@@ -117,7 +118,11 @@ export default async function DriverDetailPage({
       supabase.from("driver_monthly_diesel").select("amount").eq("driver_id", id),
       // ازدواج الديزل: شهور فيها ديزل رحلات وديزل شهري معاً (0041)
       supabase.rpc("fn_driver_diesel_overlap", { p_driver_id: id }),
+      // متبقٍّ من تصفية سابقة دُفعت ناقصةً (0048)
+      supabase.rpc("fn_driver_carried_balance", { p_driver_id: id }),
     ]);
+
+  const carriedBalance = Number(carriedRaw ?? 0) || 0;
 
   // كرت «إجمالي الديزل» كان يقرأ trips.diesel_amount وحده — أي الديزل القديم
   // المسجَّل على الرحلة — فلا يرى قسم الديزل إطلاقاً. والربح يخصم الاثنين معاً
@@ -270,12 +275,25 @@ export default async function DriverDetailPage({
           />
           <StatCard
             label="إجمالي المستحق للسائق"
-            value={formatCurrency(s.total_due_to_driver, currencySymbol)}
+            value={formatCurrency(
+              Number(s.total_due_to_driver || 0) + carriedBalance,
+              currencySymbol
+            )}
             icon={Banknote}
             tone="positive"
           />
         </div>
       </div>
+
+      {carriedBalance > 0 && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <span className="font-medium">
+            متبقٍّ من تصفية سابقة:{" "}
+            <span dir="ltr">{formatCurrency(carriedBalance, currencySymbol)}</span>
+          </span>{" "}
+          — دُفع أقل من المستحق وقتها، فالفرق محسوب ضمن «إجمالي المستحق» أعلاه.
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <LedgerSection
@@ -307,6 +325,7 @@ export default async function DriverDetailPage({
         driverName={driver.name}
         settlements={settlements ?? []}
         currencySymbol={currencySymbol}
+        carriedBalance={carriedBalance}
       />
 
       <DieselSection

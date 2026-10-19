@@ -105,6 +105,7 @@ export default async function VendorDetailPage({
     { data: vendorRates, error: ratesError },
     { data: settings },
     { data: pricingRaw, error: pricingError },
+    { data: carriedRaw },
   ] = await Promise.all([
     supabase.rpc("fn_vendor_period_summary", { p_vendor_id: id, p_from: from, p_to: to }).single(),
     supabase.rpc("fn_vendor_trips", { p_vendor_id: id, p_from: from, p_to: to }),
@@ -142,6 +143,9 @@ export default async function VendorDetailPage({
       .neq("status", "cancelled")
       .order("trip_date", { ascending: false })
       .limit(300),
+    // متبقٍّ من تصفية سابقة دُفعت ناقصةً (0048) — خارج دالة الملخص عمداً،
+    // فتوقيعها لم يتغيّر ولم تُمَس أي جهة تستدعيها.
+    supabase.rpc("fn_vendor_carried_balance", { p_vendor_id: id }),
   ]);
 
   const pricingTrips: TripPaymentRow[] = (pricingRaw ?? []).map((t) => ({
@@ -158,6 +162,8 @@ export default async function VendorDetailPage({
     settled: t.settlement_id !== null || t.vendor_settlement_id !== null,
   }));
 
+  const carriedBalance = Number(carriedRaw ?? 0) || 0;
+
   const s = (summaryRaw as VendorSummary | null) ?? {
     trips_count: 0,
     drivers_count: 0,
@@ -169,6 +175,10 @@ export default async function VendorDetailPage({
     unsettled_cost: 0,
     net_due: 0,
   };
+
+  // دالة الملخص لا تعرف المحمول (توقيعها لم يُمَس)، فيُضاف هنا — وهو نفس
+  // المبلغ الذي تحسبه fn_settle_vendor، فما يُعرض هو ما يُصرف.
+  const netDue = Number(s.net_due || 0) + carriedBalance;
 
   return (
     <div className="flex flex-col gap-6">
@@ -231,11 +241,23 @@ export default async function VendorDetailPage({
         />
         <StatCard
           label="المستحق الآن"
-          value={formatCurrency(s.net_due, settings?.currency_symbol ?? "ر.س")}
+          value={formatCurrency(netDue, settings?.currency_symbol ?? "ر.س")}
           icon={Wallet}
           tone="warning"
         />
       </div>
+
+      {carriedBalance > 0 && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 print:hidden">
+          <span className="font-medium">
+            متبقٍّ من تصفية سابقة:{" "}
+            <span dir="ltr">
+              {formatCurrency(carriedBalance, settings?.currency_symbol ?? "ر.س")}
+            </span>
+          </span>{" "}
+          — دُفع أقل من المستحق وقتها، فالفرق محسوب ضمن «المستحق الآن» أعلاه.
+        </div>
+      )}
 
       <VendorDetailTabs
         vendorId={id}
@@ -246,6 +268,7 @@ export default async function VendorDetailPage({
         trips={(trips ?? []) as VendorTripRow[]}
         payableTrips={(payableTrips ?? []) as VendorPayableTripRow[]}
         pricingTrips={pricingTrips}
+        netDue={netDue}
         advances={(advances ?? []) as VendorAdvanceRecord[]}
         settlements={(settlements ?? []) as VendorSettlementRecord[]}
         drivers={(drivers ?? []) as { id: string; name: string; status: string }[]}

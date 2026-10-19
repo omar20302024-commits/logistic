@@ -8,6 +8,12 @@ export const settlementSchema = z
     advance_ids: z.array(z.string().uuid()).default([]),
     deduction_ids: z.array(z.string().uuid()).default([]),
     notes: z.string().trim().optional().or(z.literal("")),
+    // المدفوع فعلاً. فارغ = المستحق كاملاً. لا نستعمل coerce مباشرةً لأن
+    // الخانة الفارغة كانت ستصير 0 — أي «لم يُدفع شيء» بدل «ادفع الكل».
+    paid_amount: z.preprocess(
+      (v) => (v === "" || v === null || v === undefined ? undefined : Number(v)),
+      z.number().min(0, "المبلغ لا يكون سالباً").optional()
+    ),
   })
   .refine((v) => v.to_date >= v.from_date, {
     path: ["to_date"],
@@ -42,7 +48,12 @@ export type SettlementRecord = {
   driver_expenses: number;
   total_advances: number;
   total_deductions: number;
+  /** إجمالي المستحق وقت التصفية */
   net_amount: number;
+  // السداد الجزئي (0048). السندات الأقدم: paid = net و carried = 0
+  carried_in?: number | null;
+  paid_amount?: number | null;
+  carried_amount?: number | null;
   notes: string | null;
 };
 
