@@ -146,7 +146,7 @@ export default async function DashboardPage({
 
       <ErrorBanner
         error={overviewRes.error}
-        hint="تأكد من تشغيل ملف SQL رقم 0004 (دوال لوحة التحكم)."
+        hint="تأكد من تشغيل ملف SQL رقم 0045 (لوحة التحكم بفترة). ولو كان مُشغَّلاً، نفّذ في Supabase: notify pgrst, 'reload schema';"
       />
 
       {/* بطاقات الإحصائيات */}
