@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { ArrowRight, Truck, Banknote, TrendingUp, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatNumber } from "@/lib/format";
@@ -66,7 +65,34 @@ export default async function VendorDetailPage({
     );
   }
 
-  if (!vendor) notFound();
+  // صفحة 404 العامة لا تقول شيئاً مفيداً. الصف غير موجود فعلاً يعني أحد
+  // أمرين: مُعرَّف قديم لمورّد محذوف، أو صلاحية RLS تحجبه — ونعرض المُعرَّف
+  // ليُفحص مباشرةً في قاعدة البيانات.
+  if (!vendor) {
+    return (
+      <div className="flex flex-col gap-4">
+        <Link
+          href="/vendors"
+          className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900"
+        >
+          <ArrowRight size={15} />
+          العودة للموردين
+        </Link>
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <p className="font-medium">لا يوجد مورّد بهذا المُعرَّف.</p>
+          <p className="mt-1">
+            إمّا أنه حُذف، أو أن الرابط قديم. افحصه في قاعدة البيانات:
+          </p>
+          <p
+            className="mt-2 rounded bg-amber-100 px-2 py-1 font-mono text-xs break-all"
+            dir="ltr"
+          >
+            select id, name from vendors where id = &apos;{id}&apos;;
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const [
     { data: summaryRaw, error: summaryError },
