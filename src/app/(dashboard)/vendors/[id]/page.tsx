@@ -38,7 +38,9 @@ export default async function VendorDetailPage({
 
   const { data: vendor } = await supabase
     .from("vendors")
-    .select("id, name, phone, notes, status")
+    .select(
+      "id, name, phone, notes, status, opening_balance, opening_reason, opening_date, opening_settlement_id"
+    )
     .eq("id", id)
     .single();
 
@@ -154,6 +156,10 @@ export default async function VendorDetailPage({
         advances={(advances ?? []) as VendorAdvanceRecord[]}
         settlements={(settlements ?? []) as VendorSettlementRecord[]}
         drivers={(drivers ?? []) as { id: string; name: string; status: string }[]}
+        openingBalance={
+          vendor.opening_settlement_id ? 0 : Number(vendor.opening_balance) || 0
+        }
+        openingReason={(vendor.opening_reason as string | null) ?? null}
         orgName={settings?.org_name ?? "مؤسستي"}
         orgPhone={settings?.org_phone ?? null}
         currencySymbol={settings?.currency_symbol ?? "ر.س"}

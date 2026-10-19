@@ -23,6 +23,9 @@ export async function createVendor(input: unknown): Promise<ActionResult> {
     phone: parsed.data.phone || null,
     notes: parsed.data.notes || null,
     status: parsed.data.status,
+    opening_balance: parsed.data.opening_balance,
+    opening_reason: parsed.data.opening_reason || null,
+    opening_date: parsed.data.opening_date || null,
   });
 
   if (error) return { error: "تعذّر إضافة المورّد" };
@@ -38,6 +41,15 @@ export async function updateVendor(id: string, input: unknown): Promise<ActionRe
   }
 
   const supabase = await createClient();
+
+  // الرصيد الافتتاحي بعد تصفيته جزء من سند مصروف — تعديله يغيّر رقماً مجمَّداً
+  const { data: current } = await supabase
+    .from("vendors")
+    .select("opening_settlement_id")
+    .eq("id", id)
+    .single();
+  const vendorHasSettledOpening = !!current?.opening_settlement_id;
+
   const { error } = await supabase
     .from("vendors")
     .update({
@@ -45,6 +57,12 @@ export async function updateVendor(id: string, input: unknown): Promise<ActionRe
       phone: parsed.data.phone || null,
       notes: parsed.data.notes || null,
       status: parsed.data.status,
+      // الافتتاحي المصفّى لا يُمَس: تعديله يغيّر رقماً مجمَّداً في سند مصروف
+      ...(vendorHasSettledOpening ? {} : {
+        opening_balance: parsed.data.opening_balance,
+        opening_reason: parsed.data.opening_reason || null,
+        opening_date: parsed.data.opening_date || null,
+      }),
     })
     .eq("id", id);
 

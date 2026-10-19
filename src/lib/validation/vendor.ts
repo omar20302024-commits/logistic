@@ -5,6 +5,12 @@ export const vendorSchema = z.object({
   phone: z.string().trim().optional().or(z.literal("")),
   notes: z.string().trim().optional().or(z.literal("")),
   status: z.enum(["active", "inactive"]),
+  // رصيد قديم من رحلات سابقة لم تُسجَّل في النظام (0046).
+  // يُصفّى مرة واحدة ثم يخرج من الحساب — لا يتكرّر كل شهر.
+  // default مهم: بدونه يصير undefined ← NaN عبر coerce فيفشل الحفظ
+  opening_balance: z.coerce.number().min(0, "الرصيد الافتتاحي يجب ألا يكون سالباً").default(0),
+  opening_reason: z.string().trim().optional().or(z.literal("")),
+  opening_date: z.string().trim().optional().or(z.literal("")),
 });
 
 export type VendorFormInput = z.input<typeof vendorSchema>;
@@ -16,6 +22,10 @@ export type VendorRecord = {
   phone: string | null;
   notes: string | null;
   status: "active" | "inactive";
+  opening_balance: number;
+  opening_reason: string | null;
+  opening_date: string | null;
+  opening_settlement_id: string | null;
 };
 
 /** صف في تقرير الموردين — داخلي، فيه سعر العميل والربح */
@@ -28,6 +38,7 @@ export type VendorReportRow = {
   total_client_amount: number;
   total_vendor_cost: number;
   total_profit: number;
+  opening_balance: number;
   unsettled_cost: number;
 };
 
@@ -72,6 +83,7 @@ export type VendorSummary = {
   total_advances: number;
   settled_cost: number;
   unsettled_cost: number;
+  opening_balance: number;
   net_due: number;
 };
 

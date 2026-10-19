@@ -25,6 +25,8 @@ export function VendorPayableStatement({
   to,
   trips,
   advances,
+  openingBalance = 0,
+  openingReason = null,
   currencySymbol,
 }: {
   orgName: string;
@@ -36,11 +38,15 @@ export function VendorPayableStatement({
   trips: VendorPayableTripRow[];
   /** سلف مخصومة من حساب الرحلات — المورّد يراها لأنها تنقص مستحقه */
   advances: { date: string; amount: number; description: string | null }[];
+  /** رصيد قديم غير مصفّى — مال له فيراه، وسببه معه */
+  openingBalance?: number;
+  openingReason?: string | null;
   currencySymbol: string;
 }) {
   const totalAmount = trips.reduce((sum, t) => sum + Number(t.amount || 0), 0);
   const totalAdvances = advances.reduce((sum, a) => sum + Number(a.amount || 0), 0);
-  const netDue = totalAmount - totalAdvances;
+  const opening = Number(openingBalance) || 0;
+  const netDue = totalAmount + opening - totalAdvances;
 
   return (
     <div className="print-statement overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
@@ -135,6 +141,13 @@ export function VendorPayableStatement({
             value={totalAmount}
             currencySymbol={currencySymbol}
           />
+          {opening > 0 && (
+            <SummaryRow
+              label={`رصيد سابق${openingReason ? ` — ${openingReason}` : ""}`}
+              value={opening}
+              currencySymbol={currencySymbol}
+            />
+          )}
           {totalAdvances > 0 && (
             <SummaryRow
               label="السلف"

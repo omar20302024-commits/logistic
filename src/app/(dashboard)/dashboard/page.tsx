@@ -17,6 +17,7 @@ import { ProfitabilityBreakdown } from "@/components/dashboard/ProfitabilityBrea
 import { MonthlyRevenueChart } from "@/components/dashboard/MonthlyRevenueChart";
 import { TripsCountChart } from "@/components/dashboard/TripsCountChart";
 import { ProfitabilityRankingChart } from "@/components/dashboard/ProfitabilityRankingChart";
+import { DashboardPeriodPicker } from "@/components/dashboard/DashboardPeriodPicker";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 type Overview = {
@@ -61,17 +62,44 @@ const emptyOverview: Overview = {
   net_profit: 0,
 };
 
-export default async function DashboardPage() {
+/** «كل الفترات» = نطاق يغطي كل ما في النظام، فلا حاجة لدالة ثانية بلا فترة */
+const ALL_FROM = "2000-01-01";
+const ALL_TO = "2100-12-31";
+
+function monthBounds(ym: string) {
+  const [y, m] = ym.split("-").map(Number);
+  const last = new Date(y, m, 0).getDate();
+  return {
+    from: `${ym}-01`,
+    to: `${ym}-${String(last).padStart(2, "0")}`,
+  };
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string }>;
+}) {
+  const sp = await searchParams;
+  // الافتراضي «كل الفترات» حتى لا تتغيّر الأرقام التي اعتادها المستخدم فجأةً
+  const month = sp.month ?? "";
+  const { from: periodFrom, to: periodTo } = month
+    ? monthBounds(month)
+    : { from: ALL_FROM, to: ALL_TO };
+
   const supabase = await createClient();
 
+  // نطاق مستقل للرسوم البيانية: آخر اثني عشر شهراً دائماً، لا يتبع اختيار الشهر
   const today = new Date();
-  const from = new Date(today.getFullYear(), today.getMonth() - 11, 1);
-  const fromStr = from.toISOString().slice(0, 10);
+  const chartsFrom = new Date(today.getFullYear(), today.getMonth() - 11, 1);
+  const fromStr = chartsFrom.toISOString().slice(0, 10);
   const toStr = today.toISOString().slice(0, 10);
 
   const [overviewRes, trendsRes, topDriversRes, topCompaniesRes, settingsRes] =
     await Promise.all([
-      supabase.rpc("fn_dashboard_overview").single(),
+      supabase
+        .rpc("fn_dashboard_overview", { p_from: periodFrom, p_to: periodTo })
+        .single(),
       supabase.rpc("fn_monthly_trends", { p_months: 12 }),
       supabase.rpc("fn_top_drivers_profitability", {
         p_from: fromStr,
@@ -106,11 +134,14 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-bold text-zinc-900">لوحة التحكم</h1>
-        <p className="text-sm text-zinc-500">
-          {settingsRes.data?.org_name ?? "نظرة عامة على النشاط والربحية"}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-zinc-900">لوحة التحكم</h1>
+          <p className="text-sm text-zinc-500">
+            {settingsRes.data?.org_name ?? "نظرة عامة على النشاط والربحية"}
+          </p>
+        </div>
+        <DashboardPeriodPicker month={month} />
       </div>
 
       <ErrorBanner
@@ -120,9 +151,9 @@ export default async function DashboardPage() {
 
       {/* بطاقات الإحصائيات */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        <StatCard label="إجمالي السائقين" value={formatNumber(overview.drivers_count)} icon={Users} />
+        <StatCard label="سائقو الشركة" value={formatNumber(overview.drivers_count)} icon={Users} />
         <StatCard
-          label="السائقون النشطون"
+          label="النشطون"
           value={formatNumber(overview.active_drivers_count)}
           icon={UserCheck}
           tone="positive"

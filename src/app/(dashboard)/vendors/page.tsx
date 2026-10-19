@@ -28,7 +28,12 @@ export default async function VendorsPage({
 
   const [{ data: rows, error }, { data: vendors }, { data: settings }] = await Promise.all([
     supabase.rpc("fn_vendors_report", { p_from: from, p_to: to }),
-    supabase.from("vendors").select("id, name, phone, notes, status").order("name"),
+    supabase
+      .from("vendors")
+      .select(
+        "id, name, phone, notes, status, opening_balance, opening_reason, opening_date, opening_settlement_id"
+      )
+      .order("name"),
     supabase.from("settings").select("currency_symbol, reviewed_by").single(),
   ]);
 

@@ -40,6 +40,8 @@ export function VendorDetailTabs({
   advances,
   settlements,
   drivers,
+  openingBalance = 0,
+  openingReason = null,
   orgName,
   orgPhone,
   currencySymbol,
@@ -47,6 +49,9 @@ export function VendorDetailTabs({
   vendorId: string;
   vendorName: string;
   vendorPhone: string | null;
+  /** رصيد قديم غير مصفّى — يدخل مستحق المورّد مرة واحدة (0046) */
+  openingBalance?: number;
+  openingReason?: string | null;
   from: string;
   to: string;
   trips: VendorTripRow[];
@@ -218,6 +223,8 @@ export function VendorDetailTabs({
             amount: a.amount,
             description: a.description,
           }))}
+          openingBalance={openingBalance}
+          openingReason={openingReason}
           currencySymbol={currencySymbol}
         />
       ) : (

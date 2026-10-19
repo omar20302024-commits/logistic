@@ -41,6 +41,9 @@ export function VendorsTable({
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
+  const [openingBalance, setOpeningBalance] = useState("");
+  const [openingReason, setOpeningReason] = useState("");
+  const [openingDate, setOpeningDate] = useState("");
 
   const handleChange = (updates: Record<string, string>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -53,12 +56,26 @@ export function VendorsTable({
     setName(vendor?.name ?? "");
     setPhone(vendor?.phone ?? "");
     setStatus(vendor?.status ?? "active");
+    setOpeningBalance(vendor?.opening_balance ? String(vendor.opening_balance) : "");
+    setOpeningReason(vendor?.opening_reason ?? "");
+    setOpeningDate(vendor?.opening_date ?? "");
     setFormOpen(true);
   };
 
+  /** الافتتاحي المصفّى صار جزءاً من سند مصروف — لا يُعدَّل */
+  const openingLocked = !!editing?.opening_settlement_id;
+
   const handleSave = async () => {
     setSaving(true);
-    const payload = { name, phone, status, notes: "" };
+    const payload = {
+      name,
+      phone,
+      status,
+      notes: "",
+      opening_balance: Number(openingBalance) || 0,
+      opening_reason: openingReason,
+      opening_date: openingDate,
+    };
     const result = editing ? await updateVendor(editing.id, payload) : await createVendor(payload);
     setSaving(false);
 
@@ -287,6 +304,51 @@ export function VendorsTable({
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+            <p className="mb-2 text-xs font-medium text-zinc-700">
+              رصيد افتتاحي {openingLocked && <span className="text-zinc-400">(مصفّى — للعرض)</span>}
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-zinc-500">المبلغ</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  dir="ltr"
+                  value={openingBalance}
+                  disabled={openingLocked}
+                  onChange={(e) => setOpeningBalance(e.target.value)}
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-right outline-none focus:border-zinc-900 disabled:bg-zinc-100"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-zinc-500">التاريخ</label>
+                <input
+                  type="date"
+                  dir="ltr"
+                  value={openingDate}
+                  disabled={openingLocked}
+                  onChange={(e) => setOpeningDate(e.target.value)}
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-right outline-none focus:border-zinc-900 disabled:bg-zinc-100"
+                />
+              </div>
+            </div>
+            <div className="mt-3 flex flex-col gap-1.5">
+              <label className="text-xs text-zinc-500">السبب</label>
+              <input
+                value={openingReason}
+                disabled={openingLocked}
+                onChange={(e) => setOpeningReason(e.target.value)}
+                placeholder="مثال: متبقٍّ من رحلات سبتمبر قبل إدخال النظام"
+                className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-900 disabled:bg-zinc-100"
+              />
+            </div>
+            <p className="mt-2 text-[11px] text-zinc-500">
+              مبلغ قديم متبقٍّ للمورّد من رحلات سابقة لم تُسجَّل. يدخل مستحقه، و
+              <strong> يُصفّى مرة واحدة</strong> ثم يخرج من الحساب — فلا يتكرّر كل شهر.
+            </p>
           </div>
 
           <p className="text-[11px] text-zinc-400">
