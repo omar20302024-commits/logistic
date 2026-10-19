@@ -11,6 +11,8 @@ import { OilChangeSection } from "@/components/drivers/OilChangeSection";
 import { OIL_CATEGORY } from "@/lib/validation/expense";
 import type { DieselOverlap } from "@/app/(dashboard)/drivers/diesel-actions";
 import { RouteRatesSection } from "@/components/drivers/RouteRatesSection";
+import { TripPricingSection } from "@/components/drivers/TripPricingSection";
+import type { UnpricedTrip } from "@/app/(dashboard)/drivers/pricing-actions";
 import { SettlementsSection } from "@/components/drivers/SettlementsSection";
 import { LeavesSection } from "@/components/drivers/LeavesSection";
 import { PublicLinkSection } from "@/components/drivers/PublicLinkSection";
@@ -126,6 +128,35 @@ export default async function DriverDetailPage({
     0
   );
   const companyDieselTotal = Number(s.total_diesel || 0) + monthlyDieselTotal;
+
+  // رحلات بلا سعر: دخلت قبل ضبط التسعيرة فبقيت بترب صفر، فلا تظهر في مستحقه
+  // ولا تُصفّى. المصفّاة مستبعَدة — أرقامها مجمّدة في سند مصروف.
+  const { data: unpricedRaw } = await supabase
+    .from("trips")
+    .select(
+      "id, trip_number, trip_date, from_location, to_location, branches_count, trip_amount, driver_base_payment, companies(name)"
+    )
+    .eq("driver_id", id)
+    .eq("driver_base_payment", 0)
+    .is("settlement_id", null)
+    .is("vendor_settlement_id", null)
+    .neq("status", "cancelled")
+    .order("trip_date", { ascending: false })
+    .limit(200);
+
+  const unpricedTrips: UnpricedTrip[] = (unpricedRaw ?? []).map((t) => ({
+    id: t.id as string,
+    trip_number: (t.trip_number as string) ?? "",
+    trip_date: t.trip_date as string,
+    company_name:
+      ((t.companies as { name?: string } | null)?.name as string | undefined) ?? "—",
+    from_location: (t.from_location as string) ?? "",
+    to_location: (t.to_location as string) ?? "",
+    branches_count: Number(t.branches_count) || 0,
+    trip_amount: Number(t.trip_amount) || 0,
+    driver_base_payment: Number(t.driver_base_payment) || 0,
+    settled: false,
+  }));
 
   // رحلات السائق: لربط مصروفاته برحلة، ولاختيار ما يُصفّى
   const { data: driverTrips } = await supabase
@@ -293,6 +324,12 @@ export default async function DriverDetailPage({
       <OilChangeSection
         driverId={id}
         entries={oilChanges ?? []}
+        currencySymbol={currencySymbol}
+      />
+
+      <TripPricingSection
+        driverId={id}
+        trips={unpricedTrips}
         currencySymbol={currencySymbol}
       />
 
