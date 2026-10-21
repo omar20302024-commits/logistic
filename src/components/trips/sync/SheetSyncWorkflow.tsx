@@ -29,6 +29,12 @@ type DriverOption = {
   route_rates: RouteRate[];
 };
 
+/** أول الشهر الماضي — نطاق الجلب الافتراضي */
+function defaultFrom(): string {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString().slice(0, 10);
+}
+
 type CompanyOption = { id: string; name: string };
 type VendorOption = { id: string; name: string };
 
@@ -65,17 +71,24 @@ export function SheetSyncWorkflow({
   const [applying, setApplying] = useState(false);
   const [rows, setRows] = useState<EditableRow[] | null>(null);
   const [existingCount, setExistingCount] = useState(0);
+  // ما قصّه النطاق — يُذكر صراحةً فلا يظن المستخدم أن الشيت نفد
+  const [outOfRange, setOutOfRange] = useState(0);
 
-  // الشيت يُقرأ كاملاً في كل مرة — ولا بديل، فتصدير CSV لا يقبل نطاقاً. لكن
-  // عرض كل الرحلات منذ البداية يجعل الصفحة لا تنتهي، فالفلترة هنا على العرض.
+  // جوجل لا يصدّر نطاقاً فالـCSV يُنزَّل كاملاً، لكن القصّ بالتاريخ يحدث على
+  // الخادم قبل سؤال قاعدة البيانات وقبل إرسال الصفوف للمتصفح.
   const [showImported, setShowImported] = useState(false);
   const [showDismissed, setShowDismissed] = useState(false);
-  const [fromFilter, setFromFilter] = useState("");
+  // الافتراضي: من أول الشهر الماضي — يغطّي ما يُستورد عادةً ويقصّ تاريخاً
+  // كاملاً من الشيت. و«كل الشيت» يبقى بضغطة لمن أراد.
+  const [fromFilter, setFromFilter] = useState(defaultFrom);
   const [toFilter, setToFilter] = useState("");
 
   const handleFetch = async () => {
     setLoading(true);
-    const result = await fetchSheetPreview(url);
+    const result = await fetchSheetPreview(url, {
+      from: fromFilter || undefined,
+      to: toFilter || undefined,
+    });
     setLoading(false);
 
     if (!result.ok) {
@@ -105,6 +118,7 @@ export function SheetSyncWorkflow({
       })
     );
     setExistingCount(result.existingCount);
+    setOutOfRange(result.outOfRangeCount);
 
     if (result.newCount === 0) {
       toast.info("لا توجد رحلات جديدة — كل ما في الشيت مستورد أو متجاهَل");
@@ -245,8 +259,7 @@ export function SheetSyncWorkflow({
   const visibleRows = (rows ?? []).filter((r) => {
     if (r.alreadyImported && !showImported) return false;
     if (r.dismissed && !showDismissed) return false;
-    if (fromFilter && r.date && r.date < fromFilter) return false;
-    if (toFilter && r.date && r.date > toFilter) return false;
+    // قصّ التاريخ صار على الخادم وقت الجلب، فلا يُكرَّر هنا
     return true;
   });
 
@@ -341,6 +354,44 @@ export function SheetSyncWorkflow({
             {loading ? "جارٍ القراءة..." : "مزامنة الآن"}
           </button>
         </div>
+        {/* النطاق يُطبَّق عند الجلب لا على العرض: الشيت يكبر كل شهر، وبدونه
+            يُسأل عن آلاف المفاتيح وتُحمَّل آلاف الصفوف لتُخفى في المتصفح */}
+        <div className="flex flex-wrap items-end gap-3 rounded-xl border border-zinc-200 bg-zinc-50/60 p-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-medium text-zinc-500">اقرأ من تاريخ</label>
+            <input
+              type="date"
+              dir="ltr"
+              value={fromFilter}
+              onChange={(e) => setFromFilter(e.target.value)}
+              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs outline-none focus:border-zinc-900"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-medium text-zinc-500">إلى تاريخ</label>
+            <input
+              type="date"
+              dir="ltr"
+              value={toFilter}
+              onChange={(e) => setToFilter(e.target.value)}
+              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs outline-none focus:border-zinc-900"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setFromFilter("");
+              setToFilter("");
+            }}
+            className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs text-zinc-600 hover:bg-zinc-50"
+          >
+            كل الشيت
+          </button>
+          <span className="pb-1.5 text-[11px] text-zinc-500">
+            يُطبَّق عند «مزامنة الآن». الصفوف بلا تاريخ مقروء تظهر دائماً.
+          </span>
+        </div>
+
         <p className="text-[11px] text-zinc-400">
           يجب أن تكون مشاركة الشيت «أي شخص لديه الرابط يمكنه الاطّلاع». المزامنة تُدخل
           الجديد فقط — لا تحذف رحلة ولا تعدّل رحلة مسجَّلة، وحذف صف من الشيت لا يمسّ النظام.
@@ -362,6 +413,11 @@ export function SheetSyncWorkflow({
               <span className="inline-flex items-center gap-1 text-zinc-500">
                 <CheckCircle2 size={14} className="text-emerald-600" />
                 {existingCount} مستوردة سابقاً — لن تتكرّر
+              </span>
+            )}
+            {outOfRange > 0 && (
+              <span className="text-zinc-500">
+                {outOfRange} صفاً خارج النطاق — لم تُقرأ. وسّع التاريخ أو اضغط «كل الشيت».
               </span>
             )}
             {(rows?.filter((r) => r.dismissed).length ?? 0) > 0 && (
@@ -390,42 +446,8 @@ export function SheetSyncWorkflow({
             </div>
           </div>
 
-          {/* فلترة العرض — الشيت يكبر كل شهر والصفحة لا تنتهي بدونها */}
+          {/* فلترة العرض وحدها — قصّ التاريخ انتقل إلى الجلب فوق */}
           <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-zinc-500">من تاريخ</label>
-              <input
-                type="date"
-                dir="ltr"
-                value={fromFilter}
-                onChange={(e) => setFromFilter(e.target.value)}
-                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs outline-none focus:border-zinc-900"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-zinc-500">إلى تاريخ</label>
-              <input
-                type="date"
-                dir="ltr"
-                value={toFilter}
-                onChange={(e) => setToFilter(e.target.value)}
-                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs outline-none focus:border-zinc-900"
-              />
-            </div>
-
-            {(fromFilter || toFilter) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setFromFilter("");
-                  setToFilter("");
-                }}
-                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs text-zinc-600 hover:bg-zinc-50"
-              >
-                مسح التاريخ
-              </button>
-            )}
-
             <label className="flex items-center gap-1.5 text-xs text-zinc-600">
               <input
                 type="checkbox"

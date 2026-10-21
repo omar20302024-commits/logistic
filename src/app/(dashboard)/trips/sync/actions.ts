@@ -35,13 +35,27 @@ export type SyncPreviewResult =
       newCount: number;
       existingCount: number;
       dismissedCount: number;
+      /** صفوف في الشيت خارج نطاق التاريخ المطلوب — لم تُقرأ ولم تُحمَّل */
+      outOfRangeCount: number;
+      /** صفوف بلا تاريخ مقروء: تُعرض دائماً مهما كان النطاق */
+      totalInSheet: number;
       sheetId: string;
       gid: string;
     }
   | { ok: false; error: string };
 
-/** يقرأ الشيت ويقارنه بما استُورد سابقاً — لا يكتب شيئاً */
-export async function fetchSheetPreview(url: string): Promise<SyncPreviewResult> {
+/**
+ * يقرأ الشيت ويقارنه بما استُورد سابقاً — لا يكتب شيئاً.
+ *
+ * `range` يقصّ الصفوف **قبل** سؤال قاعدة البيانات وقبل إرسالها للمتصفح:
+ * جوجل لا يصدّر نطاقاً فلا مفرّ من تنزيل الـCSV كاملاً، لكن ما نملك ضبطه —
+ * استعلام `in(source_key, …)` بآلاف المفاتيح، وحجم الحمولة، وجدول لا ينتهي
+ * في الصفحة — كلها تتقلّص بالنطاق.
+ */
+export async function fetchSheetPreview(
+  url: string,
+  range?: { from?: string; to?: string }
+): Promise<SyncPreviewResult> {
   const parsedUrl = parseSheetUrl(url);
   if (!parsedUrl) {
     return { ok: false, error: "رابط غير صالح — يجب أن يكون رابط جوجل شيت" };
@@ -92,12 +106,26 @@ export async function fetchSheetPreview(url: string): Promise<SyncPreviewResult>
   // الحل: لاحقة لتكرار المسلسل — أول «1» يبقى «1» (فلا تتغيّر مفاتيح ما
   // استُورد سلفاً)، والثاني يصير «1#2». والترتيب ثابت ما دامت الصفوف تُضاف
   // في الذيل، وتعديل محتوى صفٍّ لا يغيّر مفتاحه.
+  // ⚠️ المفاتيح تُحسب على **كل** صفوف الشيت قبل أي قصّ. لو حُسبت بعد القصّ
+  //    لتغيّرت لاحقة التكرار باختلاف النطاق — فيصير للصف الواحد مفتاحان،
+  //    ويُستورد مرتين. الترتيب الكامل هو مرجع اللاحقة دائماً.
   const seen = new Map<string, number>();
-  const keys = parsed.rows.map((r) => {
+  const keyed = parsed.rows.map((r) => {
     const n = (seen.get(r.serial) ?? 0) + 1;
     seen.set(r.serial, n);
-    return `${prefix}${r.serial}${n > 1 ? `#${n}` : ""}`;
+    return { row: r, sourceKey: `${prefix}${r.serial}${n > 1 ? `#${n}` : ""}` };
   });
+
+  // صفٌّ بلا تاريخ مقروء يبقى معروضاً مهما كان النطاق: إخفاؤه يعني ضياعه
+  // بصمت، وهو بالضبط ما نحاول منعه.
+  const inRange = keyed.filter(({ row }) => {
+    if (!row.date) return true;
+    if (range?.from && row.date < range.from) return false;
+    if (range?.to && row.date > range.to) return false;
+    return true;
+  });
+
+  const keys = inRange.map((k) => k.sourceKey);
 
   const supabase = await createClient();
   const [{ data: existing }, { data: dismissed }] = await Promise.all([
@@ -108,15 +136,12 @@ export async function fetchSheetPreview(url: string): Promise<SyncPreviewResult>
   const existingKeys = new Set((existing ?? []).map((t) => t.source_key as string));
   const dismissedKeys = new Set((dismissed ?? []).map((d) => d.source_key as string));
 
-  const rows: SyncPreviewRow[] = parsed.rows.map((r, i) => {
-    const sourceKey = keys[i];
-    return {
-      ...r,
-      sourceKey,
-      alreadyImported: existingKeys.has(sourceKey),
-      dismissed: dismissedKeys.has(sourceKey),
-    };
-  });
+  const rows: SyncPreviewRow[] = inRange.map(({ row, sourceKey }) => ({
+    ...row,
+    sourceKey,
+    alreadyImported: existingKeys.has(sourceKey),
+    dismissed: dismissedKeys.has(sourceKey),
+  }));
 
   return {
     ok: true,
@@ -124,6 +149,8 @@ export async function fetchSheetPreview(url: string): Promise<SyncPreviewResult>
     newCount: rows.filter((r) => !r.alreadyImported && !r.dismissed).length,
     existingCount: rows.filter((r) => r.alreadyImported).length,
     dismissedCount: rows.filter((r) => r.dismissed).length,
+    outOfRangeCount: keyed.length - inRange.length,
+    totalInSheet: keyed.length,
     sheetId: parsedUrl.id,
     gid: parsedUrl.gid,
   };
