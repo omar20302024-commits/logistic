@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Printer, Plus, Trash2, FileCheck2 } from "lucide-react";
@@ -198,6 +199,8 @@ export function VendorDetailTabs({
     setSettleOpen(false);
     setPaidInput("");
     router.refresh();
+    // السند هو ما يُطبع ويُوقَّع، ففتحه مباشرةً بعد الصرف
+    if (result.settlementId) router.push(`/vendor-settlements/${result.settlementId}`);
   };
 
   return (
@@ -512,9 +515,13 @@ export function VendorDetailTabs({
                 <ul className="flex flex-col gap-1 text-sm">
                   {settlements.map((st) => (
                     <li key={st.id} className="flex items-center justify-between gap-2">
-                      <span className="text-zinc-600" dir="ltr">
+                      <Link
+                        href={`/vendor-settlements/${st.id}`}
+                        className="text-zinc-700 underline-offset-2 hover:text-zinc-900 hover:underline"
+                        dir="ltr"
+                      >
                         {st.settlement_number}
-                      </span>
+                      </Link>
                       <span className="flex items-center gap-1.5">
                         <span className="text-zinc-900" dir="ltr">
                           {formatCurrency(
