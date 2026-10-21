@@ -268,6 +268,7 @@ export default async function VendorDetailPage({
         trips={(trips ?? []) as VendorTripRow[]}
         payableTrips={(payableTrips ?? []) as VendorPayableTripRow[]}
         pricingTrips={pricingTrips}
+        carriedBalance={carriedBalance}
         netDue={netDue}
         advances={(advances ?? []) as VendorAdvanceRecord[]}
         settlements={(settlements ?? []) as VendorSettlementRecord[]}

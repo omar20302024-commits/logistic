@@ -50,6 +50,7 @@ export function VendorDetailTabs({
   routeRates,
   openingBalance = 0,
   openingReason = null,
+  carriedBalance = 0,
   netDue,
   orgName,
   orgPhone,
@@ -61,6 +62,8 @@ export function VendorDetailTabs({
   /** رصيد قديم غير مصفّى — يدخل مستحق المورّد مرة واحدة (0046) */
   openingBalance?: number;
   openingReason?: string | null;
+  /** متبقٍّ من تصفية سابقة دُفعت ناقصةً (0048) */
+  carriedBalance?: number;
   /** المستحق الآن شاملاً الافتتاحي والمحمول من تصفية ناقصة سابقة */
   netDue: number;
   from: string;
@@ -292,6 +295,7 @@ export function VendorDetailTabs({
           }))}
           openingBalance={openingBalance}
           openingReason={openingReason}
+          carriedBalance={carriedBalance}
           currencySymbol={currencySymbol}
         />
       ) : tab === "pricing" ? (

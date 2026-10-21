@@ -27,6 +27,7 @@ export function VendorPayableStatement({
   advances,
   openingBalance = 0,
   openingReason = null,
+  carriedBalance = 0,
   currencySymbol,
 }: {
   orgName: string;
@@ -40,13 +41,16 @@ export function VendorPayableStatement({
   advances: { date: string; amount: number; description: string | null }[];
   /** رصيد قديم غير مصفّى — مال له فيراه، وسببه معه */
   openingBalance?: number;
+  /** متبقٍّ من تصفية سابقة دُفعت ناقصةً (0048) */
+  carriedBalance?: number;
   openingReason?: string | null;
   currencySymbol: string;
 }) {
   const totalAmount = trips.reduce((sum, t) => sum + Number(t.amount || 0), 0);
   const totalAdvances = advances.reduce((sum, a) => sum + Number(a.amount || 0), 0);
   const opening = Number(openingBalance) || 0;
-  const netDue = totalAmount + opening - totalAdvances;
+  const carried = Number(carriedBalance) || 0;
+  const netDue = totalAmount + opening + carried - totalAdvances;
 
   return (
     <div className="print-statement overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
@@ -75,9 +79,9 @@ export function VendorPayableStatement({
       </div>
 
       <div className="px-6 py-5">
-        <Section title={`الرحلات (${formatNumber(trips.length)})`}>
+        <Section title={`الرحلات غير المصروفة (${formatNumber(trips.length)})`}>
           {trips.length === 0 ? (
-            <Empty>لا توجد رحلات في هذه الفترة</Empty>
+            <Empty>لا توجد رحلات غير مصروفة في هذه الفترة</Empty>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -145,6 +149,13 @@ export function VendorPayableStatement({
             <SummaryRow
               label={`رصيد سابق${openingReason ? ` — ${openingReason}` : ""}`}
               value={opening}
+              currencySymbol={currencySymbol}
+            />
+          )}
+          {carried > 0 && (
+            <SummaryRow
+              label="متبقٍّ من تصفية سابقة"
+              value={carried}
               currencySymbol={currencySymbol}
             />
           )}
