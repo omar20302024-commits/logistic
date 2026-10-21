@@ -53,6 +53,7 @@ export function DriverStatementView({
   summary,
   expenses,
   currencySymbol,
+  unsettledOnly = false,
 }: {
   orgName: string;
   orgPhone: string | null;
@@ -64,6 +65,8 @@ export function DriverStatementView({
   summary: PublicSummary;
   expenses: ExpenseCategoryRow[];
   currencySymbol: string;
+  /** رابط السائق يعرض غير المصفّى وحده (0049) — فيُسمّى الجدول باسمه */
+  unsettledOnly?: boolean;
 }) {
   // رصيد العهدة رقم صافي يجمع أربع حركات، فلا توضع عليه أسماء البنود.
   // المصروف يُفرد بمبلغه الحقيقي وبنوده، والباقي يبقى سطراً مستقلاً.
@@ -100,9 +103,17 @@ export function DriverStatementView({
       </div>
 
       <div className="px-6 py-5">
-        <Section title={`الرحلات (${formatNumber(summary.trips_count)})`}>
+        <Section
+          title={`${unsettledOnly ? "الرحلات غير المصروفة" : "الرحلات"} (${formatNumber(
+            summary.trips_count
+          )})`}
+        >
           {trips.length === 0 ? (
-            <Empty>لا توجد رحلات في هذه الفترة</Empty>
+            <Empty>
+              {unsettledOnly
+                ? "لا توجد رحلات غير مصروفة في هذه الفترة"
+                : "لا توجد رحلات في هذه الفترة"}
+            </Empty>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

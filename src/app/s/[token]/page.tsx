@@ -108,6 +108,7 @@ export default async function PublicDriverStatementPage({
         from={summary.from_date}
         to={summary.to_date}
         trips={trips ?? []}
+        unsettledOnly
         summary={{
           trips_count: summary.trips_count,
           total_driver_payment: summary.total_driver_payment,
