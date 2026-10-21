@@ -173,9 +173,16 @@ export function PublicLinkSection({
             </button>
           </div>
 
-          {!pinned && (
-            <p className="mt-2 text-[11px] text-zinc-400">
-              الرابط يعرض الشهر الجاري ويتحدّث وحده مع بداية كل شهر.
+          <p className="mt-2 text-[11px] text-zinc-500">
+            <strong className="text-zinc-700">الرابط دائم</strong> — أرسله للسائق مرة واحدة
+            ولا يتغيّر مع الشهور. لا يبدّله إلا زر «تجديد الرابط» أعلاه، وعندها يتوقف
+            القديم.
+            {!pinned && " والشهر المعروض يتدحرّج وحده مع بداية كل شهر دون تدخّل."}
+          </p>
+
+          {pinned && (
+            <p className="mt-1 text-[11px] text-amber-700">
+              هذا الرابط مثبَّت على شهر بعينه — اختر «الشهر الحالي تلقائياً» ليتدحرّج وحده.
             </p>
           )}
 
