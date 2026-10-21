@@ -120,6 +120,18 @@ function parseDate(raw: string): string {
   const t = String(raw ?? "").trim();
   if (!t) return "";
 
+  // جوجل يصدّر الخلية المنسَّقة كتاريخ بصيغة ISO أحياناً. كانت تُقرأ «غير
+  // مقروء» فيُترك الصف بلا تحديد ولا يُستورد — وهي صيغة لا لبس فيها.
+  const iso = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) {
+    const y = Number(iso[1]);
+    const mo = Number(iso[2]);
+    const d = Number(iso[3]);
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return "";
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${y}-${p(mo)}-${p(d)}`;
+  }
+
   const m = t.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
   if (!m) return "";
 

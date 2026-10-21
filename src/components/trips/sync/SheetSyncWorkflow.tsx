@@ -218,12 +218,25 @@ export function SheetSyncWorkflow({
     toast.success(
       `تمت مزامنة ${result.createdTrips} رحلة${extras.length ? ` — وأُنشئ ${extras.join(" و")}` : ""}`
     );
+
+    // لا نكتفي بعدّ الناجح: الصف المرفوض كان يمرّ بصمت فتضيع رحلة دون أن يُدرى
+    if (result.skippedDuplicates.length > 0) {
+      toast.warning(
+        `تُخطّي ${result.skippedDuplicates.length} صفاً لأن مفتاحه مستورد سلفاً: ${result.skippedDuplicates
+          .slice(0, 3)
+          .join("، ")}${result.skippedDuplicates.length > 3 ? " ..." : ""}`,
+        { duration: 10000 }
+      );
+    }
     await handleFetch();
     router.refresh();
   };
 
   const selectedCount = rows?.filter((r) => r.include).length ?? 0;
   const newRows = rows?.filter((r) => !r.alreadyImported && !r.dismissed).length ?? 0;
+  // جديد وقابل للاستيراد لكنه غير محدَّد — غالباً صف فيه تنبيه مراجعة
+  const unselectedNew =
+    rows?.filter((r) => !r.alreadyImported && !r.dismissed && !r.include).length ?? 0;
 
   /** صف قابل للتحديد: لم يُستورد سابقاً ولم يُوضع جانباً */
   const selectable = (r: EditableRow) => !r.alreadyImported && !r.dismissed;
@@ -338,6 +351,13 @@ export function SheetSyncWorkflow({
         <>
           <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 text-sm shadow-sm">
             <span className="font-medium text-zinc-900">{newRows} رحلة جديدة</span>
+            {/* صفوف جديدة سليمة لكنها غير محدَّدة — كانت تُترك بلا إشارة
+                فيضغط المستخدم «استيراد» وهو لا يدري أنها لم تدخل */}
+            {unselectedNew > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-2 py-1 font-medium text-amber-900">
+                ⚠ {unselectedNew} صفاً جديداً غير محدَّد — لن يُستورد
+              </span>
+            )}
             {existingCount > 0 && (
               <span className="inline-flex items-center gap-1 text-zinc-500">
                 <CheckCircle2 size={14} className="text-emerald-600" />
@@ -605,6 +625,14 @@ export function SheetSyncWorkflow({
                           <span className="text-[10px] text-zinc-400">
                             في الشيت: {r.driverName || "—"}
                           </span>
+
+                          {/* سبب المراجعة كان مخزَّناً ولا يُعرض — فيبقى الصف
+                              غير محدَّد بلا تفسير، ويُستورد كل ما حوله */}
+                          {r.needsReview && !r.dismissed && (
+                            <span className="text-[10px] font-medium text-amber-700">
+                              ⚠ {r.reviewReason} — صحّح الصف ثم حدّده
+                            </span>
+                          )}
 
                           {/* نوع السائق يُسأل فقط عند الإنشاء — الموجود يبقى على نوعه */}
                           {!r.driverId && (

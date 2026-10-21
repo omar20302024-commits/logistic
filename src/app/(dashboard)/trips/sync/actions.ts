@@ -81,7 +81,23 @@ export async function fetchSheetPreview(url: string): Promise<SyncPreviewResult>
   if (!parsed.ok) return { ok: false, error: parsed.error };
 
   const prefix = `gsheet:${parsedUrl.id}:${parsedUrl.gid}:`;
-  const keys = parsed.rows.map((r) => `${prefix}${r.serial}`);
+
+  // ⚠️ المسلسل وحده لا يكفي مفتاحاً.
+  //
+  // الشركة تضيف شهراً جديداً على نفس التبويب، وترقيمه يبدأ من 1 من جديد —
+  // فيتصادم مع مسلسلات الشهر الماضي. وقتها يظن النظام أن الصف مستورد سلفاً
+  // فيتخطّاه بلا كلمة، أو يرفضه الفهرس الفريد عند الحفظ. وهكذا تضيع رحلة
+  // سليمة تماماً.
+  //
+  // الحل: لاحقة لتكرار المسلسل — أول «1» يبقى «1» (فلا تتغيّر مفاتيح ما
+  // استُورد سلفاً)، والثاني يصير «1#2». والترتيب ثابت ما دامت الصفوف تُضاف
+  // في الذيل، وتعديل محتوى صفٍّ لا يغيّر مفتاحه.
+  const seen = new Map<string, number>();
+  const keys = parsed.rows.map((r) => {
+    const n = (seen.get(r.serial) ?? 0) + 1;
+    seen.set(r.serial, n);
+    return `${prefix}${r.serial}${n > 1 ? `#${n}` : ""}`;
+  });
 
   const supabase = await createClient();
   const [{ data: existing }, { data: dismissed }] = await Promise.all([
@@ -92,8 +108,8 @@ export async function fetchSheetPreview(url: string): Promise<SyncPreviewResult>
   const existingKeys = new Set((existing ?? []).map((t) => t.source_key as string));
   const dismissedKeys = new Set((dismissed ?? []).map((d) => d.source_key as string));
 
-  const rows: SyncPreviewRow[] = parsed.rows.map((r) => {
-    const sourceKey = `${prefix}${r.serial}`;
+  const rows: SyncPreviewRow[] = parsed.rows.map((r, i) => {
+    const sourceKey = keys[i];
     return {
       ...r,
       sourceKey,
@@ -145,7 +161,14 @@ export type SyncApplyRow = {
 };
 
 export type SyncApplyResult =
-  | { ok: true; createdTrips: number; createdDrivers: number; createdCompanies: number }
+  | {
+      ok: true;
+      createdTrips: number;
+      createdDrivers: number;
+      createdCompanies: number;
+      /** صفوف رفضها الفهرس الفريد — تُذكر صراحةً فلا تضيع رحلة بصمت */
+      skippedDuplicates: string[];
+    }
   | { ok: false; error: string };
 
 export async function applySheetSync(rows: SyncApplyRow[]): Promise<SyncApplyResult> {
@@ -262,6 +285,7 @@ export async function applySheetSync(rows: SyncApplyRow[]): Promise<SyncApplyRes
   );
 
   let createdTrips = 0;
+  const skippedDuplicates: string[] = [];
 
   for (const row of rows) {
     // العميل المختار في المعاينة أولاً، وإلا المُنشأ حديثاً باسم الشيت
@@ -318,8 +342,12 @@ export async function applySheetSync(rows: SyncApplyRow[]): Promise<SyncApplyRes
     });
 
     if (error) {
-      // الفهرس الفريد على source_key يمنع التكرار حتى لو أُرسل الصف مرتين
-      if (error.code === "23505") continue;
+      // الفهرس الفريد على source_key يمنع التكرار حتى لو أُرسل الصف مرتين.
+      // لا نمرّ بصمت: الصف يُذكر في النتيجة ليعرف المستخدم ما لم يدخل.
+      if (error.code === "23505") {
+        skippedDuplicates.push(row.driverName || row.sourceKey);
+        continue;
+      }
       return { ok: false, error: "حدث خطأ أثناء إنشاء إحدى الرحلات" };
     }
 
@@ -331,7 +359,7 @@ export async function applySheetSync(rows: SyncApplyRow[]): Promise<SyncApplyRes
   revalidatePath("/companies");
   revalidatePath("/dashboard");
 
-  return { ok: true, createdTrips, createdDrivers, createdCompanies };
+  return { ok: true, createdTrips, createdDrivers, createdCompanies, skippedDuplicates };
 }
 
 /** حفظ رابط الشيت في الإعدادات ليبقى بين الجلسات */
