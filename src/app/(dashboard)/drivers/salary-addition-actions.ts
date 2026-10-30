@@ -71,6 +71,58 @@ export async function createSalaryAddition(
   return { error: null };
 }
 
+/** تعديل إضافة قائمة — نفس حراسة الإنشاء حرفاً بحرف */
+export async function updateSalaryAddition(
+  driverId: string,
+  id: string,
+  input: {
+    date: string;
+    amount: number;
+    reason?: string;
+    forYear?: number | null;
+    forMonth?: number | null;
+    days?: number | null;
+  }
+): Promise<ActionResult> {
+  if (!id) return { error: "الإضافة غير محدَّدة" };
+  if (!input.date) return { error: "التاريخ مطلوب" };
+
+  const amount = Number(input.amount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { error: "المبلغ يجب أن يكون أكبر من صفر" };
+  }
+
+  const month = input.forMonth ?? null;
+  if (month !== null && (month < 1 || month > 12)) {
+    return { error: "الشهر غير صحيح" };
+  }
+
+  const days = input.days ?? null;
+  if (days !== null && (!Number.isFinite(days) || days < 0)) {
+    return { error: "عدد الأيام غير صحيح" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("driver_salary_additions")
+    .update({
+      date: input.date,
+      amount,
+      reason: input.reason?.trim() || null,
+      for_year: input.forYear ?? null,
+      for_month: month,
+      days,
+    })
+    .eq("id", id)
+    // الإضافة تخصّ هذا السائق — الشرط في الخادم لا في الواجهة
+    .eq("driver_id", driverId);
+
+  if (error) return { error: "تعذّر حفظ التعديل" };
+
+  revalidateAll(driverId);
+  return { error: null };
+}
+
 export async function deleteSalaryAddition(
   driverId: string,
   id: string

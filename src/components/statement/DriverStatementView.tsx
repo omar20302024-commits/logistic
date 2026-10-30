@@ -29,6 +29,8 @@ type PublicSummary = {
   salary_earned: number;
   /** إضافات على الراتب (0053) — أيام شهر سابق مثلاً */
   salary_additions?: number;
+  /** أسباب الإضافات مجموعة في نصّ واحد (0054) — تُطبع بين قوسين */
+  salary_additions_note?: string | null;
   pre_hire_days: number;
   leave_days: number;
   worked_days: number;
@@ -211,7 +213,11 @@ export function DriverStatementView({
           )}
           {Number(summary.salary_additions ?? 0) > 0 && (
             <SummaryRow
-              label="إضافات على الراتب"
+              label={
+                summary.salary_additions_note
+                  ? `إضافات على الراتب (${summary.salary_additions_note})`
+                  : "إضافات على الراتب"
+              }
               value={Number(summary.salary_additions)}
               currencySymbol={currencySymbol}
               sign="plus"

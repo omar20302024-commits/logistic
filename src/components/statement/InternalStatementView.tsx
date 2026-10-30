@@ -30,6 +30,8 @@ type Summary = {
   salary_earned: number;
   /** إضافات على الراتب (0053) */
   salary_additions?: number;
+  /** أسباب الإضافات مجموعة في نصّ واحد (0054) */
+  salary_additions_note?: string | null;
   worked_days: number;
   net_salary: number;
   total_due_to_driver: number;
@@ -166,7 +168,11 @@ export function InternalStatementView({
           )}
           {Number(summary.salary_additions ?? 0) > 0 && (
             <SummaryRow
-              label="إضافات على الراتب"
+              label={
+                summary.salary_additions_note
+                  ? `إضافات على الراتب (${summary.salary_additions_note})`
+                  : "إضافات على الراتب"
+              }
               value={formatCurrency(Number(summary.salary_additions), currencySymbol)}
             />
           )}

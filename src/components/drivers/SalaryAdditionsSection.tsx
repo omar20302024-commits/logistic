@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Trash2, PlusCircle } from "lucide-react";
+import { Plus, Trash2, Pencil, PlusCircle } from "lucide-react";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import {
   createSalaryAddition,
+  updateSalaryAddition,
   deleteSalaryAddition,
   type SalaryAddition,
 } from "@/app/(dashboard)/drivers/salary-addition-actions";
@@ -32,6 +33,9 @@ const MONTHS = [
  * أشهر حالاتها: أيام عمل من شهر سابق لم تُصرف. فيُحسب المبلغ من
  * (الراتب الأساسي × الأيام ÷ 30) ويُعرض ليراجعه المستخدم قبل الحفظ —
  * ويبقى له أن يكتب مبلغاً مختلفاً.
+ *
+ * نفس النموذج يُنشئ ويعدّل: حقول الإضافة قليلة، ونموذجان بنفس الحقول
+ * يفترقان مع الوقت.
  */
 export function SalaryAdditionsSection({
   driverId,
@@ -51,6 +55,7 @@ export function SalaryAdditionsSection({
   const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [date, setDate] = useState(today);
   const [days, setDays] = useState("");
@@ -66,27 +71,51 @@ export function SalaryAdditionsSection({
 
   const total = entries.reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
+  const resetForm = () => {
+    setEditingId(null);
+    setDate(today);
+    setDays("");
+    setAmount("");
+    setForMonth(String(prev.getMonth() + 1));
+    setForYear(String(prev.getFullYear()));
+    setReason("");
+  };
+
+  const startEdit = (e: SalaryAddition) => {
+    setEditingId(e.id);
+    setDate(e.date);
+    setDays(e.days === null ? "" : String(e.days));
+    // المبلغ يُملأ دائماً عند التعديل: المحفوظ هو المرجع، لا ما تحسبه الأيام
+    setAmount(String(e.amount));
+    setForMonth(e.for_month ? String(e.for_month) : String(prev.getMonth() + 1));
+    setForYear(e.for_year ? String(e.for_year) : String(prev.getFullYear()));
+    setReason(e.reason ?? "");
+    setOpen(true);
+  };
+
   const handleSave = async () => {
-    setSaving(true);
-    const result = await createSalaryAddition(driverId, {
+    const payload = {
       date,
       amount: effective,
       reason,
       forMonth: Number(forMonth) || null,
       forYear: Number(forYear) || null,
       days: days === "" ? null : Number(days),
-    });
+    };
+
+    setSaving(true);
+    const result = editingId
+      ? await updateSalaryAddition(driverId, editingId, payload)
+      : await createSalaryAddition(driverId, payload);
     setSaving(false);
 
     if (result.error) {
       toast.error(result.error);
       return;
     }
-    toast.success("تمت إضافة المستحق إلى راتب هذا الشهر");
+    toast.success(editingId ? "تم حفظ التعديل" : "تمت إضافة المستحق إلى راتب هذا الشهر");
     setOpen(false);
-    setDays("");
-    setAmount("");
-    setReason("");
+    resetForm();
     router.refresh();
   };
 
@@ -97,6 +126,10 @@ export function SalaryAdditionsSection({
       return;
     }
     toast.success("تم حذف الإضافة");
+    if (editingId === id) {
+      setOpen(false);
+      resetForm();
+    }
     router.refresh();
   };
 
@@ -115,12 +148,20 @@ export function SalaryAdditionsSection({
           </h3>
           <p className="text-xs text-zinc-500">
             مستحقات تُضاف إلى الراتب — أيام عمل من شهر سابق لم تُصرف مثلاً. تدخل مسيّر
-            الشهر الذي يقع فيه تاريخها.
+            الشهر الذي يقع فيه تاريخها، والسبب يظهر بين قوسين في كشف الحساب.
           </p>
         </div>
         <button
           type="button"
-          onClick={() => setOpen((v) => !v)}
+          onClick={() => {
+            if (open) {
+              setOpen(false);
+              resetForm();
+            } else {
+              resetForm();
+              setOpen(true);
+            }
+          }}
           className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
         >
           <Plus size={14} />
@@ -130,6 +171,12 @@ export function SalaryAdditionsSection({
 
       {open && (
         <div className="mb-4 flex flex-col gap-3 rounded-xl border border-zinc-200 bg-zinc-50/60 p-3">
+          {editingId && (
+            <p className="text-[11px] font-medium text-amber-700">
+              تعديل إضافة قائمة — اضغط «إلغاء التعديل» للرجوع إلى إضافة جديدة.
+            </p>
+          )}
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="flex flex-col gap-1">
               <label className="text-[11px] text-zinc-500">تاريخ الصرف (الشهر الذي تدخله)</label>
@@ -202,7 +249,7 @@ export function SalaryAdditionsSection({
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-zinc-500">السبب</label>
+              <label className="text-[11px] text-zinc-500">السبب (يظهر في الكشف)</label>
               <input
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
@@ -212,19 +259,30 @@ export function SalaryAdditionsSection({
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <span className="text-xs text-zinc-600">
-              سيُضاف:{" "}
+              {editingId ? "سيصير" : "سيُضاف"}:{" "}
               <strong dir="ltr">{formatCurrency(effective || 0, currencySymbol)}</strong>
             </span>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving || !(effective > 0)}
-              className="rounded-lg bg-zinc-900 px-4 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
-            >
-              {saving ? "جارٍ الحفظ..." : "حفظ"}
-            </button>
+            <div className="flex items-center gap-2">
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                >
+                  إلغاء التعديل
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving || !(effective > 0)}
+                className="rounded-lg bg-zinc-900 px-4 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+              >
+                {saving ? "جارٍ الحفظ..." : editingId ? "حفظ التعديل" : "حفظ"}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -246,7 +304,7 @@ export function SalaryAdditionsSection({
             </thead>
             <tbody className="divide-y divide-zinc-100">
               {entries.map((e) => (
-                <tr key={e.id}>
+                <tr key={e.id} className={editingId === e.id ? "bg-amber-50" : undefined}>
                   <td className="px-3 py-2 whitespace-nowrap text-zinc-600" dir="ltr">
                     {e.date}
                   </td>
@@ -257,18 +315,31 @@ export function SalaryAdditionsSection({
                     {e.days !== null ? formatNumber(Number(e.days)) : "—"}
                   </td>
                   <td className="px-3 py-2 text-zinc-700">{e.reason ?? "—"}</td>
-                  <td className="px-3 py-2 whitespace-nowrap font-semibold text-emerald-700" dir="ltr">
+                  <td
+                    className="px-3 py-2 whitespace-nowrap font-semibold text-emerald-700"
+                    dir="ltr"
+                  >
                     +{formatCurrency(e.amount, currencySymbol)}
                   </td>
                   <td className="px-3 py-2">
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(e.id)}
-                      title="حذف"
-                      className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(e)}
+                        title="تعديل"
+                        className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(e.id)}
+                        title="حذف"
+                        className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
