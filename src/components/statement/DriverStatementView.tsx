@@ -27,6 +27,8 @@ type PublicSummary = {
   total_deductions: number;
   salary_basic: number;
   salary_earned: number;
+  /** إضافات على الراتب (0053) — أيام شهر سابق مثلاً */
+  salary_additions?: number;
   pre_hire_days: number;
   leave_days: number;
   worked_days: number;
@@ -206,6 +208,14 @@ export function DriverStatementView({
                 currencySymbol={currencySymbol}
               />
             </>
+          )}
+          {Number(summary.salary_additions ?? 0) > 0 && (
+            <SummaryRow
+              label="إضافات على الراتب"
+              value={Number(summary.salary_additions)}
+              currencySymbol={currencySymbol}
+              sign="plus"
+            />
           )}
           {workExpenses > 0 && (
             <SummaryRow

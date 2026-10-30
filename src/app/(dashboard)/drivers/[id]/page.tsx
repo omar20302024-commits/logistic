@@ -11,6 +11,8 @@ import { OilChangeSection } from "@/components/drivers/OilChangeSection";
 import { OIL_CATEGORY } from "@/lib/validation/expense";
 import type { DieselOverlap } from "@/app/(dashboard)/drivers/diesel-actions";
 import { RouteRatesSection } from "@/components/drivers/RouteRatesSection";
+import { SalaryAdditionsSection } from "@/components/drivers/SalaryAdditionsSection";
+import type { SalaryAddition } from "@/app/(dashboard)/drivers/salary-addition-actions";
 import { TripPaymentsEditor } from "@/components/trips/TripPaymentsEditor";
 import type { TripPaymentRow } from "@/app/(dashboard)/drivers/pricing-actions";
 import { SettlementsSection } from "@/components/drivers/SettlementsSection";
@@ -78,6 +80,7 @@ export default async function DriverDetailPage({
     { data: monthlyDiesel },
     { data: dieselOverlapsRaw },
     { data: carriedRaw },
+    { data: salaryAdditions },
   ] = await Promise.all([
       supabase
         .from("driver_advances")
@@ -120,6 +123,13 @@ export default async function DriverDetailPage({
       supabase.rpc("fn_driver_diesel_overlap", { p_driver_id: id }),
       // متبقٍّ من تصفية سابقة دُفعت ناقصةً (0048)
       supabase.rpc("fn_driver_carried_balance", { p_driver_id: id }),
+      // إضافات على الراتب (0053) — أيام شهر سابق تُصرف مع الحالي
+      supabase
+        .from("driver_salary_additions")
+        .select("id, date, amount, reason, for_year, for_month, days")
+        .eq("driver_id", id)
+        .order("date", { ascending: false })
+        .limit(100),
     ]);
 
   const carriedBalance = Number(carriedRaw ?? 0) || 0;
@@ -315,6 +325,13 @@ export default async function DriverDetailPage({
         entries={custodyEntries ?? []}
         balance={s.custody_balance}
         trips={driverTrips ?? []}
+        currencySymbol={currencySymbol}
+      />
+
+      <SalaryAdditionsSection
+        driverId={id}
+        basicSalary={Number(driver.salary) || 0}
+        entries={(salaryAdditions ?? []) as SalaryAddition[]}
         currencySymbol={currencySymbol}
       />
 

@@ -26,8 +26,10 @@ type Summary = {
   total_advances: number;
   total_deductions: number;
   salary_basic: number;
-  /** المستحق حتى الحدّ: أيام العمل الفعلية ÷ 30 (0050) */
+  /** المستحق: أيام العمل ÷ 30 — الشهر كاملاً إلا ما قبل التعيين والإجازة (0052) */
   salary_earned: number;
+  /** إضافات على الراتب (0053) */
+  salary_additions?: number;
   worked_days: number;
   net_salary: number;
   total_due_to_driver: number;
@@ -158,8 +160,14 @@ export function InternalStatementView({
           <SummaryRow label="الراتب الأساسي (الفترة)" value={formatCurrency(summary.salary_basic, currencySymbol)} />
           {summary.worked_days < 30 && (
             <SummaryRow
-              label={`الراتب المستحق حتى ${to} (${formatNumber(summary.worked_days)} من 30 يوماً)`}
+              label={`الراتب المستحق (${formatNumber(summary.worked_days)} من 30 يوماً)`}
               value={formatCurrency(summary.salary_earned, currencySymbol)}
+            />
+          )}
+          {Number(summary.salary_additions ?? 0) > 0 && (
+            <SummaryRow
+              label="إضافات على الراتب"
+              value={formatCurrency(Number(summary.salary_additions), currencySymbol)}
             />
           )}
           <SummaryRow label="إجمالي الخصومات" value={formatCurrency(summary.total_deductions, currencySymbol)} />

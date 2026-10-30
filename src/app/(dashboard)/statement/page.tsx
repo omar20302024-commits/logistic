@@ -45,6 +45,7 @@ export default async function StatementPage({
     total_deductions: number;
     salary_basic: number;
     salary_earned: number;
+    salary_additions: number;
     worked_days: number;
     net_salary: number;
     total_due_to_driver: number;
@@ -110,6 +111,7 @@ export default async function StatementPage({
               total_deductions: 0,
               salary_basic: 0,
               salary_earned: 0,
+              salary_additions: 0,
               worked_days: 30,
               net_salary: 0,
               total_due_to_driver: 0,

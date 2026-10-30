@@ -20,6 +20,8 @@ type SalaryRow = SalaryRecord & {
   leave_days: number;
   worked_days: number;
   earned_salary: number;
+  /** إضافات على الراتب (0053) — أيام شهر سابق مثلاً */
+  additions_total?: number;
   deductions_total: number;
   advances_total: number;
   net_salary: number;
@@ -184,6 +186,7 @@ export function SalariesTable({
                 <th className="px-4 py-3 font-medium">الراتب الأساسي</th>
                 <th className="px-4 py-3 font-medium">أيام العمل</th>
                 <th className="px-4 py-3 font-medium">المستحق</th>
+                <th className="px-4 py-3 font-medium">إضافات</th>
                 <th className="px-4 py-3 font-medium">الخصومات</th>
                 <th className="px-4 py-3 font-medium">السلف</th>
                 <th className="px-4 py-3 font-medium">صافي الراتب</th>
@@ -225,6 +228,11 @@ export function SalariesTable({
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-zinc-900" dir="ltr">
                     {formatCurrency(s.earned_salary, currencySymbol)}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-emerald-700" dir="ltr">
+                    {Number(s.additions_total ?? 0) > 0
+                      ? "+" + formatCurrency(Number(s.additions_total), currencySymbol)
+                      : "—"}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-red-600" dir="ltr">
                     {formatCurrency(s.deductions_total, currencySymbol)}
