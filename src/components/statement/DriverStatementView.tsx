@@ -31,6 +31,9 @@ type PublicSummary = {
   salary_additions?: number;
   /** أسباب الإضافات مجموعة في نصّ واحد (0054) — تُطبع بين قوسين */
   salary_additions_note?: string | null;
+  /** ما يُخصم من التربات ولم يُصفَّ بعد (0055) — سطران في الإجمالي */
+  trab_advances_open?: number;
+  trab_deductions_open?: number;
   pre_hire_days: number;
   leave_days: number;
   worked_days: number;
@@ -77,6 +80,8 @@ export function DriverStatementView({
   // الإجمالي هنا يأتي جاهزاً من SQL (total_due_to_driver) فلا يتأثر بالعرض إطلاقاً.
   const workExpenses = summary.driver_paid_expenses;
   const otherCustody = summary.custody_balance + workExpenses;
+  const trabAdvancesOpen = Number(summary.trab_advances_open ?? 0);
+  const trabDeductionsOpen = Number(summary.trab_deductions_open ?? 0);
 
   return (
     <div className="print-statement overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
@@ -223,14 +228,6 @@ export function DriverStatementView({
               sign="plus"
             />
           )}
-          {workExpenses > 0 && (
-            <SummaryRow
-              label="ما صرفه على العمل"
-              value={workExpenses}
-              currencySymbol={currencySymbol}
-              sign="plus"
-            />
-          )}
           {summary.total_deductions > 0 && (
             <SummaryRow
               label="الخصومات"
@@ -247,6 +244,24 @@ export function DriverStatementView({
               sign="minus"
             />
           )}
+          {/* صافي الراتب يقفل بنود الراتب وحدها: الأساسي + الإضافات − الخصومات
+              − السلف. والعهدة وما صُرف على العمل بندان مستقلان يدخلان الإجمالي
+              النهائي لا الراتب — فيأتيان بعده، وإلا بدا الصافي خاطئاً. */}
+          <div className="mt-1 flex items-center justify-between border-t border-zinc-200 pt-2">
+            <span className="text-sm font-semibold text-zinc-900">صافي الراتب</span>
+            <span className="text-sm font-semibold text-zinc-900" dir="ltr">
+              {formatCurrency(summary.net_salary, currencySymbol)}
+            </span>
+          </div>
+
+          {workExpenses > 0 && (
+            <SummaryRow
+              label="ما صرفه على العمل"
+              value={workExpenses}
+              currencySymbol={currencySymbol}
+              sign="plus"
+            />
+          )}
           {otherCustody !== 0 && (
             <SummaryRow
               label={otherCustody > 0 ? "عهدة مستحقة عليك" : "عهدة مستحقة لك"}
@@ -255,11 +270,22 @@ export function DriverStatementView({
               sign={otherCustody > 0 ? "minus" : "plus"}
             />
           )}
-          <SummaryRow
-            label="صافي الراتب"
-            value={summary.net_salary}
-            currencySymbol={currencySymbol}
-          />
+          {trabAdvancesOpen > 0 && (
+            <SummaryRow
+              label="سلف على التربات"
+              value={trabAdvancesOpen}
+              currencySymbol={currencySymbol}
+              sign="minus"
+            />
+          )}
+          {trabDeductionsOpen > 0 && (
+            <SummaryRow
+              label="خصومات على التربات"
+              value={trabDeductionsOpen}
+              currencySymbol={currencySymbol}
+              sign="minus"
+            />
+          )}
 
           <div className="mt-2 flex items-center justify-between border-t border-zinc-300 pt-3">
             <span className="text-sm font-bold text-zinc-900">إجمالي المستحق للسائق</span>

@@ -46,6 +46,8 @@ type TokenSummary = {
   salary_earned: number;
   salary_additions: number;
   salary_additions_note: string | null;
+  trab_advances_open: number;
+  trab_deductions_open: number;
   pre_hire_days: number;
   leave_days: number;
   worked_days: number;
@@ -120,6 +122,8 @@ export default async function PublicDriverStatementPage({
           salary_earned: summary.salary_earned,
           salary_additions: summary.salary_additions,
           salary_additions_note: summary.salary_additions_note,
+          trab_advances_open: summary.trab_advances_open,
+          trab_deductions_open: summary.trab_deductions_open,
           pre_hire_days: summary.pre_hire_days,
           leave_days: summary.leave_days,
           worked_days: summary.worked_days,
