@@ -32,10 +32,19 @@ type Summary = {
   salary_additions?: number;
   /** أسباب الإضافات مجموعة في نصّ واحد (0054) */
   salary_additions_note?: string | null;
+  /** بيان الخصومات والسلف مجموعاً (0056) */
+  total_deductions_note?: string | null;
+  total_advances_note?: string | null;
   worked_days: number;
   net_salary: number;
   total_due_to_driver: number;
 };
+
+/** «الخصومات» → «الخصومات (تأخير، مخالفة)». بلا بيان يبقى العنوان وحده. */
+function withNote(label: string, note?: string | null): string {
+  const t = (note ?? "").trim();
+  return t ? `${label} (${t})` : label;
+}
 
 export function InternalStatementView({
   orgName,
@@ -168,16 +177,18 @@ export function InternalStatementView({
           )}
           {Number(summary.salary_additions ?? 0) > 0 && (
             <SummaryRow
-              label={
-                summary.salary_additions_note
-                  ? `إضافات على الراتب (${summary.salary_additions_note})`
-                  : "إضافات على الراتب"
-              }
+              label={withNote("إضافات على الراتب", summary.salary_additions_note)}
               value={formatCurrency(Number(summary.salary_additions), currencySymbol)}
             />
           )}
-          <SummaryRow label="إجمالي الخصومات" value={formatCurrency(summary.total_deductions, currencySymbol)} />
-          <SummaryRow label="إجمالي السلف" value={formatCurrency(summary.total_advances, currencySymbol)} />
+          <SummaryRow
+            label={withNote("إجمالي الخصومات", summary.total_deductions_note)}
+            value={formatCurrency(summary.total_deductions, currencySymbol)}
+          />
+          <SummaryRow
+            label={withNote("إجمالي السلف", summary.total_advances_note)}
+            value={formatCurrency(summary.total_advances, currencySymbol)}
+          />
           <SummaryRow label="صافي الراتب" value={formatCurrency(summary.net_salary, currencySymbol)} />
           <SummaryRow
             label="صافي المستحق للسائق"

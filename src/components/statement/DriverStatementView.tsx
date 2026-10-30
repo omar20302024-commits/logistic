@@ -34,6 +34,9 @@ type PublicSummary = {
   /** ما يُخصم من التربات ولم يُصفَّ بعد (0055) — سطران في الإجمالي */
   trab_advances_open?: number;
   trab_deductions_open?: number;
+  /** بيان الخصومات والسلف مجموعاً (0056) — يُطبع بين قوسين */
+  total_deductions_note?: string | null;
+  total_advances_note?: string | null;
   pre_hire_days: number;
   leave_days: number;
   worked_days: number;
@@ -42,6 +45,12 @@ type PublicSummary = {
   driver_paid_expenses: number;
   total_due_to_driver: number;
 };
+
+/** «الخصومات» → «الخصومات (تأخير، مخالفة)». بلا بيان يبقى العنوان وحده. */
+function withNote(label: string, note?: string | null): string {
+  const t = (note ?? "").trim();
+  return t ? `${label} (${t})` : label;
+}
 
 // بنود ما صرفه السائق على العمل خلال الفترة (غسيل، إطارات، ...)
 export type ExpenseCategoryRow = {
@@ -218,11 +227,7 @@ export function DriverStatementView({
           )}
           {Number(summary.salary_additions ?? 0) > 0 && (
             <SummaryRow
-              label={
-                summary.salary_additions_note
-                  ? `إضافات على الراتب (${summary.salary_additions_note})`
-                  : "إضافات على الراتب"
-              }
+              label={withNote("إضافات على الراتب", summary.salary_additions_note)}
               value={Number(summary.salary_additions)}
               currencySymbol={currencySymbol}
               sign="plus"
@@ -230,7 +235,7 @@ export function DriverStatementView({
           )}
           {summary.total_deductions > 0 && (
             <SummaryRow
-              label="الخصومات"
+              label={withNote("الخصومات", summary.total_deductions_note)}
               value={summary.total_deductions}
               currencySymbol={currencySymbol}
               sign="minus"
@@ -238,7 +243,7 @@ export function DriverStatementView({
           )}
           {summary.total_advances > 0 && (
             <SummaryRow
-              label="السلف"
+              label={withNote("السلف", summary.total_advances_note)}
               value={summary.total_advances}
               currencySymbol={currencySymbol}
               sign="minus"
