@@ -80,13 +80,13 @@ as $fn$
       coalesce(sum(amount) filter (where settle_against = 'trabs'), 0)  as trab_advances,
       coalesce(sum(amount) filter (where settle_against = 'trabs' and settlement_id is null), 0)
         as trab_advances_open,
-      -- الأسباب تُجمع من دلو الراتب وحده، ليطابق النصُّ المبلغَ الذي بجواره
+      -- الأسباب تُجمع من دلو الراتب وحده، ليطابق النصُّ المبلغَ الذي بجواره.
+      -- filter تتبع قوسَ الدالة المغلق، لا تدخل بين وسائطها.
       nullif(
         string_agg(
-          nullif(btrim(coalesce(description, '')), '')
-            filter (where settle_against = 'salary'),
+          nullif(btrim(coalesce(description, '')), ''),
           '، ' order by date
-        ),
+        ) filter (where settle_against = 'salary'),
         ''
       ) as total_advances_note
     from driver_advances
@@ -100,10 +100,9 @@ as $fn$
         as trab_deductions_open,
       nullif(
         string_agg(
-          nullif(btrim(coalesce(description, '')), '')
-            filter (where settle_against = 'salary'),
+          nullif(btrim(coalesce(description, '')), ''),
           '، ' order by date
-        ),
+        ) filter (where settle_against = 'salary'),
         ''
       ) as total_deductions_note
     from driver_deductions
