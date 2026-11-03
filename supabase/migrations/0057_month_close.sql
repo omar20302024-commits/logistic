@@ -13,10 +13,15 @@
 --   1) سند تصفية تربات للفترة — يَسِم رحلاتها وحركات عهدتها فلا تُصرف ثانيةً
 --   2) تسجيل راتب الشهر مدفوعاً بالكامل
 --
--- 🔑 السلف والخصومات **لا تُنقل بين الدلاء**: الدالة لا تَسِم إلا ما يُمرَّر
---    في p_advance_ids/p_deduction_ids، ونحن نمرّر فارغاً. فما كان محمَّلاً
---    على الراتب يبقى عليه، وهو الفرق بين إقفالٍ جماعي وقرارٍ فردي لا يصحّ
---    أخذه نيابةً عن المستخدم.
+-- 🔑 **كل شيء يُصفّى**: السلف والخصومات والعهدة تدخل السند مع التربات.
+--    الدالة لا تَسِم من السلف والخصومات إلا ما يُمرَّر في
+--    p_advance_ids/p_deduction_ids، فنمرّر **كل المفتوح في الفترة**. وبعد
+--    الإقفال لا يبقى بندٌ معلّقاً يظهر مرشَّحاً في تصفية تالية فيُخصم مرتين.
+--
+--    ⚠️ أثر جانبي مقصود: الدالة تحوّل ما يُمرَّر إلى دلو «التربات». فيُخصم
+--    من سند التربات بدل الراتب. والإجمالي المدفوع للسائق واحد في الحالتين،
+--    لكن التقسيم يتغيّر — ولهذا يُحسب الراتب **بعد** السند لا قبله، فلا
+--    يُخصم البند مرتين في وثيقتين.
 --
 -- 🔑 السائق الذي لا شيء لديه لا يُسقط العملية: الاستثناء يُلتقط لكل سائق
 --    على حدة ويُذكر في النتيجة. إقفالٌ يتوقف عند أول سائق فارغ لا ينفع.
@@ -30,7 +35,10 @@
 -- ----------------------------------------------------------------------------
 -- 1) المعاينة — صفّ لكل سائق، بلا أي كتابة
 -- ----------------------------------------------------------------------------
-create or replace function fn_month_close_preview(
+-- العمودان الجديدان يغيّران نوع الإرجاع، فلا يكفي create or replace
+drop function if exists fn_month_close_preview(uuid[], date, date);
+
+create function fn_month_close_preview(
   p_driver_ids uuid[],
   p_from date,
   p_to   date
@@ -42,6 +50,8 @@ returns table (
   trips_count      bigint,
   total_trabs      numeric,
   custody_balance  numeric,
+  open_advances    numeric,
+  open_deductions  numeric,
   trab_net         numeric,
   salary_net       numeric,
   salary_paid      numeric,
@@ -56,15 +66,37 @@ as $fn$
     coalesce(pv.trips_count, 0),
     coalesce(pv.total_trabs, 0),
     coalesce(pv.custody_credits, 0) - coalesce(pv.custody_debits, 0),
+    adv.total,
+    ded.total,
     coalesce(pv.net_amount, 0),
     coalesce(sal.net_salary, 0),
     coalesce(sal.paid_amount, 0),
     (sal.driver_id is not null)
   from drivers d
+  -- السلف والخصومات المفتوحة في الفترة: تُمرَّر للمعاينة كما ستُمرَّر
+  -- للتنفيذ حرفياً، فالرقم المعروض هو الرقم الذي سيُصرف
+  left join lateral (
+    select
+      coalesce(array_agg(a.id), '{}'::uuid[]) as ids,
+      coalesce(sum(a.amount), 0)              as total
+    from driver_advances a
+    where a.driver_id = d.id
+      and a.date between p_from and p_to
+      and a.settlement_id is null
+  ) adv on true
+  left join lateral (
+    select
+      coalesce(array_agg(x.id), '{}'::uuid[]) as ids,
+      coalesce(sum(x.amount), 0)              as total
+    from driver_deductions x
+    where x.driver_id = d.id
+      and x.date between p_from and p_to
+      and x.settlement_id is null
+  ) ded on true
   -- left join لا cross: لو لم تُرجع المعاينة صفاً لسائق، يسقط السائق كله من
   -- القائمة — وغياب سائق من شاشة إقفال أسوأ من صفٍّ أصفاره ظاهرة
   left join lateral fn_driver_settlement_preview(
-    d.id, p_from, p_to, '{}'::uuid[], '{}'::uuid[]
+    d.id, p_from, p_to, adv.ids, ded.ids
   ) pv on true
   left join lateral (
     select v.driver_id, v.net_salary, v.paid_amount
@@ -113,6 +145,8 @@ declare
   v_year     int := extract(year  from p_from)::int;
   v_month    int := extract(month from p_from)::int;
   v_net      numeric;
+  v_adv_ids  uuid[];
+  v_ded_ids  uuid[];
 begin
   if p_to < p_from then
     raise exception 'تاريخ نهاية الفترة لا يمكن أن يسبق تاريخ بدايتها';
@@ -134,10 +168,22 @@ begin
     -- --- التربات والعهدة
     if p_settle_trabs then
       begin
-        -- السلف والخصومات تبقى على دلوها: مصفوفتان فارغتان عمداً
+        -- كل المفتوح في الفترة يدخل السند، فلا يبقى بندٌ معلّقاً بعد الإقفال
+        select coalesce(array_agg(a.id), '{}'::uuid[]) into v_adv_ids
+        from driver_advances a
+        where a.driver_id = v_driver.id
+          and a.date between p_from and p_to
+          and a.settlement_id is null;
+
+        select coalesce(array_agg(x.id), '{}'::uuid[]) into v_ded_ids
+        from driver_deductions x
+        where x.driver_id = v_driver.id
+          and x.date between p_from and p_to
+          and x.settlement_id is null;
+
         v_id := fn_create_driver_settlement(
           v_driver.id, p_from, p_to, p_settled_on,
-          '{}'::uuid[], '{}'::uuid[],
+          v_adv_ids, v_ded_ids,
           coalesce(p_notes, 'إقفال شهر ' || to_char(p_from, 'YYYY-MM')),
           null
         );

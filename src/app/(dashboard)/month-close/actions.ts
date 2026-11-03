@@ -16,6 +16,8 @@ export type MonthClosePreviewRow = {
   trips_count: number;
   total_trabs: number;
   custody_balance: number;
+  open_advances: number;
+  open_deductions: number;
   trab_net: number;
   salary_net: number;
   salary_paid: number;

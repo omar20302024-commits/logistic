@@ -179,7 +179,7 @@ export function MonthCloseWorkflow({
                 onChange={(e) => setSettleTrabs(e.target.checked)}
                 className="size-4 rounded border-zinc-300 accent-zinc-900"
               />
-              التربات والعهدة
+              التربات والعهدة والسلف
             </label>
             <label className="flex items-center gap-1.5 text-sm text-zinc-700">
               <input
@@ -212,10 +212,11 @@ export function MonthCloseWorkflow({
       </div>
 
       <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-xs text-zinc-600">
-        الإقفال يُنشئ <strong>سند تصفية تربات</strong> لكل سائق — يَسِم رحلات الفترة
-        وحركات عهدتها فلا تُصرف مرة أخرى — ويُسجّل <strong>راتب الشهر مدفوعاً</strong>.
-        والسلف والخصومات تبقى على دلوها كما هي؛ نقلها بين الراتب والتربات قرار فردي لا
-        يُؤخذ جماعياً.
+        الفترة: <strong dir="ltr">{from}</strong> إلى <strong dir="ltr">{to}</strong>.
+        الإقفال يُنشئ <strong>سند تصفية</strong> لكل سائق يضمّ{" "}
+        <strong>التربات والعهدة والسلف والخصومات</strong> المفتوحة في الفترة — فتُوسَم
+        كلها ولا يبقى بندٌ معلّق يظهر في تصفية تالية — ثم يُسجّل{" "}
+        <strong>راتب الشهر مدفوعاً</strong>.
       </div>
 
       {/* الاختيار */}
@@ -241,6 +242,8 @@ export function MonthCloseWorkflow({
               <th className="px-4 py-3 font-medium">الرحلات</th>
               <th className="px-4 py-3 font-medium">التربات</th>
               <th className="px-4 py-3 font-medium">العهدة</th>
+              <th className="px-4 py-3 font-medium">السلف</th>
+              <th className="px-4 py-3 font-medium">الخصومات</th>
               <th className="px-4 py-3 font-medium">صافي سند التربات</th>
               <th className="px-4 py-3 font-medium">صافي الراتب</th>
             </tr>
@@ -248,7 +251,7 @@ export function MonthCloseWorkflow({
           <tbody>
             {visible.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-10 text-center text-zinc-400">
+                <td colSpan={9} className="py-10 text-center text-zinc-400">
                   لا يوجد سائقون في هذه الفئة
                 </td>
               </tr>
@@ -294,6 +297,12 @@ export function MonthCloseWorkflow({
                     <td className="px-4 py-3 whitespace-nowrap text-zinc-600" dir="ltr">
                       {p ? formatCurrency(p.custody_balance, currencySymbol) : "—"}
                     </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-amber-700" dir="ltr">
+                      {p ? formatCurrency(p.open_advances, currencySymbol) : "—"}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-red-600" dir="ltr">
+                      {p ? formatCurrency(p.open_deductions, currencySymbol) : "—"}
+                    </td>
                     <td
                       className="px-4 py-3 whitespace-nowrap font-semibold text-zinc-900"
                       dir="ltr"
@@ -314,7 +323,7 @@ export function MonthCloseWorkflow({
           {preview.length > 0 && (
             <tfoot>
               <tr className="bg-zinc-50 text-sm font-bold text-zinc-900">
-                <td className="px-4 py-3" colSpan={5}>
+                <td className="px-4 py-3" colSpan={7}>
                   الإجمالي ({formatNumber(preview.length)} سائق)
                   {loading && (
                     <Loader2 size={13} className="mr-2 inline animate-spin text-zinc-400" />
@@ -410,7 +419,7 @@ export function MonthCloseWorkflow({
         title="تأكيد إقفال الشهر"
         description={`سيُقفَل ${formatNumber(selectedIds.length)} سائقاً عن الفترة ${from} إلى ${to}. ${
           settleTrabs
-            ? `تربات بإجمالي ${formatCurrency(totals.trab, currencySymbol)} — وتُوسَم رحلاتها وعهدتها فلا تُصرف ثانيةً. `
+            ? `سند تصفية بإجمالي ${formatCurrency(totals.trab, currencySymbol)} يضمّ التربات والعهدة والسلف والخصومات، وتُوسَم كلها فلا تُصرف ثانيةً. `
             : ""
         }${paySalary ? `ورواتب بإجمالي ${formatCurrency(totals.salary, currencySymbol)}. ` : ""}هل تريد المتابعة؟`}
       />
