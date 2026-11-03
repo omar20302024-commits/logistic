@@ -18,6 +18,8 @@ import {
   Route,
   RefreshCw,
   Handshake,
+  Lock,
+  Link2,
 } from "lucide-react";
 
 export type NavItem = {
@@ -46,6 +48,8 @@ export const navGroups: NavGroup[] = [
       { label: "استيراد رحلات (Excel)", href: "/trips/import", icon: Upload },
       { label: "مزامنة جوجل شيت", href: "/trips/sync", icon: RefreshCw },
       { label: "الرواتب", href: "/salaries", icon: Wallet },
+      { label: "إقفال الشهر", href: "/month-close", icon: Lock },
+      { label: "روابط السائقين", href: "/drivers/links", icon: Link2 },
       { label: "عقود الإيجار الشهري", href: "/rentals", icon: Home },
       { label: "وحدات السكن", href: "/rentals/housing", icon: Home },
     ],

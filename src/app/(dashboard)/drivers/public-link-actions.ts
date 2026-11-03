@@ -27,6 +27,73 @@ export async function setPublicLinkEnabled(
 }
 
 /**
+ * تفعيل أو إيقاف روابط مجموعة سائقين دفعة واحدة.
+ *
+ * الحاجة: أول الشهر يريد المسؤول ضبط كل سائقي الشركة معاً، وفتح صفحة كل
+ * سائق على حدة ليضغط زرّين عملٌ لا ينتهي.
+ */
+export async function setPublicLinkEnabledBulk(
+  driverIds: string[],
+  enabled: boolean
+): Promise<ActionResult & { updated?: number }> {
+  const ids = driverIds.filter(Boolean);
+  if (ids.length === 0) return { error: "لم تحدّد أي سائق" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("drivers")
+    .update({ public_link_enabled: enabled })
+    .in("id", ids);
+
+  if (error) return { error: "تعذّر تغيير حالة الروابط" };
+
+  revalidatePath("/drivers");
+  revalidatePath("/drivers/links");
+  for (const id of ids) revalidatePath(`/drivers/${id}`);
+  return { error: null, updated: ids.length };
+}
+
+/**
+ * الشهر المعروض لمجموعة سائقين دفعة واحدة.
+ * null = الشهر الحالي تلقائياً (يتدحرّج وحده).
+ */
+export async function setStatementMonthBulk(
+  driverIds: string[],
+  year: number | null,
+  month: number | null
+): Promise<ActionResult & { updated?: number }> {
+  const ids = driverIds.filter(Boolean);
+  if (ids.length === 0) return { error: "لم تحدّد أي سائق" };
+
+  // الاثنان معاً أو لا شيء: سنة بلا شهر تترك الرابط في حالة نصفية
+  const pinned = year !== null && month !== null;
+  if ((year === null) !== (month === null)) {
+    return { error: "حدّد الشهر والسنة معاً، أو اختر التلقائي" };
+  }
+  if (pinned) {
+    if (!Number.isInteger(year) || year! < 2000 || year! > 2100) {
+      return { error: "سنة غير صحيحة" };
+    }
+    if (!Number.isInteger(month) || month! < 1 || month! > 12) {
+      return { error: "شهر غير صحيح" };
+    }
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("drivers")
+    .update({ statement_year: year, statement_month: month })
+    .in("id", ids);
+
+  if (error) return { error: "تعذّر تغيير الشهر" };
+
+  revalidatePath("/drivers");
+  revalidatePath("/drivers/links");
+  for (const id of ids) revalidatePath(`/drivers/${id}`);
+  return { error: null, updated: ids.length };
+}
+
+/**
  * توليد رمز جديد — يبطل كل نسخة قديمة من الرابط نهائياً.
  * هذا هو العلاج الوحيد للتسريب؛ الإيقاف وحده لا يكفي لأن إعادة التفعيل
  * تُشغّل نفس الرمز القديم من جديد.

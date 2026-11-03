@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Link2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { DriversTable } from "@/components/drivers/DriversTable";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
@@ -60,9 +62,18 @@ export default async function DriversPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-bold text-zinc-900">السائقون</h1>
-        <p className="text-sm text-zinc-500">إدارة بيانات السائقين وحالاتهم</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-zinc-900">السائقون</h1>
+          <p className="text-sm text-zinc-500">إدارة بيانات السائقين وحالاتهم</p>
+        </div>
+        <Link
+          href="/drivers/links"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 px-3.5 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+        >
+          <Link2 size={15} />
+          روابط السائقين
+        </Link>
       </div>
 
       <ErrorBanner error={error} hint="تأكد من تشغيل ملف SQL رقم 0001 (جدول drivers)." />
