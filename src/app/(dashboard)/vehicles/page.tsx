@@ -9,12 +9,18 @@ export default async function VehiclesPage() {
   const [{ data: vehicles, error }, { data: types }, { data: holders }] = await Promise.all([
     supabase.from("vehicles").select("*").order("vehicle_no"),
     supabase.from("vehicle_types").select("*").order("sort_order"),
-    supabase.from("v_vehicle_current_driver").select("vehicle_id, driver_name"),
+    // المعرّف مع الاسم: الاسم وحده يُعرض، والمعرّف يجعله رابطاً لصفحة السائق
+    supabase.from("v_vehicle_current_driver").select("vehicle_id, driver_id, driver_name"),
   ]);
 
   // من يحمل كل سيارة الآن (0034) — سيارة واحدة لسائق واحد
   const holderByVehicle = new Map(
-    (holders ?? []).map((h) => [h.vehicle_id as string, (h.driver_name as string | null) ?? null])
+    (holders ?? []).map((h) => [
+      h.vehicle_id as string,
+      h.driver_id
+        ? { id: h.driver_id as string, name: (h.driver_name as string) ?? "—" }
+        : null,
+    ])
   );
 
   return (

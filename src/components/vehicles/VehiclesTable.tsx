@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -27,7 +28,8 @@ export function VehiclesTable({
 }: {
   vehicles: VehicleRecord[];
   types: VehicleTypeRecord[];
-  holderByVehicle: Record<string, string | null>;
+  /** السائق الحامل للسيارة — بالمعرّف ليكون اسمه رابطاً لصفحته */
+  holderByVehicle: Record<string, { id: string; name: string } | null>;
 }) {
   const router = useRouter();
   const [formOpen, setFormOpen] = useState(false);
@@ -89,7 +91,12 @@ export function VehiclesTable({
                   </td>
                   <td className="px-4 py-3">
                     {holderByVehicle[v.id] ? (
-                      <span className="text-zinc-700">{holderByVehicle[v.id]}</span>
+                      <Link
+                        href={`/drivers/${holderByVehicle[v.id]!.id}`}
+                        className="font-medium text-zinc-900 underline-offset-2 hover:underline"
+                      >
+                        {holderByVehicle[v.id]!.name}
+                      </Link>
                     ) : (
                       <span className="text-zinc-400">غير مرتبطة</span>
                     )}
