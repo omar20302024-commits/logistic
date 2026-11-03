@@ -249,11 +249,15 @@ export function DriverStatementView({
               sign="minus"
             />
           )}
-          {/* صافي الراتب يقفل بنود الراتب وحدها: الأساسي + الإضافات − الخصومات
-              − السلف. والعهدة وما صُرف على العمل بندان مستقلان يدخلان الإجمالي
-              النهائي لا الراتب — فيأتيان بعده، وإلا بدا الصافي خاطئاً. */}
+          {/* يقفل بنود الراتب وحدها: الأساسي + الإضافات − الخصومات − السلف.
+              والعهدة وما صُرف على العمل بندان مستقلان يدخلان الإجمالي النهائي
+              لا الراتب — فيأتيان بعده، وإلا بدا الصافي خاطئاً.
+
+              «المتبقي من الراتب» لا «صافي الراتب»: السائق كان يقرأ الثاني
+              على أنه راتبه — «راتبي ٨٠٠؟» — بينما هو ما بقي بعد ما أُخذ.
+              والمستند الداخلي يبقى على «صافي الراتب»، فقارئه محاسب. */}
           <div className="mt-1 flex items-center justify-between border-t border-zinc-200 pt-2">
-            <span className="text-sm font-semibold text-zinc-900">صافي الراتب</span>
+            <span className="text-sm font-semibold text-zinc-900">المتبقي من الراتب</span>
             <span className="text-sm font-semibold text-zinc-900" dir="ltr">
               {formatCurrency(summary.net_salary, currencySymbol)}
             </span>
