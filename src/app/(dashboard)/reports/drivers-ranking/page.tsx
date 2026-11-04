@@ -4,8 +4,8 @@ import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { ReviewedByFooter } from "@/components/ui/ReviewedByFooter";
 
 // ترتيب السائقين من الأكثر إلى الأقل — رحلاتٍ أو تربات.
-// يعتمد على fn_drivers_report الموجودة، فلا ملف SQL جديد ولا حساب جديد:
-// نفس أرقام تقرير السائقين بالضبط، مرتَّبة فقط.
+// يعتمد على fn_drivers_report نفسها، فلا حساب جديد: نفس أرقام تقرير
+// السائقين بالضبط، مرتَّبة فقط — وسائقو الشركة وحدهم (0058).
 
 function firstDayOfMonth() {
   const now = new Date();
@@ -38,11 +38,11 @@ export default async function DriversRankingPage({
       <div className="print:hidden">
         <h1 className="text-xl font-bold text-zinc-900">ترتيب السائقين</h1>
         <p className="text-sm text-zinc-500">
-          من الأكثر رحلاتٍ أو تربات إلى الأقل خلال الفترة المحددة
+          من الأكثر رحلاتٍ أو تربات إلى الأقل خلال الفترة المحددة — سائقو الشركة فقط
         </p>
       </div>
 
-      <ErrorBanner error={error} hint="تأكد من تشغيل ملف SQL رقم 0007 (دالة fn_drivers_report)." />
+      <ErrorBanner error={error} hint="تأكد من تشغيل ملف SQL رقم 0058 (تقرير السائقين الداخليين بالديزل)." />
 
       <DriversRankingTable
         rows={rows ?? []}

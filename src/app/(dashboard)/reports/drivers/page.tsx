@@ -31,10 +31,13 @@ export default async function DriversReportPage({
     <div className="flex flex-col gap-6">
       <div className="print:hidden">
         <h1 className="text-xl font-bold text-zinc-900">تقرير السائقين</h1>
-        <p className="text-sm text-zinc-500">ربحية كل سائق خلال الفترة المحددة</p>
+        <p className="text-sm text-zinc-500">
+          ربحية كل سائق خلال الفترة المحددة — <strong>سائقو الشركة فقط</strong>. والديزل
+          يشمل ديزل صفحة السائق عن الشهور الواقعة في الفترة.
+        </p>
       </div>
 
-      <ErrorBanner error={error} hint="تأكد من تشغيل ملف SQL رقم 0007 (دالة fn_drivers_report)." />
+      <ErrorBanner error={error} hint="تأكد من تشغيل ملف SQL رقم 0058 (تقرير السائقين الداخليين بالديزل)." />
 
       <DriversReportTable
         rows={rows ?? []}
