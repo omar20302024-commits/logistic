@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { SheetSyncWorkflow } from "@/components/trips/sync/SheetSyncWorkflow";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 // مزامنة رحلات من جوجل شيت (0037) — مستقلة عن استيراد Excel، وكلاهما يعمل.
 
@@ -13,7 +14,7 @@ export default async function TripsSyncPage() {
     { data: settings },
     { data: drivers },
     { data: companies },
-    { data: vendors },
+    { data: vendors, error: vendorsError },
     { data: routeRates },
     { data: globalRouteRates },
   ] = await Promise.all([
@@ -70,6 +71,13 @@ export default async function TripsSyncPage() {
           ولا يكرّر ما استُورد سابقاً
         </p>
       </div>
+
+      {/* قائمة الموردين كانت تُقرأ بلا فحص خطأ: لو فشلت القراءة ظهرت القائمة
+          المنسدلة فارغة بلا سبب — نفس الصمت الذي عالجناه في صفحة الموردين */}
+      <ErrorBanner
+        error={vendorsError}
+        hint="تأكد من تشغيل ملف SQL رقم 0043 (الموردون)."
+      />
 
       <SheetSyncWorkflow
         initialUrl={(settings?.trips_sheet_url as string | null) ?? ""}

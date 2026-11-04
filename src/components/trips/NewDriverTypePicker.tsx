@@ -45,19 +45,28 @@ export function NewDriverTypePicker({
       </select>
 
       {employmentType === "external" && (
-        <select
-          value={vendorId}
-          disabled={disabled}
-          onChange={(e) => onChange({ vendorId: e.target.value })}
-          className="rounded border border-zinc-200 px-1.5 py-1 text-[10px]"
-        >
-          <option value="">بدون مورّد (خارجي مستقل)</option>
-          {vendors.map((v) => (
-            <option key={v.id} value={v.id}>
-              تحت: {v.name}
-            </option>
-          ))}
-        </select>
+        <>
+          <select
+            value={vendorId}
+            disabled={disabled}
+            onChange={(e) => onChange({ vendorId: e.target.value })}
+            className="rounded border border-zinc-200 px-1.5 py-1 text-[10px]"
+          >
+            <option value="">بدون مورّد (خارجي مستقل)</option>
+            {vendors.map((v) => (
+              <option key={v.id} value={v.id}>
+                تحت: {v.name}
+              </option>
+            ))}
+          </select>
+
+          {/* قائمة فارغة بلا تفسير تبدو عُطلاً. السبب يُكتب: لا موردين نشطين */}
+          {vendors.length === 0 && (
+            <span className="text-[10px] text-amber-700">
+              لا يوجد مورّد نشط — أضِفه من صفحة «الموردون»
+            </span>
+          )}
+        </>
       )}
     </div>
   );

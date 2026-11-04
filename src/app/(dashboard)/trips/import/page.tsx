@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { ImportWorkflow } from "@/components/trips/import/ImportWorkflow";
+import { ErrorBanner } from "@/components/ui/ErrorBanner";
 
 export default async function TripsImportPage() {
   const supabase = await createClient();
@@ -9,7 +10,7 @@ export default async function TripsImportPage() {
   const [
     { data: drivers },
     { data: companies },
-    { data: vendors },
+    { data: vendors, error: vendorsError },
     { data: routeRates },
     { data: globalRouteRates },
   ] =
@@ -65,6 +66,11 @@ export default async function TripsImportPage() {
           ارفع ملف تقرير الرحلات كما تستلمه من العميل — النظام يحلّله ويعرضه للمراجعة قبل الحفظ النهائي
         </p>
       </div>
+
+      <ErrorBanner
+        error={vendorsError}
+        hint="تأكد من تشغيل ملف SQL رقم 0043 (الموردون)."
+      />
 
       <ImportWorkflow
         drivers={driverOptions}
