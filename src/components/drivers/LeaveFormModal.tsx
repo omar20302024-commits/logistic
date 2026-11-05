@@ -82,6 +82,10 @@ export function LeaveFormModal({
         <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-[11px] text-zinc-600">
           كل أيام الإجازة تُخصم من الراتب بلا استثناء، والشهر يُحسب 30 يوماً دائماً. مثال: إجازة
           20 يوماً تعني راتب 10 أيام فقط عن ذلك الشهر.
+          <br />
+          <strong>«من تاريخ» هو أول يوم لا يعمل فيه.</strong> فلو أردت محاسبته على خمسة
+          أيام عمل، فالإجازة تبدأ من اليوم السادس. واترك «إلى تاريخ» فارغاً إن لم يُحدَّد
+          موعد رجوعه.
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -96,7 +100,11 @@ export function LeaveFormModal({
             {errors.from_date && <p className="text-xs text-red-600">{errors.from_date.message}</p>}
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-zinc-700">إلى تاريخ (الرجوع)</label>
+            {/* «الرجوع» كان يناقض الحساب: الحقل آخر يوم إجازة لا يوم الرجوع
+                للعمل، وكتابة يوم الرجوع تخصم يوماً زائداً من الراتب */}
+            <label className="text-sm font-medium text-zinc-700">
+              إلى تاريخ (آخر يوم إجازة)
+            </label>
             <input
               {...register("to_date")}
               type="date"
