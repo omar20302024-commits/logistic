@@ -145,63 +145,67 @@ export function IncomeStatementView({
             </span>
           </div>
 
-          {/* المطابقة: الفرق بين ما فُوتر وما في النظام، لكل عميل */}
-          <h2 className="mb-2 mt-6 text-sm font-bold text-zinc-900">
-            مطابقة الإيراد بالرحلات
-          </h2>
-          <p className="mb-2 text-[11px] text-zinc-500">
-            الفرق الموجب طبيعي حين يُفوتَر عمل سائق واحد على العميل كسيارتين. والفرق
-            الذي لا تفسير له يُراجَع من هنا.
-          </p>
+          {/* المطابقة: الفرق بين ما فُوتر وما في النظام، لكل عميل.
+              أداةُ مراجعةٍ للشاشة لا بندٌ من قائمة الدخل — فلا تُطبع مع
+              الربح والخسارة. */}
+          <div className="print:hidden">
+            <h2 className="mb-2 mt-6 text-sm font-bold text-zinc-900">
+              مطابقة الإيراد بالرحلات
+            </h2>
+            <p className="mb-2 text-[11px] text-zinc-500">
+              الفرق الموجب طبيعي حين يُفوتَر عمل سائق واحد على العميل كسيارتين. والفرق
+              الذي لا تفسير له يُراجَع من هنا.
+            </p>
 
-          <div className="overflow-x-auto rounded-xl border border-zinc-200">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-zinc-200 text-right text-xs text-zinc-500">
-                  <th className="px-3 py-2 font-medium">العميل</th>
-                  <th className="px-3 py-2 font-medium">الرحلات</th>
-                  <th className="px-3 py-2 font-medium">قيمة الرحلات</th>
-                  <th className="px-3 py-2 font-medium">المفوتَر</th>
-                  <th className="px-3 py-2 font-medium">الفرق</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {reconciliation.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-6 text-center text-zinc-400">
-                      لا توجد بيانات في هذه الفترة
-                    </td>
+            <div className="overflow-x-auto rounded-xl border border-zinc-200">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-200 text-right text-xs text-zinc-500">
+                    <th className="px-3 py-2 font-medium">العميل</th>
+                    <th className="px-3 py-2 font-medium">الرحلات</th>
+                    <th className="px-3 py-2 font-medium">قيمة الرحلات</th>
+                    <th className="px-3 py-2 font-medium">المفوتَر</th>
+                    <th className="px-3 py-2 font-medium">الفرق</th>
                   </tr>
-                ) : (
-                  reconciliation.map((r) => (
-                    <tr key={r.company_id}>
-                      <td className="px-3 py-2 text-zinc-800">{r.company_name}</td>
-                      <td className="px-3 py-2 text-zinc-600" dir="ltr">
-                        {formatNumber(r.trips_count)}
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-zinc-600" dir="ltr">
-                        {c(r.trips_amount)}
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap font-semibold text-zinc-900" dir="ltr">
-                        {c(r.invoiced_amount)}
-                      </td>
-                      <td
-                        className={`px-3 py-2 whitespace-nowrap font-semibold ${
-                          r.difference === 0
-                            ? "text-zinc-400"
-                            : r.difference > 0
-                              ? "text-emerald-700"
-                              : "text-red-600"
-                        }`}
-                        dir="ltr"
-                      >
-                        {c(r.difference)}
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {reconciliation.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-6 text-center text-zinc-400">
+                        لا توجد بيانات في هذه الفترة
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    reconciliation.map((r) => (
+                      <tr key={r.company_id}>
+                        <td className="px-3 py-2 text-zinc-800">{r.company_name}</td>
+                        <td className="px-3 py-2 text-zinc-600" dir="ltr">
+                          {formatNumber(r.trips_count)}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-zinc-600" dir="ltr">
+                          {c(r.trips_amount)}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap font-semibold text-zinc-900" dir="ltr">
+                          {c(r.invoiced_amount)}
+                        </td>
+                        <td
+                          className={`px-3 py-2 whitespace-nowrap font-semibold ${
+                            r.difference === 0
+                              ? "text-zinc-400"
+                              : r.difference > 0
+                                ? "text-emerald-700"
+                                : "text-red-600"
+                          }`}
+                          dir="ltr"
+                        >
+                          {c(r.difference)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <p className="mt-3 text-[11px] text-zinc-400">
