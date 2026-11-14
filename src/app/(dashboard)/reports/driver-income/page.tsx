@@ -40,13 +40,13 @@ export default async function DriverIncomePage({
       <div className="print:hidden">
         <h1 className="text-xl font-bold text-zinc-900">إيراد السائق/السيارة</h1>
         <p className="text-sm text-zinc-500">
-          قيمة الرحلات مقابل الترب والديزل ومصاريف العهدة ببنودها — لكل سائق في كل شهر
+          اشتغل بكم، وصرف ديزلاً ومصاريف وراتباً كم، وبقي كم — مرتَّباً من الأعلى صافياً
         </p>
       </div>
 
       <ErrorBanner
         error={error}
-        hint="تأكد من تشغيل ملف SQL رقم 0063 (فصل الديزل وإيراد السائق)."
+        hint="تأكد من تشغيل ملف SQL رقم 0064 (الراتب ضمن تكاليف إيراد السائق)."
       />
 
       <DriverIncomeTable
