@@ -224,8 +224,8 @@ export function DieselMonthlyTable({
             </div>
           </div>
 
-          {/* المؤشرات */}
-          <div className="grid grid-cols-2 gap-px border-b border-zinc-200 bg-zinc-200 sm:grid-cols-4">
+          {/* المؤشرات — print-keep فلا تنقسم بين صفحتين */}
+          <div className="print-keep grid grid-cols-2 gap-px border-b border-zinc-200 bg-zinc-200 sm:grid-cols-4 print:grid-cols-4">
             <Stat
               icon={Fuel}
               label="إجمالي الديزل"
@@ -245,8 +245,23 @@ export function DieselMonthlyTable({
             />
           </div>
 
-          {/* الرسم البياني */}
-          <div className="px-6 py-5">
+          {/* الثلاثة الأوائل — للورق، بدل رسمٍ لا يُطبع */}
+          <div className="hidden border-b border-zinc-200 px-6 py-3 text-xs text-zinc-700 print:block">
+            <strong>الأعلى صرفاً:</strong>{" "}
+            {visible.slice(0, 3).map((d, i) => (
+              <span key={d.driver_id}>
+                {i > 0 && " · "}
+                {i + 1}. {d.driver_name} ({formatCurrency(d.diesel, currencySymbol)})
+              </span>
+            ))}
+          </div>
+
+          {/* الرسم البياني — للشاشة وحدها.
+              recharts يقيس عرض حاويته وقت العرض، ولا يُعيد القياس عند
+              الطباعة: فتخرج الأشرطة بأطوال متساوية بلا محور ولا أرقام —
+              صفحة كاملة لا تقول شيئاً. وشريط النسبة في الجدول يؤدّي
+              المعنى نفسه على الورق لأنه CSS خالص. */}
+          <div className="px-6 py-5 print:hidden">
             <h2 className="mb-3 text-sm font-bold text-zinc-900">
               الترتيب من الأكثر صرفاً إلى الأقل
             </h2>
@@ -340,12 +355,18 @@ export function DieselMonthlyTable({
                       >
                         {formatCurrency(d.diesel, currencySymbol)}
                       </td>
+                      {/* شريط CSS خالص: يُطبع كما يُعرض، بخلاف الرسم */}
                       <td className="px-4 py-3">
-                        <div className="h-2 w-28 overflow-hidden rounded-full bg-zinc-100">
-                          <div
-                            className="h-full rounded-full bg-amber-500"
-                            style={{ width: `${share}%` }}
-                          />
+                        <div className="flex items-center gap-1.5">
+                          <div className="h-2 w-24 overflow-hidden rounded-full bg-zinc-100 print:w-16">
+                            <div
+                              className="h-full rounded-full bg-amber-500"
+                              style={{ width: `${share}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] text-zinc-400" dir="ltr">
+                            {Math.round(share)}%
+                          </span>
                         </div>
                       </td>
                     </tr>
