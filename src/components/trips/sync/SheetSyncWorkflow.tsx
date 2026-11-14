@@ -291,25 +291,6 @@ export function SheetSyncWorkflow({
     toast.success("عاد الصف — سيظهر جديداً");
     await handleFetch();
   };
-
-  const dismissedCount = rows?.filter((r) => r.dismissed).length ?? 0;
-
-  /** إرجاع كل ما وُضع جانباً — مخرج من «وضعتها كلها بضغطة» */
-  const handleUndismissAll = async () => {
-    const keys = (rows ?? []).filter((r) => r.dismissed).map((r) => r.sourceKey);
-    if (keys.length === 0) return;
-
-    setApplying(true);
-    const result = await undismissSheetRows(keys);
-    setApplying(false);
-
-    if (result.error) {
-      toast.error(result.error);
-      return;
-    }
-    toast.success(`أُعيد ${keys.length} صفاً — صارت قابلة للاستيراد`);
-    await handleFetch();
-  };
   const selectableCount = rows?.filter(selectable).length ?? 0;
   const allSelected = selectableCount > 0 && selectedCount === selectableCount;
 
@@ -439,27 +420,9 @@ export function SheetSyncWorkflow({
                 {outOfRange} صفاً خارج النطاق — لم تُقرأ. وسّع التاريخ أو اضغط «كل الشيت».
               </span>
             )}
-            {/* الصفوف الموضوعة جانباً كانت تُذكر بنصّ رمادي بين أرقام أخرى،
-                فيبدو الشيت فارغاً بلا سبب ظاهر. صارت نداءً واضحاً مع زرّ
-                إرجاع — «وضعتها جانباً كلها» حالةٌ يسهل الوقوع فيها بضغطة */}
-            {dismissedCount > 0 && (
-              <span className="inline-flex items-center gap-2 rounded-lg bg-amber-100 px-2.5 py-1 font-medium text-amber-900">
-                {dismissedCount} صفاً موضوعاً جانباً — لا يُقترح للاستيراد
-                <button
-                  type="button"
-                  onClick={() => setShowDismissed(true)}
-                  className="rounded border border-amber-300 bg-white px-2 py-0.5 text-[11px] hover:bg-amber-50"
-                >
-                  أظهرها
-                </button>
-                <button
-                  type="button"
-                  onClick={handleUndismissAll}
-                  disabled={applying}
-                  className="rounded border border-amber-300 bg-white px-2 py-0.5 text-[11px] hover:bg-amber-50 disabled:opacity-50"
-                >
-                  إرجاع الكل
-                </button>
+            {(rows?.filter((r) => r.dismissed).length ?? 0) > 0 && (
+              <span className="text-zinc-500">
+                {rows?.filter((r) => r.dismissed).length} متجاهَلة — لن تُقترح ثانيةً
               </span>
             )}
             <div className="mr-auto flex items-center gap-2">
@@ -623,17 +586,8 @@ export function SheetSyncWorkflow({
                           />
                         )}
                       </td>
-                      {/* المفتاح في tooltip: حين يُقال «مستوردة سابقاً» ولا
-                          يُفهم لماذا، يكشفه مرور المؤشر بلا حاجة لفحص قاعدة */}
-                      <td
-                        className="px-3 py-2 text-zinc-400"
-                        dir="ltr"
-                        title={r.sourceKey}
-                      >
+                      <td className="px-3 py-2 text-zinc-400" dir="ltr">
                         {r.serial}
-                        {!r.serialRaw.trim() && (
-                          <span className="mr-1 text-[9px] text-amber-600">صف {r.rowIndex}</span>
-                        )}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap" dir="ltr">
                         {r.date || <span className="text-red-600">—</span>}

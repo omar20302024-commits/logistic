@@ -109,19 +109,6 @@ export async function fetchSheetPreview(
   // ⚠️ المفاتيح تُحسب على **كل** صفوف الشيت قبل أي قصّ. لو حُسبت بعد القصّ
   //    لتغيّرت لاحقة التكرار باختلاف النطاق — فيصير للصف الواحد مفتاحان،
   //    ويُستورد مرتين. الترتيب الكامل هو مرجع اللاحقة دائماً.
-  // ⚠️⚠️ لا تُغيَّر صيغة المفتاح بعد اليوم.
-  //
-  // المفتاح = البادئة + `r.serial`، و`serial` هو المسلسل إن وُجد وإلا رقم
-  // الصف. وهذه هي الصيغة التي كُتب بها كل ما في قاعدة البيانات — 1040
-  // رحلة. أي تغيير في الصيغة يجعل المستورد يبدو جديداً، والنتيجة تكرار
-  // كل شيء بضغطة.
-  //
-  // 🔥 جرّبتُ فصل المسلسل عن رقم الصف («s496» و«r1082») ظنّاً أن التصادم
-  //    بينهما هو العلّة. فكسرتُ المزامنة مرّتين: مرة ظهر المستورد جديداً،
-  //    ومرة لم يدخل شيء. المستخدم أعادني إلى الأصل وكان محقّاً.
-  //
-  //    الدرس: مفتاح المصدر عقدٌ مع البيانات المكتوبة، لا تفصيلٌ في الكود.
-  //    ولا يُمَسّ إلا بترحيل يكتب المفاتيح القديمة بالصيغة الجديدة.
   const seen = new Map<string, number>();
   const keyed = parsed.rows.map((r) => {
     const n = (seen.get(r.serial) ?? 0) + 1;
@@ -141,47 +128,13 @@ export async function fetchSheetPreview(
   const keys = inRange.map((k) => k.sourceKey);
 
   const supabase = await createClient();
+  const [{ data: existing }, { data: dismissed }] = await Promise.all([
+    supabase.from("trips").select("source_key").in("source_key", keys),
+    supabase.from("sheet_sync_dismissed").select("source_key").in("source_key", keys),
+  ]);
 
-  // ⚠️ على دفعات لا دفعة واحدة.
-  //
-  // شيت المستخدم يتجاوز ألف صف، وفحص المفاتيح القديمة ضاعف القائمة. فصار
-  // in.(...) يحمل آلاف المفاتيح في رابط واحد — يتجاوز حدّ طول الرابط
-  // ويُردّ بخطأ، وسقف الصفوف يقصّ ما نجا منه. والخطأ كان **مُهمَلاً**،
-  // فتخرج القائمة فارغة ويُعلَن كل ما استُورد «جديداً» — أي تكرار ألف
-  // رحلة بضغطة.
-  //
-  // 150 مفتاحاً للدفعة: رابط قصير، ولا صفّ يُقصّ، والخطأ يُرفع لا يُبتلع.
-  const CHUNK = 150;
-  const existingKeys = new Set<string>();
-
-  for (let i = 0; i < keys.length; i += CHUNK) {
-    const { data, error } = await supabase
-      .from("trips")
-      .select("source_key")
-      .in("source_key", keys.slice(i, i + CHUNK));
-
-    // الفشل هنا يعني قائمةً ناقصة، وقائمة ناقصة تعني تكراراً. نقف.
-    if (error) {
-      return {
-        ok: false,
-        error: `تعذّر فحص ما استُورد سابقاً — أعد المحاولة (${error.message})`,
-      };
-    }
-
-    for (const t of data ?? []) existingKeys.add(t.source_key as string);
-  }
-
-  const dismissedKeys = new Set<string>();
-  for (let i = 0; i < keys.length; i += CHUNK) {
-    // التجاهل على المفتاح الجديد وحده: قراره قرار المستخدم، وربطه بمفتاح
-    // مجرّد قديم قد يُخفي صفّاً لم يقصده
-    const { data } = await supabase
-      .from("sheet_sync_dismissed")
-      .select("source_key")
-      .in("source_key", keys.slice(i, i + CHUNK));
-
-    for (const d of data ?? []) dismissedKeys.add(d.source_key as string);
-  }
+  const existingKeys = new Set((existing ?? []).map((t) => t.source_key as string));
+  const dismissedKeys = new Set((dismissed ?? []).map((d) => d.source_key as string));
 
   const rows: SyncPreviewRow[] = inRange.map(({ row, sourceKey }) => ({
     ...row,
