@@ -23,6 +23,8 @@ export type ActionResult = { error: string | null };
 
 export type SyncPreviewRow = SheetTripRow & {
   sourceKey: string;
+  /** مفاتيح مجرّدة قديمة لنفس الصف — تُفحص بالتاريخ */
+  legacyKeys: string[];
   alreadyImported: boolean;
   /** صف وُضع جانباً عمداً — رحلة بلا سائق أو ملغاة (0042) */
   dismissed: boolean;
@@ -156,22 +158,55 @@ export async function fetchSheetPreview(
   );
 
   const supabase = await createClient();
-  const [{ data: existing }, { data: dismissed }] = await Promise.all([
-    // التاريخ معه: هو ما يميّز «هذه هي الرحلة» من «رقمٌ تصادف تساويه»
-    supabase.from("trips").select("source_key, trip_date").in("source_key", lookupKeys),
+
+  // ⚠️ على دفعات لا دفعة واحدة.
+  //
+  // شيت المستخدم يتجاوز ألف صف، وفحص المفاتيح القديمة ضاعف القائمة. فصار
+  // in.(...) يحمل آلاف المفاتيح في رابط واحد — يتجاوز حدّ طول الرابط
+  // ويُردّ بخطأ، وسقف الصفوف يقصّ ما نجا منه. والخطأ كان **مُهمَلاً**،
+  // فتخرج القائمة فارغة ويُعلَن كل ما استُورد «جديداً» — أي تكرار ألف
+  // رحلة بضغطة.
+  //
+  // 150 مفتاحاً للدفعة: رابط قصير، ولا صفّ يُقصّ، والخطأ يُرفع لا يُبتلع.
+  const CHUNK = 150;
+  const dateByKey = new Map<string, string>();
+
+  for (let i = 0; i < lookupKeys.length; i += CHUNK) {
+    const { data, error } = await supabase
+      .from("trips")
+      // التاريخ معه: هو ما يميّز «هذه هي الرحلة» من «رقمٌ تصادف تساويه»
+      .select("source_key, trip_date")
+      .in("source_key", lookupKeys.slice(i, i + CHUNK));
+
+    // الفشل هنا يعني قائمةً ناقصة، وقائمة ناقصة تعني تكراراً. نقف.
+    if (error) {
+      return {
+        ok: false,
+        error: `تعذّر فحص ما استُورد سابقاً — أعد المحاولة (${error.message})`,
+      };
+    }
+
+    for (const t of data ?? []) {
+      dateByKey.set(t.source_key as string, t.trip_date as string);
+    }
+  }
+
+  const dismissedKeys = new Set<string>();
+  for (let i = 0; i < keys.length; i += CHUNK) {
     // التجاهل على المفتاح الجديد وحده: قراره قرار المستخدم، وربطه بمفتاح
     // مجرّد قديم قد يُخفي صفّاً لم يقصده
-    supabase.from("sheet_sync_dismissed").select("source_key").in("source_key", keys),
-  ]);
+    const { data } = await supabase
+      .from("sheet_sync_dismissed")
+      .select("source_key")
+      .in("source_key", keys.slice(i, i + CHUNK));
 
-  const dateByKey = new Map(
-    (existing ?? []).map((t) => [t.source_key as string, t.trip_date as string])
-  );
-  const dismissedKeys = new Set((dismissed ?? []).map((d) => d.source_key as string));
+    for (const d of data ?? []) dismissedKeys.add(d.source_key as string);
+  }
 
   const rows: SyncPreviewRow[] = inRange.map(({ row, sourceKey, legacy }) => ({
     ...row,
     sourceKey,
+    legacyKeys: legacy,
     alreadyImported:
       dateByKey.has(sourceKey) ||
       legacy.some((k) => dateByKey.get(k) === row.date && row.date !== ""),
@@ -193,6 +228,8 @@ export async function fetchSheetPreview(
 
 export type SyncApplyRow = {
   sourceKey: string;
+  /** مفاتيح مجرّدة قديمة لنفس الصف — تُفحص بالتاريخ قبل الإدخال */
+  legacyKeys?: string[];
   /** عميل موجود في النظام، أو "" لإنشاء عميل جديد باسم clientName */
   companyId: string;
   /** الاسم كما في الشيت — يُستعمل للإنشاء فقط حين يكون companyId فارغاً */
@@ -370,6 +407,26 @@ export async function applySheetSync(rows: SyncApplyRow[]): Promise<SyncApplyRes
     // رقم اللوحة يُحفظ في الملاحظات ولا يُربط بسيارة: ربط السيارة حصري لسائق
     // واحد (0034)، وربطه تلقائياً من الشيت قد ينزع سيارة من سائق آخر بلا قصد.
     const noteParts = [row.notes, row.plateNo ? `لوحة: ${row.plateNo}` : ""].filter(Boolean);
+
+    // 🔒 حارس أخير قبل الكتابة.
+    //
+    // الفهرس الفريد يحمي من تكرار المفتاح نفسه، ولا يحمي من صفٍّ استُورد
+    // قديماً بمفتاح مجرّد ثم عاد بمفتاح جديد — وهو ما يحدث بعد فصل
+    // الفضاءين. فنفحص مفاتيحه القديمة بالتاريخ هنا أيضاً، لا في المعاينة
+    // وحدها: المعاينة قد تكون قديمة في المتصفح، والكتابة لا تُستردّ.
+    if (row.legacyKeys && row.legacyKeys.length > 0 && row.date) {
+      const { data: prior } = await supabase
+        .from("trips")
+        .select("id")
+        .in("source_key", row.legacyKeys)
+        .eq("trip_date", row.date)
+        .limit(1);
+
+      if (prior && prior.length > 0) {
+        skippedDuplicates.push(row.driverName || row.sourceKey);
+        continue;
+      }
+    }
 
     const { error } = await supabase.from("trips").insert({
       driver_id: driverId,
