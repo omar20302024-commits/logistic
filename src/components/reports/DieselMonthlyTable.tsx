@@ -207,7 +207,7 @@ export function DieselMonthlyTable({
           />
         </div>
       ) : (
-        <div className="print-statement overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
+        <div className="print-statement overflow-hidden print:overflow-visible rounded-2xl border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
           {/* رأس المستند */}
           <div className="bg-zinc-900 px-6 py-5 text-white">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -297,7 +297,7 @@ export function DieselMonthlyTable({
           </div>
 
           {/* الجدول */}
-          <div className="overflow-x-auto border-t border-zinc-200">
+          <div className="overflow-x-auto border-t border-zinc-200 print:overflow-visible">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 text-right text-xs text-zinc-500">

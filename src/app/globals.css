@@ -103,6 +103,21 @@ body {
     padding-bottom: 4px;
   }
 
+  /* الجداول العريضة (إيراد السائق: بنود المصاريف أعمدةٌ مفتوحة العدد) تضيق
+     أكثر على الورق حتى يدخل العمود الأول «السائق» والأخير «الصافي». وبغير
+     هذا كانت الأعمدة الطرفية تُقصّ: الحاوية `overflow-x-auto` على الشاشة
+     تُمرَّر بالماوس، أما الطابعة فتطبع الجزء الظاهر منها وحده — ولذلك
+     أُضيف `print:overflow-visible` على الحاوية وعلى الكرت الذي يحويها. */
+  .print-landscape table {
+    width: 100%;
+    font-size: 8.5px;
+  }
+  .print-landscape th,
+  .print-landscape td {
+    padding-left: 3px;
+    padding-right: 3px;
+  }
+
   /* الألوان الخلفية تتطبع زي ما هي (الافتراضي إن المتصفح بيشيلها) */
   * {
     -webkit-print-color-adjust: exact;

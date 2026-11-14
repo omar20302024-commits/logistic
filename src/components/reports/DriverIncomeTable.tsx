@@ -32,6 +32,10 @@ const MONTHS = [
   "ديسمبر",
 ];
 
+/** بنودٌ لا عمودَ لها في التقرير — تُضَمّ إلى «مصاريف أخرى» ولا تسقط */
+const FOLDED_CATEGORIES = new Set(["مخالفات", "مخالفة", "المخالفات"]);
+const OTHER_LABEL = "مصاريف أخرى";
+
 export type DriverIncomeRow = {
   driver_id: string;
   driver_name: string;
@@ -105,10 +109,15 @@ export function DriverIncomeTable({
 
     for (const e of expenses) {
       const amount = Number(e.total || 0);
-      catTotals.set(e.expense_category, (catTotals.get(e.expense_category) ?? 0) + amount);
+      // المخالفات لا عمودَ لها — لكنها مصروفٌ حقيقي يدخل إجمالي التكاليف،
+      // فتُضَمّ إلى «مصاريف أخرى» ليبقى الصفّ جامعاً لنفسه
+      const cat = FOLDED_CATEGORIES.has(e.expense_category)
+        ? OTHER_LABEL
+        : e.expense_category;
+      catTotals.set(cat, (catTotals.get(cat) ?? 0) + amount);
 
       const inner = perDriver.get(e.driver_id) ?? new Map<string, number>();
-      inner.set(e.expense_category, (inner.get(e.expense_category) ?? 0) + amount);
+      inner.set(cat, (inner.get(cat) ?? 0) + amount);
       perDriver.set(e.driver_id, inner);
     }
 
@@ -291,7 +300,7 @@ export function DriverIncomeTable({
           />
         </div>
       ) : (
-        <div className="print-statement print-landscape overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
+        <div className="print-statement print-landscape overflow-hidden print:overflow-visible rounded-2xl border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
           <div className="bg-zinc-900 px-6 py-5 text-white">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -374,12 +383,12 @@ export function DriverIncomeTable({
             </div>
           </div>
 
-          <div className="overflow-x-auto border-t border-zinc-200">
+          <div className="overflow-x-auto border-t border-zinc-200 print:overflow-visible">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 text-right text-xs text-zinc-500">
                   <th className="px-2 py-3 font-medium print:hidden" />
-                  <th className="px-3 py-3 font-medium">#</th>
+                  <th className="px-3 py-3 font-medium print:hidden">#</th>
                   <th className="px-3 py-3 font-medium">السائق</th>
                   <th className="px-3 py-3 font-medium">السيارة</th>
                   <th className="px-3 py-3 font-medium">الرحلات</th>
@@ -420,7 +429,7 @@ export function DriverIncomeTable({
                           className="size-4 rounded border-zinc-300 align-middle accent-zinc-900"
                         />
                       </td>
-                      <td className="px-3 py-2.5 text-xs font-bold text-zinc-400">
+                      <td className="px-3 py-2.5 text-xs font-bold text-zinc-400 print:hidden">
                         {hidden ? "—" : rank}
                       </td>
                       <td className="px-3 py-2.5 font-medium whitespace-nowrap text-zinc-900">
@@ -484,7 +493,8 @@ export function DriverIncomeTable({
               <tfoot>
                 <tr className="bg-zinc-50 font-bold text-zinc-900">
                   <td className="px-2 py-3 print:hidden" />
-                  <td className="px-3 py-3" colSpan={3}>
+                  <td className="px-3 py-3 print:hidden" />
+                  <td className="px-3 py-3" colSpan={2}>
                     الإجمالي ({formatNumber(visible.length)} سائقاً)
                   </td>
                   <td className="px-3 py-3" dir="ltr">
