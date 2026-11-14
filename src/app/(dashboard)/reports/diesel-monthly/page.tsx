@@ -31,7 +31,7 @@ export default async function DieselMonthlyPage({
 
   const [{ data: rows, error }, { data: settings }] = await Promise.all([
     supabase.rpc("fn_diesel_monthly_report", { p_from: from, p_to: to }),
-    supabase.from("settings").select("currency_symbol, reviewed_by").single(),
+    supabase.from("settings").select("org_name, currency_symbol, reviewed_by").single(),
   ]);
 
   return (
@@ -39,20 +39,20 @@ export default async function DieselMonthlyPage({
       <div className="print:hidden">
         <h1 className="text-xl font-bold text-zinc-900">استهلاك الديزل الشهري</h1>
         <p className="text-sm text-zinc-500">
-          لكل سائق داخلي في كل شهر: سيارته ورحلاته وديزله ومصاريف سيارته.
-          و«المتبقي» = قيمة الرحلات − (الترب + الديزل + مصاريف السيارة).
+          من الأكثر صرفاً إلى الأقل — مع رسم بياني، وإمكانية استبعاد سائقين قبل الطباعة
         </p>
       </div>
 
       <ErrorBanner
         error={error}
-        hint="تأكد من تشغيل ملف SQL رقم 0059 (ربط الديزل بالسيارة والتقرير الشهري)."
+        hint="تأكد من تشغيل ملف SQL رقم 0063 (فصل تقرير الديزل)."
       />
 
       <DieselMonthlyTable
         rows={(rows ?? []) as DieselMonthRow[]}
         from={from}
         to={to}
+        orgName={settings?.org_name ?? "مؤسستي"}
         currencySymbol={settings?.currency_symbol ?? "ر.س"}
       />
 
