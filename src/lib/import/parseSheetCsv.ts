@@ -17,7 +17,11 @@ import { normalizeArabic } from "@/lib/arabic";
  */
 
 export type SheetTripRow = {
-  /** الرقم التسلسلي في العمود # — جزء من مفتاح المصدر */
+  /** ما في عمود المسلسل حرفياً — فارغ إن لم يرقّمه أحد */
+  serialRaw: string;
+  /** رقم الصف في الملف — مفتاح احتياطي للصفوف بلا مسلسل */
+  rowIndex: number;
+  /** للعرض: المسلسل أو رقم الصف */
   serial: string;
   clientName: string;
   date: string; // ISO أو "" لو تعذّرت القراءة
@@ -249,6 +253,8 @@ export function parseSheetCsv(csv: string): SheetParseResult {
     const statusRaw = cell(r, col.status);
 
     parsed.push({
+      serialRaw: cell(r, col.serial),
+      rowIndex: i + 1,
       serial: cell(r, col.serial) || String(i + 1),
       clientName: cell(r, col.client),
       date,

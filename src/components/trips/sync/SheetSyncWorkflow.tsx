@@ -586,8 +586,17 @@ export function SheetSyncWorkflow({
                           />
                         )}
                       </td>
-                      <td className="px-3 py-2 text-zinc-400" dir="ltr">
+                      {/* المفتاح في tooltip: حين يُقال «مستوردة سابقاً» ولا
+                          يُفهم لماذا، يكشفه مرور المؤشر بلا حاجة لفحص قاعدة */}
+                      <td
+                        className="px-3 py-2 text-zinc-400"
+                        dir="ltr"
+                        title={r.sourceKey}
+                      >
                         {r.serial}
+                        {!r.serialRaw.trim() && (
+                          <span className="mr-1 text-[9px] text-amber-600">صف {r.rowIndex}</span>
+                        )}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap" dir="ltr">
                         {r.date || <span className="text-red-600">—</span>}
