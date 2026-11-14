@@ -211,7 +211,6 @@ export function SheetSyncWorkflow({
       statusMapped: r.statusMapped,
       requester: r.requester,
       notes: r.notes,
-      legacyKeys: r.legacyKeys,
       employmentType: r.employmentType,
       vendorId: r.vendorId || null,
     }));
