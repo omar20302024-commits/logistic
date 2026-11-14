@@ -128,13 +128,40 @@ export async function fetchSheetPreview(
   const keys = inRange.map((k) => k.sourceKey);
 
   const supabase = await createClient();
-  const [{ data: existing }, { data: dismissed }] = await Promise.all([
-    supabase.from("trips").select("source_key").in("source_key", keys),
-    supabase.from("sheet_sync_dismissed").select("source_key").in("source_key", keys),
-  ]);
 
-  const existingKeys = new Set((existing ?? []).map((t) => t.source_key as string));
-  const dismissedKeys = new Set((dismissed ?? []).map((d) => d.source_key as string));
+  // ⚠️⚠️ الفحص على دفعات — لا تُعِده دفعةً واحدة مهما بدا أبسط.
+  //
+  // الشاهد قاطع: بقراءة 80 صفاً تعرّف النظام على 78 منها؛ وبقراءة 1082
+  // تعرّف على **صفر**. فالقائمة الطويلة تجعل `in.(…)` رابطاً أطول ممّا
+  // يقبله الخادم، فيُردّ بخطأ — وسقف الصفوف يقصّ ما نجا منه.
+  //
+  // وأخطر ما فيه أن النتيجة الفارغة تعني «كل شيء جديد»: ضغطةٌ واحدة
+  // تُدخل ألف رحلة مكرّرة. ولهذا يُوقَف العرض عند الخطأ ولا يُخمَّن.
+  const CHUNK = 150;
+  const existingKeys = new Set<string>();
+  const dismissedKeys = new Set<string>();
+
+  for (let i = 0; i < keys.length; i += CHUNK) {
+    const slice = keys.slice(i, i + CHUNK);
+
+    const [tripsRes, dismissedRes] = await Promise.all([
+      supabase.from("trips").select("source_key").in("source_key", slice),
+      supabase.from("sheet_sync_dismissed").select("source_key").in("source_key", slice),
+    ]);
+
+    // قائمة ناقصة تعني تكراراً. نقف ونقول، ولا نعرض معاينة مضلِّلة.
+    if (tripsRes.error || dismissedRes.error) {
+      return {
+        ok: false,
+        error: `تعذّر فحص ما استُورد سابقاً — لا تستورد وأعد المحاولة (${
+          tripsRes.error?.message ?? dismissedRes.error?.message
+        })`,
+      };
+    }
+
+    for (const t of tripsRes.data ?? []) existingKeys.add(t.source_key as string);
+    for (const d of dismissedRes.data ?? []) dismissedKeys.add(d.source_key as string);
+  }
 
   const rows: SyncPreviewRow[] = inRange.map(({ row, sourceKey }) => ({
     ...row,
