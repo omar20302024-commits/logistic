@@ -109,22 +109,36 @@ export async function fetchSheetPreview(
   // ⚠️ المفاتيح تُحسب على **كل** صفوف الشيت قبل أي قصّ. لو حُسبت بعد القصّ
   //    لتغيّرت لاحقة التكرار باختلاف النطاق — فيصير للصف الواحد مفتاحان،
   //    ويُستورد مرتين. الترتيب الكامل هو مرجع اللاحقة دائماً.
-  // ⚠️⚠️ والصف بلا مسلسل لا يأخذ رقم صفه مجرّداً.
+  // ⚠️⚠️ رقم الصف والمسلسل لا يتشاركان فضاءً واحداً.
   //
-  // كان البديل عند فراغ عمود المسلسل هو رقم الصف. والبيانات تبدأ من الصف 7،
-  // فرقم الصف = المسلسل + 6 — أي أن رقم صف أي سطر جديد يقع حتماً داخل مدى
-  // المسلسلات المستعملة. فصفٌّ جديد غير مرقَّم في الصف 201 يأخذ المفتاح
-  // «201»، وهو مفتاح الرحلة ذات المسلسل 201 المستوردة من قبل — فيُعلن
-  // «مستوردة سابقاً» ولا تدخل أبداً. وهذا يصيب **كل** صف غير مرقَّم.
+  // الشاهد من قاعدة المستخدم: 1040 رحلة مستوردة بمفاتيح مجرّدة تصل إلى
+  // 1082، بينما مسلسلات صفوف نوفمبر 496-499. فالمفاتيح القديمة **أرقام
+  // صفوف** لا مسلسلات — عمود المسلسل كان فارغاً فسقط النظام على رقم الصف.
   //
-  // فلرقم الصف فضاء مستقل: «r201» لا «201». لا تصادم بعدها.
+  // ثم امتلأ العمود. فصار صفّ نوفمبر ذو المسلسل 496 يطلب المفتاح «496» —
+  // وهو مفتاح الرحلة المستوردة من **الصف** 496 في شهر قديم. فتُعلن كل
+  // رحلة جديدة «مستوردة سابقاً».
+  //
+  // فلكلٍّ بادئته: «s496» للمسلسل و«r1082» لرقم الصف. لا تلاقي بينهما أبداً.
+  //
+  // 🔑 والمفاتيح المجرّدة القديمة تبقى مفحوصة — لكن **بشرط تطابق التاريخ**.
+  //    فرحلة الصف 496 من شهر قديم لا تُطابق صفّ نوفمبر رغم تساوي الرقم،
+  //    بينما الصف الذي استُورد فعلاً يبقى معروفاً فلا يتكرّر. التاريخ هو
+  //    ما يفصل التصادم عن الهوية.
   const seen = new Map<string, number>();
   const keyed = parsed.rows.map((r) => {
     const raw = (r.serialRaw ?? "").trim();
-    const base = raw !== "" ? raw : `r${r.rowIndex}`;
+    const base = raw !== "" ? `s${raw}` : `r${r.rowIndex}`;
     const n = (seen.get(base) ?? 0) + 1;
     seen.set(base, n);
-    return { row: r, sourceKey: `${prefix}${base}${n > 1 ? `#${n}` : ""}` };
+
+    // المفاتيح المجرّدة التي كان النظام يكتبها قبل الفصل
+    const legacy = [
+      raw !== "" ? `${prefix}${raw}` : null,
+      `${prefix}${r.rowIndex}`,
+    ].filter((k): k is string => k !== null);
+
+    return { row: r, sourceKey: `${prefix}${base}${n > 1 ? `#${n}` : ""}`, legacy };
   });
 
   // صفٌّ بلا تاريخ مقروء يبقى معروضاً مهما كان النطاق: إخفاؤه يعني ضياعه
@@ -137,20 +151,30 @@ export async function fetchSheetPreview(
   });
 
   const keys = inRange.map((k) => k.sourceKey);
+  const lookupKeys = Array.from(
+    new Set([...keys, ...inRange.flatMap((k) => k.legacy)])
+  );
 
   const supabase = await createClient();
   const [{ data: existing }, { data: dismissed }] = await Promise.all([
-    supabase.from("trips").select("source_key").in("source_key", keys),
+    // التاريخ معه: هو ما يميّز «هذه هي الرحلة» من «رقمٌ تصادف تساويه»
+    supabase.from("trips").select("source_key, trip_date").in("source_key", lookupKeys),
+    // التجاهل على المفتاح الجديد وحده: قراره قرار المستخدم، وربطه بمفتاح
+    // مجرّد قديم قد يُخفي صفّاً لم يقصده
     supabase.from("sheet_sync_dismissed").select("source_key").in("source_key", keys),
   ]);
 
-  const existingKeys = new Set((existing ?? []).map((t) => t.source_key as string));
+  const dateByKey = new Map(
+    (existing ?? []).map((t) => [t.source_key as string, t.trip_date as string])
+  );
   const dismissedKeys = new Set((dismissed ?? []).map((d) => d.source_key as string));
 
-  const rows: SyncPreviewRow[] = inRange.map(({ row, sourceKey }) => ({
+  const rows: SyncPreviewRow[] = inRange.map(({ row, sourceKey, legacy }) => ({
     ...row,
     sourceKey,
-    alreadyImported: existingKeys.has(sourceKey),
+    alreadyImported:
+      dateByKey.has(sourceKey) ||
+      legacy.some((k) => dateByKey.get(k) === row.date && row.date !== ""),
     dismissed: dismissedKeys.has(sourceKey),
   }));
 
