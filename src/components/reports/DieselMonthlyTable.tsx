@@ -29,18 +29,15 @@ export type DieselMonthRow = {
   vehicle_id: string | null;
   vehicle_no: string | null;
   trips_count: number;
-  total_trip_amount: number;
-  total_trabs: number;
   diesel_amount: number;
-  vehicle_expenses: number;
-  remaining: number;
 };
 
 /**
- * استهلاك الديزل الشهري — صفّ لكل سائق في كل شهر داخل الفترة.
+ * استهلاك الديزل الشهري — الديزل وحده.
  *
- * «المتبقي» = قيمة الرحلات − (الترب + الديزل + مصاريف السيارة): ما تركته
- * السيارة للشركة في ذلك الشهر، قبل الراتب.
+ * 📌 لا تربات ولا مصاريف سيارة هنا بطلب المستخدم: لكلٍّ تقريره. وهذا يجيب
+ *    عن سؤال واحد — «كم شرب هذا السائق هذا الشهر، وبأي سيارة».
+ *    والإيراد والتكلفة والصافي في «إيراد السائق/السيارة».
  */
 export function DieselMonthlyTable({
   rows,
@@ -65,47 +62,22 @@ export function DieselMonthlyTable({
 
   const totals = rows.reduce(
     (a, r) => ({
-      trips_count: a.trips_count + Number(r.trips_count || 0),
-      total_trip_amount: a.total_trip_amount + Number(r.total_trip_amount || 0),
-      total_trabs: a.total_trabs + Number(r.total_trabs || 0),
-      diesel_amount: a.diesel_amount + Number(r.diesel_amount || 0),
-      vehicle_expenses: a.vehicle_expenses + Number(r.vehicle_expenses || 0),
-      remaining: a.remaining + Number(r.remaining || 0),
+      trips: a.trips + Number(r.trips_count || 0),
+      diesel: a.diesel + Number(r.diesel_amount || 0),
     }),
-    {
-      trips_count: 0,
-      total_trip_amount: 0,
-      total_trabs: 0,
-      diesel_amount: 0,
-      vehicle_expenses: 0,
-      remaining: 0,
-    }
+    { trips: 0, diesel: 0 }
   );
 
   const handleExport = () => {
     exportToCsv(
       `الديزل_الشهري_${from}_${to}`,
-      [
-        "السائق",
-        "الشهر",
-        "رقم السيارة",
-        "الرحلات",
-        "قيمة الرحلات",
-        "التربات",
-        "الديزل",
-        "مصاريف السيارة",
-        "المتبقي",
-      ],
+      ["السائق", "الشهر", "رقم السيارة", "الرحلات", "الديزل"],
       rows.map((r) => [
         r.driver_name,
         `${MONTHS[r.month - 1]} ${r.year}`,
         r.vehicle_no ?? "—",
         r.trips_count,
-        r.total_trip_amount,
-        r.total_trabs,
         r.diesel_amount,
-        r.vehicle_expenses,
-        r.remaining,
       ])
     );
   };
@@ -157,8 +129,8 @@ export function DieselMonthlyTable({
         {rows.length === 0 ? (
           <EmptyState
             icon={Fuel}
-            title="لا توجد حركة في هذه الفترة"
-            description="لا رحلات ولا ديزل ولا مصروفات لأي سائق داخلي"
+            title="لا يوجد ديزل مسجَّل في هذه الفترة"
+            description="يُسجَّل الديزل من صفحة السائق"
           />
         ) : (
           <div className="overflow-x-auto">
@@ -169,11 +141,7 @@ export function DieselMonthlyTable({
                   <th className="px-4 py-3 font-medium">الشهر</th>
                   <th className="px-4 py-3 font-medium">رقم السيارة</th>
                   <th className="px-4 py-3 font-medium">الرحلات</th>
-                  <th className="px-4 py-3 font-medium">قيمة الرحلات</th>
-                  <th className="px-4 py-3 font-medium">التربات</th>
                   <th className="px-4 py-3 font-medium">الديزل</th>
-                  <th className="px-4 py-3 font-medium">مصاريف السيارة</th>
-                  <th className="px-4 py-3 font-medium">المتبقي</th>
                 </tr>
               </thead>
               <tbody>
@@ -192,25 +160,11 @@ export function DieselMonthlyTable({
                     <td className="px-4 py-3 text-zinc-600" dir="ltr">
                       {formatNumber(r.trips_count)}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-zinc-700" dir="ltr">
-                      {formatCurrency(r.total_trip_amount, currencySymbol)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-zinc-600" dir="ltr">
-                      {formatCurrency(r.total_trabs, currencySymbol)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap font-semibold text-amber-700" dir="ltr">
-                      {formatCurrency(r.diesel_amount, currencySymbol)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-zinc-600" dir="ltr">
-                      {formatCurrency(r.vehicle_expenses, currencySymbol)}
-                    </td>
                     <td
-                      className={`px-4 py-3 whitespace-nowrap font-bold ${
-                        r.remaining < 0 ? "text-red-600" : "text-emerald-700"
-                      }`}
+                      className="px-4 py-3 whitespace-nowrap font-semibold text-amber-700"
                       dir="ltr"
                     >
-                      {formatCurrency(r.remaining, currencySymbol)}
+                      {formatCurrency(r.diesel_amount, currencySymbol)}
                     </td>
                   </tr>
                 ))}
@@ -221,22 +175,10 @@ export function DieselMonthlyTable({
                     الإجمالي
                   </td>
                   <td className="px-4 py-3" dir="ltr">
-                    {formatNumber(totals.trips_count)}
+                    {formatNumber(totals.trips)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap" dir="ltr">
-                    {formatCurrency(totals.total_trip_amount, currencySymbol)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap" dir="ltr">
-                    {formatCurrency(totals.total_trabs, currencySymbol)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap" dir="ltr">
-                    {formatCurrency(totals.diesel_amount, currencySymbol)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap" dir="ltr">
-                    {formatCurrency(totals.vehicle_expenses, currencySymbol)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap" dir="ltr">
-                    {formatCurrency(totals.remaining, currencySymbol)}
+                    {formatCurrency(totals.diesel, currencySymbol)}
                   </td>
                 </tr>
               </tfoot>
