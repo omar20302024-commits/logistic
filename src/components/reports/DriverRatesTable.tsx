@@ -25,8 +25,11 @@ export type DriverRouteTrabRow = {
  * 🔑 المصدر هو جدول الرحلات نفسه، كما في كشف حساب السائق — لا جداول
  * التسعيرة. فما يُعرض هو ما صُرف، لا ما اتُّفق عليه.
  *
- * والصفّ لكل (سائق، خط، ترب): فلو تغيّر الترب على نفس الخط ظهر كل مبلغ
- * في صفّه بعدد رحلاته، ولم يُخفِه متوسّط.
+ * والصفّ لكل (سائق، خط، ترب): فلو تغيّر الترب على نفس الخط بين رحلة وأخرى
+ * ظهر كل مبلغ في صفّه. متوسّطٌ هنا كان سيُخفي الاختلاف.
+ *
+ * 📌 أربعة أعمدة لا غير بطلب المستخدم: السائق، من، إلى، ترب الرحلة.
+ *    الأعداد والإجماليات لها تقاريرها، وهذا كشف مرجعي يُقرأ في لمحة.
  */
 export function DriverRatesTable({
   rows,
@@ -67,14 +70,6 @@ export function DriverRatesTable({
     );
   });
 
-  const totals = visible.reduce(
-    (a, r) => ({
-      trips: a.trips + Number(r.trips_count || 0),
-      trabs: a.trabs + Number(r.total_trabs || 0),
-    }),
-    { trips: 0, trabs: 0 }
-  );
-
   // عدد السائقين لا عدد الصفوف: الإدارة تسأل «كم سائقاً» لا «كم خط سير»
   const driversCount = new Set(visible.map((r) => r.driver_id)).size;
 
@@ -86,34 +81,19 @@ export function DriverRatesTable({
         fileName: `ترب-خطوط-السير-${from}-${to}`,
         sheetName: "ترب خطوط السير",
         title: "ترب خطوط السير من الرحلات",
-        subtitle: `${orgName}  ·  من ${from} إلى ${to}  ·  ${formatNumber(
-          driversCount
-        )} سائقاً  ·  ${formatNumber(totals.trips)} رحلة`,
+        subtitle: `${orgName}  ·  من ${from} إلى ${to}  ·  ${formatNumber(driversCount)} سائقاً`,
         columns: [
-          { header: "السائق", key: "driver", width: 24 },
-          { header: "الفئة", key: "kind", width: 12 },
-          { header: "المورّد", key: "vendor", width: 20 },
-          { header: "من", key: "from", width: 20 },
-          { header: "إلى", key: "to", width: 20 },
-          { header: "ترب الرحلة", key: "base", width: 14, money: true },
-          { header: "عدد الرحلات", key: "count", width: 12, ltr: true },
-          { header: "إجمالي التربات", key: "total", width: 16, money: true },
+          { header: "السائق", key: "driver", width: 26 },
+          { header: "من", key: "from", width: 22 },
+          { header: "إلى", key: "to", width: 22 },
+          { header: "ترب الرحلة", key: "base", width: 16, money: true },
         ],
         rows: visible.map((r) => ({
           driver: r.driver_name,
-          kind: r.employment_type === "external" ? "خارجي" : "داخلي",
-          vendor: r.vendor_name ?? "—",
           from: r.from_location,
           to: r.to_location,
           base: r.base_payment,
-          count: r.trips_count,
-          total: r.total_trabs,
         })),
-        totals: {
-          driver: "الإجمالي",
-          count: totals.trips,
-          total: totals.trabs,
-        },
       });
     } catch {
       toast.error("تعذّر إنشاء ملف Excel");
@@ -207,13 +187,9 @@ export function DriverRatesTable({
               <thead>
                 <tr className="border-b border-zinc-100 text-right text-xs text-zinc-500">
                   <th className="px-4 py-3 font-medium">السائق</th>
-                  <th className="px-4 py-3 font-medium">الفئة</th>
-                  <th className="px-4 py-3 font-medium">المورّد</th>
                   <th className="px-4 py-3 font-medium">من</th>
                   <th className="px-4 py-3 font-medium">إلى</th>
                   <th className="px-4 py-3 font-medium">ترب الرحلة</th>
-                  <th className="px-4 py-3 font-medium">عدد الرحلات</th>
-                  <th className="px-4 py-3 font-medium">إجمالي التربات</th>
                 </tr>
               </thead>
               <tbody>
@@ -230,16 +206,6 @@ export function DriverRatesTable({
                       <td className="px-4 py-2.5 font-medium text-zinc-900">
                         {firstOfDriver ? r.driver_name : ""}
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-zinc-500">
-                        {firstOfDriver
-                          ? r.employment_type === "external"
-                            ? "خارجي"
-                            : "داخلي"
-                          : ""}
-                      </td>
-                      <td className="px-4 py-2.5 text-xs text-zinc-600">
-                        {firstOfDriver ? (r.vendor_name ?? "—") : ""}
-                      </td>
                       <td className="px-4 py-2.5 text-zinc-700">{r.from_location}</td>
                       <td className="px-4 py-2.5 text-zinc-700">{r.to_location}</td>
                       <td
@@ -248,29 +214,10 @@ export function DriverRatesTable({
                       >
                         {formatCurrency(r.base_payment, currencySymbol)}
                       </td>
-                      <td className="px-4 py-2.5 text-zinc-600" dir="ltr">
-                        {formatNumber(r.trips_count)}
-                      </td>
-                      <td className="px-4 py-2.5 whitespace-nowrap text-zinc-900" dir="ltr">
-                        {formatCurrency(r.total_trabs, currencySymbol)}
-                      </td>
                     </tr>
                   );
                 })}
               </tbody>
-              <tfoot>
-                <tr className="bg-zinc-50 font-bold text-zinc-900">
-                  <td className="px-4 py-3" colSpan={6}>
-                    الإجمالي ({formatNumber(driversCount)} سائقاً)
-                  </td>
-                  <td className="px-4 py-3" dir="ltr">
-                    {formatNumber(totals.trips)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap" dir="ltr">
-                    {formatCurrency(totals.trabs, currencySymbol)}
-                  </td>
-                </tr>
-              </tfoot>
             </table>
           </div>
         )}
@@ -278,8 +225,8 @@ export function DriverRatesTable({
 
       <p className="text-[11px] text-zinc-500 print:text-zinc-600">
         المصدر رحلات النظام نفسها، كما في كشف حساب السائق. و«ترب الرحلة» هو الأساسي على
-        الخط، و«إجمالي التربات» يشمل المواقع الإضافية والمبيت. وتكرار الخط بمبلغين يعني
-        أن الترب اختلف بين رحلة وأخرى.
+        الخط — بلا المواقع الإضافية ولا المبيت. وظهور الخط نفسه بمبلغين يعني أن الترب
+        اختلف بين رحلة وأخرى.
       </p>
     </div>
   );
