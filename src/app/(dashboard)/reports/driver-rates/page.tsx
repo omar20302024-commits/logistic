@@ -1,19 +1,35 @@
 import { createClient } from "@/lib/supabase/server";
 import {
   DriverRatesTable,
-  type DriverRateRow,
+  type DriverRouteTrabRow,
 } from "@/components/reports/DriverRatesTable";
 import { ErrorBanner } from "@/components/ui/ErrorBanner";
 import { ReviewedByFooter } from "@/components/ui/ReviewedByFooter";
 
-// ترب خطوط السير لكل سائق (0061) — كشف يُقدَّم للإدارة.
-// يعرض الترب المطبَّق فعلاً بعد ترتيب الأولوية: خاص بالسائق ← مورّده ← العام.
+// ترب خطوط السير من الرحلات الفعلية (0062) — كشف يُقدَّم للإدارة.
+// المصدر جدول الرحلات نفسه كما في كشف حساب السائق، لا جداول التسعيرة.
 
-export default async function DriverRatesReportPage() {
+function firstDayOfMonth() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+}
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export default async function DriverRatesReportPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
+  const params = await searchParams;
+  const from = params.from || firstDayOfMonth();
+  const to = params.to || today();
+
   const supabase = await createClient();
 
   const [{ data: rows, error }, { data: settings }] = await Promise.all([
-    supabase.rpc("fn_driver_rates_report"),
+    supabase.rpc("fn_driver_route_trabs", { p_from: from, p_to: to }),
     supabase.from("settings").select("org_name, currency_symbol, reviewed_by").single(),
   ]);
 
@@ -22,17 +38,19 @@ export default async function DriverRatesReportPage() {
       <div className="print:hidden">
         <h1 className="text-xl font-bold text-zinc-900">ترب خطوط السير</h1>
         <p className="text-sm text-zinc-500">
-          كم يأخذ كل سائق على كل خط سير — للتصدير إلى Excel أو الطباعة
+          كم أخذ كل سائق على كل خط سير — من رحلات النظام خلال الفترة المحددة
         </p>
       </div>
 
       <ErrorBanner
         error={error}
-        hint="تأكد من تشغيل ملف SQL رقم 0061 (تقرير ترب خطوط السير)."
+        hint="تأكد من تشغيل ملف SQL رقم 0062 (ترب خطوط السير من الرحلات)."
       />
 
       <DriverRatesTable
-        rows={(rows ?? []) as DriverRateRow[]}
+        rows={(rows ?? []) as DriverRouteTrabRow[]}
+        from={from}
+        to={to}
         orgName={settings?.org_name ?? "مؤسستي"}
         currencySymbol={settings?.currency_symbol ?? "ر.س"}
       />
