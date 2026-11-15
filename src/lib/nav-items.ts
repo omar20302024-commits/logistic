@@ -76,6 +76,7 @@ export const navGroups: NavGroup[] = [
       { label: "ترب خطوط السير", href: "/reports/driver-rates", icon: Route },
       { label: "تقرير الديزل الشهري", href: "/reports/diesel-monthly", icon: Fuel },
       { label: "إيراد السائق/السيارة", href: "/reports/driver-income", icon: Wallet },
+      { label: "بنود مصاريف السائقين", href: "/reports/driver-expenses", icon: Receipt },
       { label: "تقرير الديزل (بالرحلة)", href: "/reports/diesel", icon: Fuel },
       { label: "ربحية عقود الإيجار", href: "/rentals/report", icon: PieChart },
       { label: "التقرير المالي", href: "/reports/financial", icon: PieChart },

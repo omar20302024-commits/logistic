@@ -21,6 +21,8 @@ export const custodyReasonLabels: Record<string, string> = {
 
 export const EXPENSE_CATEGORIES = [
   "ديزل",
+  "غسيل",
+  "بنشر",
   "صيانة",
   "إطارات",
   "مخالفات",
