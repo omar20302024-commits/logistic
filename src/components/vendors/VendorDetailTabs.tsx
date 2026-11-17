@@ -12,6 +12,7 @@ import { VendorPayableStatement } from "./VendorPayableStatement";
 import {
   createVendorAdvance,
   deleteVendorAdvance,
+  deleteVendorSettlement,
   settleVendor,
   createVendorRouteRate,
   deleteVendorRouteRate,
@@ -91,6 +92,8 @@ export function VendorDetailTabs({
   // فارغ = المستحق كاملاً
   const [paidInput, setPaidInput] = useState("");
   const [deleting, setDeleting] = useState<VendorAdvanceRecord | null>(null);
+  const [deletingSettlement, setDeletingSettlement] =
+    useState<VendorSettlementRecord | null>(null);
   const [saving, setSaving] = useState(false);
 
   const [advDate, setAdvDate] = useState(new Date().toISOString().slice(0, 10));
@@ -174,6 +177,23 @@ export function VendorDetailTabs({
     }
     toast.success("تم حذف السلفة");
     setDeleting(null);
+    router.refresh();
+  };
+
+  /**
+   * إلغاء تصفية أُنشئت بالخطأ. الدالة في SQL ترفض الإلغاء إن كان متبقّي
+   * السند قد دخل في تصفية أحدث، وتسمّيها في رسالتها — فتُعرض كما جاءت.
+   */
+  const handleDeleteSettlement = async () => {
+    if (!deletingSettlement) return;
+    const result = await deleteVendorSettlement(vendorId, deletingSettlement.id);
+    if (result.error) {
+      toast.error(result.error);
+      setDeletingSettlement(null);
+      return;
+    }
+    toast.success("أُلغيت التصفية وعادت رحلاتها وسلفها مفتوحة");
+    setDeletingSettlement(null);
     router.refresh();
   };
 
@@ -534,6 +554,14 @@ export function VendorDetailTabs({
                             متبقٍّ {formatCurrency(Number(st.carried_amount), currencySymbol)}
                           </span>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => setDeletingSettlement(st)}
+                          className="rounded-lg p-1 text-zinc-300 hover:bg-red-50 hover:text-red-600"
+                          title="إلغاء التصفية"
+                        >
+                          <Trash2 size={13} />
+                        </button>
                       </span>
                     </li>
                   ))}
@@ -667,6 +695,20 @@ export function VendorDetailTabs({
         onConfirm={handleDeleteAdvance}
         title="حذف السلفة"
         description={`ستُحذف سلفة ${deleting?.date ?? ""} ويزيد المستحق للمورّد بقيمتها.`}
+      />
+
+      <ConfirmDialog
+        open={!!deletingSettlement}
+        onClose={() => setDeletingSettlement(null)}
+        onConfirm={handleDeleteSettlement}
+        title="إلغاء التصفية"
+        description={`سيُحذف سند ${
+          deletingSettlement?.settlement_number ?? ""
+        }، وتعود رحلاته وسلفه ورصيده الافتتاحي مفتوحةً قابلةً للتصفية من جديد${
+          Number(deletingSettlement?.carried_in ?? 0) > 0
+            ? "، ويعود متبقّي السند السابق مستحقاً كما كان"
+            : ""
+        }. السند المطبوع الذي سُلّم للمورّد لن يعود له أصلٌ في النظام — تأكّد أنه أُنشئ بالخطأ.`}
       />
     </div>
   );

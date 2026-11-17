@@ -215,6 +215,39 @@ export async function settleVendor(
   return { error: null, settlementId: data as string };
 }
 
+/**
+ * إلغاء تصفية مورّد أُنشئت بالخطأ (0066).
+ *
+ * 🔑 المنطق كله في fn_delete_vendor_settlement: فكّ وسم الرحلات والسلف
+ *    والرصيد الافتتاحي ومتبقّي السند السابق، ثم الحذف — دفعةً واحدة.
+ *    والحذف المباشر من الجدول هنا كان سيترك الحارس بلا عمل.
+ */
+export async function deleteVendorSettlement(
+  vendorId: string,
+  settlementId: string
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fn_delete_vendor_settlement", {
+    p_settlement_id: settlementId,
+  });
+
+  if (error) {
+    // رسائل الدالة عربية وتسمّي السبب (سند أحدث حمل المتبقّي)، فتُمرَّر كما هي
+    if (/لا يمكن إلغاء|غير موجودة/.test(error.message ?? "")) {
+      return { error: error.message };
+    }
+    if (error.code === "PGRST202") {
+      return { error: "شغّل ملف SQL رقم 0066 (إلغاء التصفية) ثم أعد المحاولة" };
+    }
+    return { error: "تعذّر إلغاء التصفية" };
+  }
+
+  revalidatePath(`/vendors/${vendorId}`);
+  revalidatePath("/vendors");
+  revalidatePath("/trips");
+  return { error: null };
+}
+
 // ----------------------------------------------------------------------------
 // تسعيرة المورّد (0047): سعر خط السير له هو ولكل سائقيه
 // ----------------------------------------------------------------------------
